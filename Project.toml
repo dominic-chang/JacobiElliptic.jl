@@ -1,7 +1,5 @@
-[deps]
-ArbNumerics = "7e558dbc-694d-5a72-987c-6f4ebed21442"
-BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-Cthulhu = "f68482b8-f384-11e8-15f7-abe071a5a75f"
-Elliptic = "b305315f-e792-5b7a-8f41-49f472929428"
-Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
-StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
+name = "FastElliptic"
+authors = ["dominicchang <dchang3419@hotmail.com>"]
+uuid = "2a8b799e-c098-4961-872a-356c768d184c"
+version = "0.1.0"
+
