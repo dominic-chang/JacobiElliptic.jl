@@ -1,4 +1,5 @@
 [deps]
+ArbNumerics = "7e558dbc-694d-5a72-987c-6f4ebed21442"
 BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 Cthulhu = "f68482b8-f384-11e8-15f7-abe071a5a75f"
 Elliptic = "b305315f-e792-5b7a-8f41-49f472929428"
