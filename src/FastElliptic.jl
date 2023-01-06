@@ -258,7 +258,6 @@ function F(φ, m)
     end
     return _F(φ, m)
 end
-end
 
 function _rawB(φ, m)
     m == 0.0 && return φ
@@ -363,7 +362,7 @@ end
 
 
 
-funcs = ((:SN, :_SN), (:CN, :_CN), (:DN, :_DN))
+funcs = ((:sn, :_SN), (:cn, :_CN), (:dn, :_DN))
 for (enum, funcpair) in enumerate(funcs)
     (func, helper) = funcpair
     @eval begin
@@ -376,10 +375,20 @@ for (enum, funcpair) in enumerate(funcs)
             return _XNloop(u, m, u > 0 ? max(6+Int(floor(log2(u))), 1) : 0)[$enum]
         end
 
-        $(func)(u, m) = $(helper)(u, m, _Kscreen(m), _K(m), √(1-m))
+        $(func)(u, m) = $(helper)(u, m, _Kscreen(m), K(m), √(1-m))
     end
 end
 
+_sc_helper(jacobituple) = jacobituple[1]/jacobituple[2]
+function _SC(u, m, Kscreen, Kactual, kp) 
+    u = u > 4Kscreen ?  u % 4Kactual : u
+    u = u > 2Kscreen ? u - 2Kactual : u
+    u > Kscreen && return _sc_helper(fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
+    u > 0.5Kscreen && return _sc_helper(fold_0_50(Kactual - u, m, Kscreen, Kactual, kp))
+    u > 0.25Kscreen && return _sc_helper(fold_0_25(Kactual/2 - u, m, kp))
+    return _sc_helper(_XNloop(u, m, u > 0 ? max(6+Int(floor(log2(u))), 1) : 0))
+end
 
+sc(u, m) = _SC(u, m, _Kscreen(m), K(m), √(1-m))
 
-
+end
