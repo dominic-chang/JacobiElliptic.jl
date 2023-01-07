@@ -322,7 +322,7 @@ function _XNloop(u, m ,n)
         cn2 = cn^2
         dn2 = dn^2
 
-        den = 1/(1.0-0.5*sn2^2)
+        den = 1/(1.0-m*sn2^2)
         sn = 2.0*(sn*cn*dn)*den
         cn = (cn2-sn2*dn2)*den
         dn = (dn2-m*sn2*cn2)*den
@@ -359,8 +359,6 @@ function fold_1_00(u1, m, Kscreen, Kactual, kp)
     end
     return cn/dn, -kp*sn/dn, kp/dn
 end
-
-
 
 funcs = ((:sn, :_SN), (:cn, :_CN), (:dn, :_DN))
 for (enum, funcpair) in enumerate(funcs)
