@@ -329,9 +329,38 @@ function _XNloop(u, m ,n)
     end
     return sn, cn, dn
 end
+function _ΔXNloop(u, m ,n)
+
+    up = u / (2.0^n)
+    sn = up*(up^2*(up^2*((m*((-(m/5040)-3/112)*m-3/112)-1/5040)*up^2+(m/120+7/60)*m+1/120)-m/6-1/6)+1)
+    cn = 1 + up^2*(-(1/2)+up^2*(1/24+m/6+up^2*(-(1/720)+(-(11/180)-m/45)*m+(-(1/40320)+m*(-(17/1680)+(-(19/840)-m/630)*m))*up^2)))
+    dn = m*(m*(up^4*(1/24-(11*up^2)/180)-(m*up^6)/720) + (up^2*(1/6-up^2/45)-1/2)*up^2) + 1 
+    Δsn = up-sn
+    Δcn = 1-cn
+    Δdn = 1-dn
+
+
+    for _ in 1:n
+        sn2 = sn^2
+        
+        den = 1/(1.0-m*sn2^2)
+        Δsn = 2.0*(Δsn*cn*dn + up*(Δcn + Δdn - Δcn*Δdn - m*sn2^2))*den
+        Δcn = ((1+cn)*Δcn + (1-2*m*sn2)*sn2)*den
+        Δdn = ((1+dn)*Δdn + m*(1-2*sn2)*sn2)*den
+
+
+        up *= 2
+        sn = up - Δsn
+        cn = 1 - Δcn
+        dn = 1 - Δdn
+
+    end
+    return sn, cn, dn
+end
+
 function fold_0_25(u1, m, kp) 
     u1 == 0 && return 0, 1, 1
-    sn, cn, dn = _XNloop(u1, m, u1 > 0 ? max(6+Int(floor(log2(u1))), 1) : 0)
+    sn, cn, dn = _ΔXNloop(u1, m, u1 > 0 ? max(6+Int(floor(log2(u1))), 1) : 0)
     den = 1/(1+kp-m*sn^2)
     return den*√(1+kp)*(cn*dn-kp*sn), den*√(kp*(1+kp))*(cn+sn*dn), den*√kp*((1+kp)*dn+m*sn*cn)
 end
@@ -342,7 +371,7 @@ function fold_0_50(u1, m, Kscreen, Kactual, kp)
     if u1 > 0.25Kscreen 
         sn, cn, dn = fold_0_25(Kactual/2 - u1, m, kp)
     else
-        sn, cn, dn =  _XNloop(u1, m, u1 > 0 ?  max(6+Int(floor(log2(u1))), 1) : 0)
+        sn, cn, dn =  _ΔXNloop(u1, m, u1 > 0 ?  max(6+Int(floor(log2(u1))), 1) : 0)
     end
     return cn/dn, kp*sn/dn, kp/dn
 end
@@ -355,7 +384,8 @@ function fold_1_00(u1, m, Kscreen, Kactual, kp)
     elseif u1 > 0.25Kscreen 
         sn, cn, dn = fold_0_25(Kactual/2 - u1, m, kp)
     else
-        sn, cn, dn = _XNloop(u1, m, u1 > 0 ?  max(6+Int(floor(log2(u1))), 1) : 0)
+        #sn, cn, dn = _XNloop(u1, m, u1 > 0 ?  max(6+Int(floor(log2(u1))), 1) : 0)
+        sn, cn, dn = _ΔXNloop(u1, m, u1 > 0 ?  max(6+Int(floor(log2(u1))), 1) : 0)
     end
     return cn/dn, -kp*sn/dn, kp/dn
 end
@@ -370,7 +400,7 @@ for (enum, funcpair) in enumerate(funcs)
             u > Kscreen && return fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[$enum]
             u > 0.5Kscreen && return fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[$enum]
             u > 0.25Kscreen && return fold_0_25(Kactual/2 - u, m, kp)[$enum]
-            return _XNloop(u, m, u > 0 ? max(6+Int(floor(log2(u))), 1) : 0)[$enum]
+            return _ΔXNloop(u, m, u > 0 ? max(6+Int(floor(log2(u))), 1) : 0)[$enum]
         end
 
         $(func)(u, m) = $(helper)(u, m, _Kscreen(m), K(m), √(1-m))
