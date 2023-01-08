@@ -219,15 +219,16 @@ end
 
 function _rawF(φ, m)
     m == 0.0 && return φ
-    m == 1.0 && return atanh(sin(φ))
+    sinφ = sin(φ)
+    m == 1.0 && return atanh(sinφ)
     signφ = sign(φ)
     φ = abs(φ)
     
-    sin(φ)^2 ≤ 0.9 && return signφ*asn(sin(φ), m)
+    sinφ^2 ≤ 0.9 && return signφ*asn(sinφ, m)
 
     mc = 1 - m
 
-    c = sin(π/2-φ)
+    c = sin(HALF_PI-φ)
     z = c/√(mc+m*c^2)
     z^2 ≤ 0.9 && return signφ*(K(m) - asn(z, m))
 
@@ -237,7 +238,7 @@ function _rawF(φ, m)
 end
 
 function _F(φ, m)
-    abs(φ) < π/2 &&  return _rawF(φ, m)
+    abs(φ) < HALF_PI &&  return _rawF(φ, m)
     j = round(φ/π)
     return 2*j*K(m) + _rawF(φ - j*π, m)
 end
@@ -269,7 +270,7 @@ function _rawB(φ, m)
 
     mc = 1 - m
 
-    c = sin(π/2-φ)
+    c = sin(HALF_PI-φ)
     z = c/√(mc+m*c^2)
     z^2 ≤ 0.9 && return signφ*(K(m) - asn(z, m))
 
