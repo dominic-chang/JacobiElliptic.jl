@@ -313,9 +313,9 @@ end
 function _XNloop(u, m ,n)
 
     up = u / (2.0^n)
-    sn = up*(up^2*(up^2*((m*((-(m/5040)-3/112)*m-3/112)-1/5040)*up^2+(m/120+7/60)*m+1/120)-m/6-1/6)+1)
-    cn = 1 + up^2*(-(1/2)+up^2*(1/24+m/6+up^2*(-(1/720)+(-(11/180)-m/45)*m+(-(1/40320)+m*(-(17/1680)+(-(19/840)-m/630)*m))*up^2)))
-    dn = m*(m*(up^4*(1/24-(11*up^2)/180)-(m*up^6)/720) + (up^2*(1/6-up^2/45)-1/2)*up^2) + 1 
+    sn = up*(up2*(up2*((m*((-(m/5040)-3/112)*m-3/112)-1/5040)*up2+(m/120+7/60)*m+1/120)-m/6-1/6)+1)
+    cn = 1 + up2*(-(1/2)+up2*(1/24+m/6+up2*(-(1/720)+(-(11/180)-m/45)*m+(-(1/40320)+m*(-(17/1680)+(-(19/840)-m/630)*m))*up2)))
+    dn = m*(m*(up^4*(1/24-(11*up2)/180)-(m*up^6)/720) + (up2*(1/6-up2/45)-1/2)*up2) + 1 
 
     for _ in 1:n
         sn2 = sn^2
@@ -332,9 +332,10 @@ end
 function _ΔXNloop(u, m ,n)
 
     up = u / (2.0^n)
-    sn = up*(up^2*(up^2*((m*((-(m/5040)-3/112)*m-3/112)-1/5040)*up^2+(m/120+7/60)*m+1/120)-m/6-1/6)+1)
-    cn = 1 + up^2*(-(1/2)+up^2*(1/24+m/6+up^2*(-(1/720)+(-(11/180)-m/45)*m+(-(1/40320)+m*(-(17/1680)+(-(19/840)-m/630)*m))*up^2)))
-    dn = m*(m*(up^4*(1/24-(11*up^2)/180)-(m*up^6)/720) + (up^2*(1/6-up^2/45)-1/2)*up^2) + 1 
+    up2 = up^2
+    sn = up*(up2*(up2*((m*((-(m/5040)-3/112)*m-3/112)-1/5040)*up2+(m/120+7/60)*m+1/120)-m/6-1/6)+1)
+    cn = 1 + up2*(-(1/2)+up2*(1/24+m/6+up2*(-(1/720)+(-(11/180)-m/45)*m+(-(1/40320)+m*(-(17/1680)+(-(19/840)-m/630)*m))*up2)))
+    dn = m*(m*(up2^2*(1/24-(11*up2)/180)-(m*up2^3)/720) + (up2*(1/6-up2/45)-1/2)*up2) + 1 
     Δsn = up-sn
     Δcn = 1-cn
     Δdn = 1-dn
@@ -439,34 +440,44 @@ _SD(u, m) = _rawSD(u, m, K(m), K(m), √(1-m))
 
 
 function sn(u, m)  
-    m < 1 && return _SN(u, m)
+    signu = sign(u)
+    u = abs(u)
+    m < 1 && return signu*_SN(u, m)
     sqrtm = √m
-    return _SN(u*sqrtm, 1/m)/sqrtm
+    return signu*_SN(u*sqrtm, 1/m)/sqrtm
 end
 
 function cn(u, m)  
+    u = abs(u)
     m < 1 && return _CN(u, m)
     sqrtm = √m
     return _DN(u*sqrtm, 1/m)
 end
 
 function dn(u, m)  
+    u = abs(u)
     m < 1 && return _DN(u, m)
     sqrtm = √m
     return _CN(u*sqrtm, 1/m)
 end
 
 function sc(u, m)
-    m < 1 && return _SC(u, m)
+    signu = sign(u)
+    u = abs(u)
+
+    m < 1 && return signu*_SC(u, m)
     sqrtm = √m
-    return _SD(u*sqrtm, 1/m)/sqrtm
+    return signu*_SD(u*sqrtm, 1/m)/sqrtm
 
 end
 
 function sd(u, m)
-    m < 1 && return _SD(u, m)
+    signu = sign(u)
+    u = abs(u)
+
+    m < 1 && return signu*_SD(u, m)
     sqrtm = √m
-    return _SC(u*sqrtm, 1/m)/sqrtm
+    return signu*_SC(u*sqrtm, 1/m)/sqrtm
 
 end
 
