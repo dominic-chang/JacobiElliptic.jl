@@ -390,7 +390,7 @@ function fold_1_00(u1, m, Kscreen, Kactual, kp)
     return cn/dn, -kp*sn/dn, kp/dn
 end
 
-funcs = ((:sn, :_SN), (:cn, :_CN), (:dn, :_DN))
+funcs = ((:_SN, :_rawSN), (:_CN, :rawCN), (:_DN, :rawDN))
 for (enum, funcpair) in enumerate(funcs)
     (func, helper) = funcpair
     @eval begin
@@ -407,16 +407,67 @@ for (enum, funcpair) in enumerate(funcs)
     end
 end
 
+function sn(u, m)  
+
+    m < 1 && return _SN(u, m)
+    sqrtm = √m
+    return sn(u*sqrtm, 1/m)/sqrtm
+
+end
+
 _sc_helper(jacobituple) = jacobituple[1]/jacobituple[2]
-function _SC(u, m, Kscreen, Kactual, kp) 
+function _rawSC(u, m, Kscreen, Kactual, kp) 
     u = u > 4Kscreen ?  u % 4Kactual : u
     u = u > 2Kscreen ? u - 2Kactual : u
     u > Kscreen && return _sc_helper(fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
     u > 0.5Kscreen && return _sc_helper(fold_0_50(Kactual - u, m, Kscreen, Kactual, kp))
     u > 0.25Kscreen && return _sc_helper(fold_0_25(Kactual/2 - u, m, kp))
-    return _sc_helper(_XNloop(u, m, u > 0 ? max(6+Int(floor(log2(u))), 1) : 0))
+    return _sc_helper(_ΔXNloop(u, m, u > 0 ? max(6+Int(floor(log2(u))), 1) : 0))
+end
+_SC(u, m) = _rawSC(u, m, _Kscreen(m), K(m), √(1-m))
+
+_sd_helper(jacobituple) = jacobituple[1]/jacobituple[3]
+function _rawSD(u, m, Kscreen, Kactual, kp) 
+    u = u > 4Kscreen ?  u % 4Kactual : u
+    u = u > 2Kscreen ? u - 2Kactual : u
+    u > Kscreen && return _sd_helper(fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
+    u > 0.5Kscreen && return _sd_helper(fold_0_50(Kactual - u, m, Kscreen, Kactual, kp))
+    u > 0.25Kscreen && return _sd_helper(fold_0_25(Kactual/2 - u, m, kp))
+    return _sd_helper(_ΔXNloop(u, m, u > 0 ? max(6+Int(floor(log2(u))), 1) : 0))
+end
+_SD(u, m) = _rawSD(u, m, _Kscreen(m), K(m), √(1-m))
+
+
+function sn(u, m)  
+    m < 1 && return _SN(u, m)
+    sqrtm = √m
+    return _SN(u*sqrtm, 1/m)/sqrtm
 end
 
-sc(u, m) = _SC(u, m, _Kscreen(m), K(m), √(1-m))
+function cn(u, m)  
+    m < 1 && return _CN(u, m)
+    sqrtm = √m
+    return _DN(u*sqrtm, 1/m)
+end
+
+function dn(u, m)  
+    m < 1 && return _DN(u, m)
+    sqrtm = √m
+    return _CN(u*sqrtm, 1/m)
+end
+
+function sc(u, m)
+    m < 1 && return _SC(u, m)
+    sqrtm = √m
+    return _SD(u*sqrtm, 1/m)/sqrtm
+
+end
+
+function sd(u, m)
+    m < 1 && return _SD(u, m)
+    sqrtm = √m
+    return _SC(u*sqrtm, 1/m)/sqrtm
+
+end
 
 end
