@@ -403,7 +403,7 @@ for (enum, funcpair) in enumerate(funcs)
             return _ΔXNloop(u, m, u > 0 ? max(6+Int(floor(log2(u))), 1) : 0)[$enum]
         end
 
-        $(func)(u, m) = $(helper)(u, m, _Kscreen(m), K(m), √(1-m))
+        $(func)(u, m) = $(helper)(u, m, K(m), K(m), √(1-m))
     end
 end
 
@@ -424,7 +424,7 @@ function _rawSC(u, m, Kscreen, Kactual, kp)
     u > 0.25Kscreen && return _sc_helper(fold_0_25(Kactual/2 - u, m, kp))
     return _sc_helper(_ΔXNloop(u, m, u > 0 ? max(6+Int(floor(log2(u))), 1) : 0))
 end
-_SC(u, m) = _rawSC(u, m, _Kscreen(m), K(m), √(1-m))
+_SC(u, m) = _rawSC(u, m, K(m), K(m), √(1-m))
 
 _sd_helper(jacobituple) = jacobituple[1]/jacobituple[3]
 function _rawSD(u, m, Kscreen, Kactual, kp) 
@@ -435,7 +435,7 @@ function _rawSD(u, m, Kscreen, Kactual, kp)
     u > 0.25Kscreen && return _sd_helper(fold_0_25(Kactual/2 - u, m, kp))
     return _sd_helper(_ΔXNloop(u, m, u > 0 ? max(6+Int(floor(log2(u))), 1) : 0))
 end
-_SD(u, m) = _rawSD(u, m, _Kscreen(m), K(m), √(1-m))
+_SD(u, m) = _rawSD(u, m, K(m), K(m), √(1-m))
 
 
 function sn(u, m)  
