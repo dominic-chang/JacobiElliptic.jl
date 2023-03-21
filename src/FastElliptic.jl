@@ -1,6 +1,8 @@
 module FastElliptic
-
 export E, F, K
+
+include("./FastElliptic32.jl")
+
 
 const HALF_PI = π/2
 const ONE_DIV_PI = 0.3183098861837907
@@ -9,7 +11,7 @@ const ONE_DIV_PI = 0.3183098861837907
 # Complete Elliptic Integrals (https://doi.org/10.1007/s10569-009-9228-z)
 ############################################################################
 
-function K( m ) 
+function K( m) 
     if m < 1.
         poly1(x)  = 1.5910034537907922 + (x * (0.41600074399178694 + (x * (0.24579151426410342 + (x * (0.17948148291490615 + (x * (0.14455605708755515 + (x * (0.12320099331242772 + (x * (0.10893881157429353 + (x * (0.09885340987159291 + (x * (0.09143962920174975 + (x * (0.0858425915954139 + (x * 0.08154111871830322)))))))))))))))))))
         poly2(x)  = 1.63525673226458 + (x * (0.4711906261487323 + (x * (0.3097284108314996 + (x * (0.2522083117731357 + (x * (0.22672562321968465 + (x * (0.21577444672958598 + (x * (0.21310877187734892 + (x * (0.21602912460518828 + (x * (0.2232558316330579 + (x * (0.23418050129420992 + (x * (0.24855768297226408 + (x * 0.26636380989261754)))))))))))))))))))))
@@ -235,6 +237,7 @@ function asn(s, m)
         p *= 2
         y < yA && return p*√y*serf(y, m)
     end
+    return NaN
 end
 
 function acn(c, mc)
@@ -249,6 +252,7 @@ function acn(c, mc)
         x = (√x + d)/(1+d)
         p *= 2
     end
+    return NaN
 end
 
 function _rawF(φ, m)
@@ -299,7 +303,6 @@ end
 #https://doi-org.ezp-prod1.hul.harvard.edu/10.031007/s10569-008-9177-y
 #https://link.springer.com/article/10.1007/s10569-008-9177-y
 #TODO: Implement Δsn algorithm for half angle transformation
-const HALF_PI = 1.5707963267948966
 
 _Kscreen(m) = HALF_PI*(1.0 + m*(0.25 + m*(0.36 + m*(0.09765625 + m*0.07476806640625))))
 
@@ -331,6 +334,7 @@ end
 function _XNloop(u, m ,n)
 
     up = u / (2.0^n)
+    up2 = up^2
     sn = up*(up2*(up2*((m*((-(m/5040)-3/112)*m-3/112)-1/5040)*up2+(m/120+7/60)*m+1/120)-m/6-1/6)+1)
     cn = 1 + up2*(-(1/2)+up2*(1/24+m/6+up2*(-(1/720)+(-(11/180)-m/45)*m+(-(1/40320)+m*(-(17/1680)+(-(19/840)-m/630)*m))*up2)))
     dn = m*(m*(up^4*(1/24-(11*up2)/180)-(m*up^6)/720) + (up2*(1/6-up2/45)-1/2)*up2) + 1 
@@ -380,8 +384,10 @@ end
 
 function fold_0_25(u1, m, kp) 
     u1 == 0 && return 0, 1, 1
+    #return (u1 > 0 ? max(6+Int(floor(log2(u1))), 1) : 0)
     sn, cn, dn = _ΔXNloop(u1, m, u1 > 0 ? max(6+Int(floor(log2(u1))), 1) : 0)
     den = 1/(1+kp-m*sn^2)
+    #return sn, cn, dn
     return den*√(1+kp)*(cn*dn-kp*sn), den*√(kp*(1+kp))*(cn+sn*dn), den*√kp*((1+kp)*dn+m*sn*cn)
 end
 
@@ -423,7 +429,9 @@ for (enum, funcpair) in enumerate(funcs)
             return _ΔXNloop(u, m, u > 0 ? max(6+Int(floor(log2(u))), 1) : 0)[$enum]
         end
 
-        $(func)(u, m) = $(helper)(u, m, K(m), K(m), √(1-m))
+        function $(func)(u, m)
+            return $(helper)(u, m, K(m), K(m), √(1-m))
+        end
     end
 end
 
@@ -463,6 +471,7 @@ function sn(u, m)
     u = abs(u)
     m < 1 && return signu*_SN(u, m)
     sqrtm = √m
+    println("check")
     return signu*_SN(u*sqrtm, 1/m)/sqrtm
 end
 
