@@ -4,5 +4,5 @@ authors = ["dominicchang <dchang3419@hotmail.com>"]
 version = "0.1.0"
 
 [deps]
-BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-Metal = "dde4c033-4e86-420c-a63e-0dd931031962"
+Setfield = "efcf1570-3423-57d1-acb7-fd33fddbac46"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"

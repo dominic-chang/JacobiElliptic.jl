@@ -11,7 +11,7 @@ function K( m::Float32 )::Float32
         poly2(x::Float32)  = evalpoly(x, (1.63525673f0, 0.47119063f0, 0.30972841f0, 0.25220831f0, 0.22672562f0))
         poly3(x::Float32)  = evalpoly(x, (1.68575035f0, 0.54173185f0, 0.40152444f0, 0.36964247f0, 0.37606072f0))
         poly4(x::Float32)  = evalpoly(x, (1.74435060f0, 0.63486428f0, 0.53984256f0, 0.57189271f0, 0.67029514f0, 0.83258659f0))
-        poly5(x::Float32)  = evalpoly(x, (1.81388394f0, 0.76316325f0, 0.76192861f0, 0.95107465f0, 1.31518068, 1.92856069f0))
+        poly5(x::Float32)  = evalpoly(x, (1.81388394f0, 0.76316325f0, 0.76192861f0, 0.95107465f0, 1.31518068f0, 1.92856069f0))
         poly6(x::Float32)  = evalpoly(x, (1.89892491f0, 0.95052179f0, 1.15107759f0, 1.75023911f0, 2.95267681f0, 5.28580040f0))
         poly7(x::Float32)  = evalpoly(x, (2.00759840f0, 1.24845723f0, 1.92623466f0, 3.75128964f0, 8.11994455f0, 18.6657213f0))
         poly8(x::Float32)  = evalpoly(x, (2.15651565f0, 1.79180564f0, 3.82675129f0, 10.3867247f0, 31.4033141f0, 100.923704f0, 337.326828f0, 1158.70793f0))
@@ -261,213 +261,375 @@ function F(φ::Float32, m::Float32)::Float32
     return _F(φ, m)
 end
 
-#https://doi-org.ezp-prod1.hul.harvard.edu/10.031007/s10569f0-008f0-9177f0-y
-#https://link.springer.com/article/10.1007/s10569f0-008f0-9177f0-y
-#TODO: Implement Δsn algorithm for half0 angle transformation
 
-_Kscreen(m::Float32)::Float32 = HALF_PI32*(1.0f0 + m*(0.25f0 + m*(0.36f0 + m*(0.09765625f0 + m*0.07476806640625f0))))
+#Elliptic.jl Implementation
+export am,
+    sn, cn, dn, nn,
+    sd, cd, dd, nd,
+    sc, cc, dc, nc,
+    ss, cs, ds, ns
 
-function _rawΔSN(up::Float32, m::Float32, Kscreen::Float32, Kactual::Float32, kp::Float32)
-    if up > 0.031f0
-        u = up/2f0
-        return 2f0/(1f0-m*_rawSN(u,m,Kscreen, Kactual, kp)^4f0)*(_rawCN(u,m,Kscreen,Kactual, kp)*_rawDN(u,m,Kscreen,Kactual, kp)*_rawΔSN(u,m,Kscreen,Kactual, kp)+u*(_rawΔCN(u,m,Kscreen,Kactual, kp)+_rawΔDN(u,m,Kscreen,Kactual, kp)-_rawΔCN(u,m,Kscreen,Kactual, kp)*_rawΔDN(u,m,Kscreen,Kactual, kp)-m*_rawSN(u,m,Kscreen,Kactual, kp)^4f0))
-    else
-        return up - _rawSN(up, m, Kscreen, Kactual, kp)
+# Abramowitz & Stegun, section 16.4, p571
+#const _ambuf = Array{Float32}(undef, 10)
+function _am(u::Float32, m::Float32, tol::Float32)::Float32
+    _ambuf = @SVector Float32[0,0,0,0,0,0,0,0,0,0]#
+    if u == 0.f0 return 0.f0 end
+
+    sqrt_tol = sqrt(tol)
+    if m < sqrt_tol
+        # A&S 16.13.4
+        return u - 0.25f0*m*(u - 0.5f0*sin(2.0f0*u))
     end
-end
-function _ΔSN(up::Float32, m)
-    return _rawΔSN(u, m, K(m), K(m), √(1f0-m))
-end
-
-function _rawΔCN(up::Float32, m::Float32, Kscreen::Float32, Kactual::Float32, kp::Float32)
-    if up > 0.031f0
-        u = up/2f0
-        return ((1f0+_rawCN(u,m,Kscreen,Kactual, kp))*_rawΔCN(u,m,Kscreen,Kactual, kp)+(1f0-2f0*m*_rawSN(u,m,Kscreen,Kactual, kp)^2f0)*_rawSN(u,m,Kscreen,Kactual, kp)^2f0)/(1f0-m*_rawSN(u,m,Kscreen,Kactual, kp)^4f0)
-    else 
-        return 1f0 - _rawrawCN(up, m, Kscreen, Kactual, kp)
+    m1 = 1.f0 - m
+    if m1 < sqrt_tol
+        # A&S 16.15.4
+        t = tanh(u)
+        return asin(t) + 0.25f0*m1*(t - u*(1.f0 - t^2f0))*cosh(u)
     end
-end
-function _rawΔDN(up::Float32, m::Float32, Kscreen::Float32, Kactual::Float32, kp::Float32) 
-    if up > 0.031f0
-        u = up/2f0 
-        return ((1f0+_rawDN(u,m,Kscreen,Kactual, kp))*_rawΔDN(u,m,Kscreen,Kactual, kp)+m*(1f0-2*_rawSN(u,m,Kscreen,Kactual, kp)^2f0)*_rawSN(u,m,Kscreen,Kactual, kp)^2f0)/(1f0-m*_rawSN(u,m,Kscreen,Kactual, kp)^4f0)
-    else 
-        return 1f0 - _rawCN(up, m, Kscreen, Kactual, kp)
+
+    a,b,c,n = 1.f0, sqrt(m1), sqrt(m), 0
+    while abs(c) > tol
+        @assert n < 10
+        a,b,c,n = 0.5f0*(a+b), sqrt(a*b), 0.5f0*(a-b), n+1
+        @set! _ambuf[n] = c/a
+        #_ambuf[n] = c/a
+
     end
-end
 
-function _XNloop(u::Float32, m::Float32, n::Float32)
-    up = u / (2.0f0^Float32(n))
-    up2 = up^2f0
-    up4 = up2 * up2
-    sn = up*(up2*(up2*((m*((-(m/5040f0)-3f0/112f0)*m-3f0/112f0)-1f0/5040f0)*up2+(m/120f0+7f0/60f0)*m+1f0/120f0)-m/6f0-1f0/6f0)+1f0)
-    cn = 1f0 + up2*(-(1f0/2f0)+up2*(1f0/24f0+m/6f0+up2*(-(1f0/720f0)+(-(11f0/180f0)-m/45f0)*m+(-(1f0/40320f0)+m*(-(17f0/1680f0)+(-(19f0/840f0)-m/630f0)*m))*up2)))
-    dn = m*(m*(up4*(1f0/24f0-(11f0*up2)/180f0)-(m*up4*up2)/720f0) + (up2*(1f0/6f0-up2/45f0)-1f0/2f0)*up2) + 1f0 
-
-    i = 0
-    while i < n
-        sn2 = sn * sn
-        cn2 = cn * cn
-        dn2 = dn * dn
-        sn4 = sn2 * sn2
-
-        den = 1f0/(1.0f0-m*sn4)
-        sn = 2.0f0*(sn*cn*dn)*den
-        cn = (cn2-sn2*dn2)*den
-        dn = (dn2-m*sn2*cn2)*den
-        i += 1
+    phi = ldexp(a*u, n)
+    for i = n:-1:1
+        phi = 0.5f0*(phi + asin(_ambuf[i]*sin(phi)))
     end
-    return sn, cn, dn
+    return phi
 end
+_am(u::Float32, m::Float32)::Float32 = _am(u, m, eps(Float32))
 
-function _ΔXNloop(u::Float32, m::Float32, n::Float32)
-    up = u / (2.0f0^n)
-    up2 = up^2f0
-    up4 = up2 * up2
-    sn = up*(up2*(up2*((m*((-(m/5040f0)-3f0/112f0)*m-3f0/112f0)-1f0/5040f0)*up2+(m/120f0+7f0/60f0)*m+1f0/120f0)-m/6f0-1f0/6f0)+1f0)
-    cn = 1f0 + up2*(-(1f0/2f0)+up2*(1f0/24f0+m/6f0+up2*(-(1f0/720f0)+(-(11f0/180f0)-m/45f0)*m+(-(1f0/40320f0)+m*(-(17f0/1680f0)+(-(19f0/840f0)-m/630f0)*m))*up2)))
-    dn = m*(m*(up4*(1f0/24f0-(11f0*up2)/180f0)-(m*up4*up2)/720f0) + (up2*(1f0/6f0-up2/45f0)-1f0/2f0)*up2) + 1f0 
-    Δsn = up-sn
-    Δcn = 1f0-cn
-    Δdn = 1f0-dn
+"""
+    am(u::Real, m::Real, [tol::Real=eps(Float32)])
+Returns amplitude, φ, such that u = F(φ | m)
+Landen sequence with convergence to `tol` used if `√(tol) ≤ m ≤ 1 - √(tol)`
+"""
+function am(u::Float32, m::Float32, tol::Float32)::Float32
+    _am(u, m, tol)
+end
+am(u::Float32, m::Float32)::Float32 = am(u, m, eps(Float32))
 
-
-    i = 0f0
-    while i < n
-        sn2 = sn * sn
-        sn4 = sn2 * sn2
-
-        den = 1f0/(1.0f0-m*sn4)
-        Δsn = 2.0f0*(Δsn*cn*dn + up*(Δcn*(1f0 - Δdn) + Δdn  - m*sn4))*den
-        Δcn = ((1f0+cn)*Δcn + sn2-2f0*m*sn4)*den
-        Δdn = ((1f0+dn)*Δdn + m*(sn2-2f0*sn4))*den
-
-        up *= 2f0
-        sn = up - Δsn
-        cn = 1f0 - Δcn
-        dn = 1f0 - Δdn
-        
-        i += 1f0
+function sn(u::Float32, m::Float32)::Float32
+    # Abramowitz & Stegun, section 16.10, p573
+    lt0 = m < 0.f0
+    gt1 = m > 1.f0
+    if !(lt0 || gt1)
+        phi = _am(u,m)
+        return sin(phi)
+    elseif lt0
+        mu1 = 1.0f0/(1.f0 - m)
+        mu = -m*mu1
+        sqrtmu1 = sqrt(mu1)
+        v = u/sqrtmu1
+        phi = _am(v,mu)
+        s = sin(phi)
+        return (sqrtmu1*s)/sqrt(1.f0 - mu*s^2f0)
+    elseif gt1
+        mu = 1f0/m
+        v = u*sqrt(m)
+        phi = _am(v,mu)
+        return (sqrt(mu)*sin(phi))
     end
-    return sn, cn, dn
+    return Inf32
 end
 
-function fold_0_25(u1::Float32, m::Float32, kp::Float32) 
-    u1 == 0f0 && return 0f0, 1f0, 1f0
-    #return (u1 > 0f0 ? max(6f0 + floor(log2(u1)), 1f0) : 0f0), (u1 > 0f0 ? max(6f0 + floor(log2(u1)), 1f0) : 0f0), (u1 > 0f0 ? max(6f0 + floor(log2(u1)), 1f0) : 0f0)
-    sn, cn, dn = _ΔXNloop(u1, m, (u1 > 0f0 ? max(6f0 + floor(log2(u1)), 1f0) : 0f0))
-    den = 1.0f0/(1.0f0+kp-m*sn*sn)
-    #return sn, cn, dn
-    return den*√(1f0+kp)*(cn*dn-kp*sn), den*√(kp*(1f0+kp))*(cn+sn*dn), den*√kp*((1f0+kp)*dn+m*sn*cn)
-end
-
-function fold_0_50(u1::Float32, m::Float32, Kscreen::Float32, Kactual::Float32, kp::Float32)
-    u1 == 0f0 && return 0f0, 1f0, 1f0
-
-    if u1 > 0.25f0*Kscreen 
-        sn, cn, dn = fold_0_25(Kactual/2f0 - u1, m, kp)
-    else
-        sn, cn, dn =  _ΔXNloop(u1, m, u1 > 0f0 ?  max(6f0 + floor(log2(u1)), 1f0) : 0f0)
+function cn(u::Float32, m::Float32)::Float32
+    # Abramowitz & Stegun, section 16.10, p573
+    lt0 = m < 0.f0
+    gt1 = m > 1.f0
+    if !(lt0 || gt1)
+        phi = _am(u,m)
+        return cos(phi)
+    elseif lt0
+        mu1 = 1.0f0/(1.f0 - m)
+        mu = -m*mu1
+        sqrtmu1 = sqrt(mu1)
+        v = u/sqrtmu1
+        phi = _am(v,mu)
+        s = sin(phi)
+        return (cos(phi))/sqrt(1.f0 - mu*s^2f0)
+    elseif gt1
+        mu = 1f0/m
+        v = 2.0f0#u*sqrt(m)
+        phi = _am(v,mu)
+        return (sqrt(1.f0 - mu*sin(phi)^2f0))
     end
-    return cn/dn, kp*sn/dn, kp/dn
+    return Inf32
 end
 
-function fold_1_00(u1::Float32, m::Float32, Kscreen::Float32, Kactual::Float32, kp::Float32)
-    u1 == 0f0 && return 0f0, 1f0, 1f0
-
-    if u1 > 0.5f0Kscreen
-        sn, cn, dn = fold_0_50(Kactual - u1, m, Kscreen, Kactual, kp)
-    elseif u1 > 0.25f0Kscreen 
-        sn, cn, dn = fold_0_25(Kactual/2f0 - u1, m, kp)
-    else
-        sn, cn, dn = _ΔXNloop(u1, m, u1 > 0f0 ?  max(6f0+floor(log2(u1)), 1f0) : 0f0)
+function dn(u::Float32, m::Float32)::Float32
+    # Abramowitz & Stegun, section 16.10, p573
+    lt0 = m < 0.f0
+    gt1 = m > 1.f0
+    if !(lt0 || gt1)
+        phi = _am(u,m)
+        return (sqrt(1.f0 - m*sin(phi)^2f0))
+    elseif lt0
+        mu1 = 1.0f0/(1.f0 - m)
+        mu = -m*mu1
+        sqrtmu1 = sqrt(mu1)
+        v = u/sqrtmu1
+        phi = _am(v,mu)
+        s = sin(phi)
+        return (1.0f0)/sqrt(1.f0 - mu*s^2f0)
+    elseif gt1
+        mu = 1f0/m
+        v = 2.0f0#u*sqrt(m)
+        phi = _am(v,mu)
+        return cos(phi)
     end
-    return cn/dn, -kp*sn/dn, kp/dn
+    return Inf32
 end
 
-funcs = ((:_SN, :_rawSN), (:_CN, :rawCN), (:_DN, :rawDN))
-for (enum, funcpair) in enumerate(funcs)
-    (func, helper) = funcpair
-    @eval begin
-        function $(helper)(u::Float32, m::Float32, Kscreen::Float32, Kactual::Float32, kp::Float32) 
-            u = u > 4f0*Kscreen ?  u % 4f0*Kactual : u
-            u = u > 2f0*Kscreen ? u - 2f0*Kactual : u
-            u > Kscreen && return fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[$enum]
-            u > 0.5f0*Kscreen && return fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[$enum]
-            u > 0.25f0*Kscreen && return fold_0_25(Kactual/2f0 - u, m, kp)[$enum]
-            return _ΔXNloop(u, m, u > 0f0 ? max(6f0+log2(u), 1f0) : 0f0)[$enum]
-        end
-
-        function $(func)(u::Float32, m::Float32)
-             return $(helper)(u, m, K(m), K(m), √(1f0-m))
-        end
+xn = ((:s,:(sn(u,m))), (:c,:(cn(u,m))), (:d,:(dn(u,m))), (:n,:(1.f0)))
+for (p,num) in xn, (q,den) in xn
+    f = Symbol(p, q)
+    if (p == q)
+        @eval ($f)(::Float32, ::Float32)::Float32 = 1.0f0
+    elseif (q != :n)
+        @eval ($f)(u::Float32, m::Float32)::Float32 = ($num)/($den)
     end
 end
 
-_sc_helper(jacobituple::Tuple{Float32, Float32}) = jacobituple[1]/jacobituple[2]
-function _rawSC(u::Float32, m::Float32, Kscreen::Float32, Kactual::Float32, kp::Float32) 
-    u = u > 4f0*Kscreen ?  u % 4f0*Kactual : u
-    u = u > 2f0*Kscreen ? u - 2f0*Kactual : u
-    u > Kscreen && return _sc_helper(fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
-    u > 0.5f0Kscreen && return _sc_helper(fold_0_50(Kactual - u, m, Kscreen, Kactual, kp))
-    u > 0.25f0Kscreen && return _sc_helper(fold_0_25(Kactual/2f0 - u, m, kp))
-    return _sc_helper(_ΔXNloop(u, m, u > 0f0 ? max(6f0+floor(log2(u)), 1f0) : 0f0))
-end
-_SC(u::Float32, m::Float32) = _rawSC(u, m, K(m), K(m), √(1f0-m))
-
-_sd_helper(jacobituple::Tuple{Float32, Float32}) = jacobituple[1]/jacobituple[3]
-function _rawSD(u::Float32, m::Float32, Kscreen::Float32, Kactual::Float32, kp::Float32) 
-    u = u > 4Kscreen ?  u % 4Kactual : u
-    u = u > 2Kscreen ? u - 2Kactual : u
-    u > Kscreen && return _sd_helper(fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
-    u > 0.5f0Kscreen && return _sd_helper(fold_0_50(Kactual - u, m, Kscreen, Kactual, kp))
-    u > 0.25f0Kscreen && return _sd_helper(fold_0_25(Kactual/2f0 - u, m, kp))
-    return _sd_helper(_ΔXNloop(u, m, u > 0f0 ? max(6f0+floor(log2(u)), 1f0) : 0f0))
-end
-_SD(u::Float32, m::Float32) = _rawSD(u, m, K(m), K(m), √(1f0-m))
-
-
-function sn(u::Float32, m::Float32)  
-    signu = sign(u)
-    u = abs(u)
-    m < 1f0 && return signu*_SN(u, m)
-    sqrtm = √m
-    #return signu*_SN(u*sqrtm, 1f0/m)/sqrtm
-    println("h")
-    return 10f0
-    return signu*(u*sqrtm -_ΔSN(u*sqrtm, 1f0/m))/sqrtm
-end
-
-function cn(u::Float32, m::Float32)  
-    u = abs(u)
-    m < 1f0 && return _CN(u, m)
-    sqrtm = √m
-    return _DN(u*sqrtm, 1/m)
-end
-
-function dn(u::Float32, m::Float32)  
-    u = abs(u)
-    m < 1f0 && return _DN(u, m)
-    sqrtm = √m
-    return _CN(u*sqrtm, 1/m)
-end
-
-function sc(u::Float32, m::Float32)
-    signu = sign(u)
-    u = abs(u)
-
-    m < 1f0 && return signu*_SC(u, m)
-    sqrtm = √m
-    return signu*_SD(u*sqrtm, 1/m)/sqrtm
-
-end
-
-function sd(u::Float32, m::Float32)
-    signu = sign(u)
-    u = abs(u)
-
-    m < 1f0 && return signu*_SD(u, m)
-    sqrtm = √m
-    return signu*_SC(u*sqrtm, 1/m)/sqrtm
-
-end
+##https://doi-org.ezp-prod1.hul.harvard.edu/10.031007/s10569f0-008f0-9177f0-y
+##https://link.springer.com/article/10.1007/s10569f0-008f0-9177f0-y
+##TODO: Implement Δsn algorithm for half0 angle transformation
+#
+#_Kscreen(m::Float32)::Float32 = HALF_PI32*(1.0f0 + m*(0.25f0 + m*(0.36f0 + m*(0.09765625f0 + m*0.07476806640625f0))))
+#
+#function _rawΔSN(up::Float32, m::Float32, Kscreen::Float32, Kactual::Float32, kp::Float32)
+#    if up > 0.031f0
+#        u = up/2f0
+#        _sn = _rawSN(up, m, Kscreen, Kactual, kp)
+#        _sn2 = _sn*_sn
+#        _sn4 = _sn2*_sn2
+#        return 2f0/(1f0-m*_sn4)*(_rawCN(u, m, Kscreen, Kactual, kp)*_rawDN(u, m, Kscreen, Kactual, kp)*_rawΔSN(u, m, Kscreen, Kactual, kp)+u*(_rawΔCN(u, m, Kscreen, Kactual, kp)+_rawΔDN(u, m, Kscreen, Kactual, kp)-_rawΔCN(u, m, Kscreen, Kactual, kp)*_rawΔDN(u, m, Kscreen, Kactual, kp)-m*_sn4))
+#    else
+#        return up - _rawSN(up, m, Kscreen, Kactual, kp)
+#    end
+#end
+#
+#function _ΔSN(u::Float32, m)
+#    return _rawΔSN(u, m, K(m), K(m), √(1f0-m))
+#end
+#
+#function _rawΔCN(up::Float32, m::Float32, Kscreen::Float32, Kactual::Float32, kp::Float32)
+#    if up > 0.031f0
+#       u = up/2f0
+#       _sn = _rawSN(u,m,Kscreen,Kactual, kp)
+#       _sn2 = _sn*_sn
+#       return ((1f0+_rawCN(u,m,Kscreen,Kactual, kp))*_rawΔCN(u,m,Kscreen,Kactual, kp)+(1f0-2f0*m*_sn2)*_sn2)/(1f0-m*_sn2*_sn2)
+#    else 
+#        return 1f0 - _rawCN(up, m, Kscreen, Kactual, kp)
+#    end
+#end
+#
+#function _ΔCN(u::Float32, m)
+#    return _rawΔCN(u, m, K(m), K(m), √(1f0-m))
+#end
+#
+#function _rawΔDN(up::Float32, m::Float32, Kscreen::Float32, Kactual::Float32, kp::Float32) 
+#    if up > 0.031f0
+#       u = up/2f0 
+#       _sn = _rawSN(u,m,Kscreen,Kactual, kp)
+#       _sn2 = _sn*_sn
+#
+#       return ((1f0+_rawDN(u,m,Kscreen,Kactual, kp))*_rawΔDN(u,m,Kscreen,Kactual, kp)+m*(1f0-2*_sn2)*_sn2)/(1f0-m*_sn2*_sn2)
+#    else 
+#        return 1f0 - _rawCN(up, m, Kscreen, Kactual, kp)
+#    end
+#end
+#
+#function _ΔDN(u::Float32, m)
+#    return _rawΔDN(u, m, K(m), K(m), √(1f0-m))
+#end
+#
+#function _XNloop(u::Float32, m::Float32, n::Float32)
+#    up = u / (2.0f0^Float32(n))
+#    up2 = up^2f0
+#    up4 = up2 * up2
+#    sn = up*(up2*(up2*((m*((-(m/5040f0)-3f0/112f0)*m-3f0/112f0)-1f0/5040f0)*up2+(m/120f0+7f0/60f0)*m+1f0/120f0)-m/6f0-1f0/6f0)+1f0)
+#    cn = 1f0 + up2*(-(1f0/2f0)+up2*(1f0/24f0+m/6f0+up2*(-(1f0/720f0)+(-(11f0/180f0)-m/45f0)*m+(-(1f0/40320f0)+m*(-(17f0/1680f0)+(-(19f0/840f0)-m/630f0)*m))*up2)))
+#    dn = m*(m*(up4*(1f0/24f0-(11f0*up2)/180f0)-(m*up4*up2)/720f0) + (up2*(1f0/6f0-up2/45f0)-1f0/2f0)*up2) + 1f0 
+#
+#    
+#    i = 0
+#    while i < n
+#        sn2 = sn * sn
+#        cn2 = cn * cn
+#        dn2 = dn * dn
+#        sn4 = sn2 * sn2
+#
+#        den = 1f0/(1.0f0-m*sn4)
+#        sn = 2.0f0*(sn*cn*dn)*den
+#        cn = (cn2-sn2*dn2)*den
+#        dn = (dn2-m*sn2*cn2)*den
+#        i += 1
+#    end
+#    return sn, cn, dn
+#end
+#
+#function _ΔXNloop(u::Float32, m::Float32, n::Float32) #https://doi-org.ezp-prod1.hul.harvard.edu/10.1007/s10569-009-9228-z
+#    up = 0
+#
+#    up = u / (2.0f0^n)
+#    up2 = up^2f0
+#    up4 = up2 * up2
+#    sn = up*(up2*(up2*((m*((-(m/5040f0)-3f0/112f0)*m-3f0/112f0)-1f0/5040f0)*up2+(m/120f0+7f0/60f0)*m+1f0/120f0)-m/6f0-1f0/6f0)+1f0)
+#    cn = 1f0 + up2*(-(1f0/2f0)+up2*(1f0/24f0+m/6f0+up2*(-(1f0/720f0)+(-(11f0/180f0)-m/45f0)*m+(-(1f0/40320f0)+m*(-(17f0/1680f0)+(-(19f0/840f0)-m/630f0)*m))*up2)))
+#    dn = m*(m*(up4*(1f0/24f0-(11f0*up2)/180f0)-(m*up4*up2)/720f0) + (up2*(1f0/6f0-up2/45f0)-1f0/2f0)*up2) + 1f0 
+#    sn = up*(up2*(up2*((m/120f0+7f0/60f0)*m+1f0/120f0)-m/6f0-1f0/6f0)+1f0)
+#    cn = 1f0 + up2*(-(1f0/2f0)+up2*(1f0/24f0+m/6f0+up2*(-(1f0/720f0)+(-(11f0/180f0)-m/45f0)*m)))
+#    dn = m*(m*(up4*(1f0/24f0-(11f0*up2)/180f0)-(m*up4*up2)/720f0) - (1f0/2f0)*up2) + 1f0 
+#
+#    Δsn = up-sn
+#    Δcn = 1f0-cn
+#    Δdn = 1f0-dn
+#
+#
+#    i = 0
+#    while i < n
+#        sn2 = sn * sn
+#        sn4 = sn2 * sn2
+#
+#        den = 1f0/(1.0f0-m*sn4)
+#        Δsn = 2.0f0*(Δsn*cn*dn + up*(Δcn*(1f0 - Δdn) + Δdn  - m*sn4))*den
+#        Δcn = ((1f0+cn)*Δcn + sn2-2f0*m*sn4)*den
+#        Δdn = ((1f0+dn)*Δdn + m*(sn2-2f0*sn4))*den
+#
+#        up *= 2f0
+#        sn = up - Δsn
+#        cn = 1f0 - Δcn
+#        dn = 1f0 - Δdn
+#        
+#        i += 1f0
+#    end
+#    return sn, cn, dn
+#end
+#
+#function fold_0_25(u1::Float32, m::Float32, kp::Float32) 
+#    u1 == 0f0 && return 0f0, 1f0, 1f0
+#    #return (u1 > 0f0 ? max(6f0 + floor(log2(u1)), 1f0) : 0f0), (u1 > 0f0 ? max(6f0 + floor(log2(u1)), 1f0) : 0f0), (u1 > 0f0 ? max(6f0 + floor(log2(u1)), 1f0) : 0f0)
+#    sn, cn, dn = _ΔXNloop(u1, m, (u1 > 0f0 ? max(6f0 + floor(log2(u1)), 1f0) : 0f0))
+#    den = 1.0f0/(1.0f0+kp-m*sn*sn)
+#    #return sn, cn, dn
+#    return den*√(1f0+kp)*(cn*dn-kp*sn), den*√(kp*(1f0+kp))*(cn+sn*dn), den*√kp*((1f0+kp)*dn+m*sn*cn)
+#end
+#
+#function fold_0_50(u1::Float32, m::Float32, Kscreen::Float32, Kactual::Float32, kp::Float32)
+#    u1 == 0f0 && return 0f0, 1f0, 1f0
+#
+#    if u1 > 0.25f0*Kscreen 
+#        sn, cn, dn = fold_0_25(Kactual/2f0 - u1, m, kp)
+#    else
+#        sn, cn, dn =  _ΔXNloop(u1, m, u1 > 0f0 ?  max(6f0 + floor(log2(u1)), 1f0) : 0f0)
+#    end
+#    return cn/dn, kp*sn/dn, kp/dn
+#end
+#
+#function fold_1_00(u1::Float32, m::Float32, Kscreen::Float32, Kactual::Float32, kp::Float32)
+#    u1 == 0f0 && return 0f0, 1f0, 1f0
+#
+#    if u1 > 0.5f0Kscreen
+#        sn, cn, dn = fold_0_50(Kactual - u1, m, Kscreen, Kactual, kp)
+#    elseif u1 > 0.25f0Kscreen 
+#        sn, cn, dn = fold_0_25(Kactual/2f0 - u1, m, kp)
+#    else
+#        sn, cn, dn = _ΔXNloop(u1, m, u1 > 0f0 ?  max(6f0+floor(log2(u1)), 1f0) : 0f0)
+#    end
+#    return cn/dn, -kp*sn/dn, kp/dn
+#end
+#
+#funcs = ((:_SN, :_rawSN), (:_CN, :_rawCN), (:_DN, :_rawDN))
+#for (enum, funcpair) in enumerate(funcs)
+#    (func, helper) = funcpair
+#    @eval begin
+#        function $(helper)(u::Float32, m::Float32, Kscreen::Float32, Kactual::Float32, kp::Float32) 
+#            u = u > 4f0*Kscreen ?  u % 4f0*Kactual : u
+#            u = u > 2f0*Kscreen ? u - 2f0*Kactual : u
+#            u > Kscreen && return fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[$enum]
+#            u > 0.5f0*Kscreen && return fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[$enum]
+#            u > 0.25f0*Kscreen && return fold_0_25(Kactual/2f0 - u, m, kp)[$enum]
+#            return _ΔXNloop(u, m, u > 0f0 ? max(6f0+log2(u), 1f0) : 0f0)[$enum] 
+#        end
+#
+#        function $(func)(u::Float32, m::Float32)
+#             return $(helper)(u, m, K(m), K(m), √(1f0-m)) 
+#        end
+#    end
+#end
+#
+#_sc_helper(jacobituple::Tuple{Float32, Float32}) = jacobituple[1]/jacobituple[2]
+#function _rawSC(u::Float32, m::Float32, Kscreen::Float32, Kactual::Float32, kp::Float32) 
+#    u = u > 4f0*Kscreen ?  u % 4f0*Kactual : u
+#    u = u > 2f0*Kscreen ? u - 2f0*Kactual : u
+#    u > Kscreen && return _sc_helper(fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
+#    u > 0.5f0Kscreen && return _sc_helper(fold_0_50(Kactual - u, m, Kscreen, Kactual, kp))
+#    u > 0.25f0Kscreen && return _sc_helper(fold_0_25(Kactual/2f0 - u, m, kp))
+#    return _sc_helper(_ΔXNloop(u, m, u > 0f0 ? max(6f0+floor(log2(u)), 1f0) : 0f0))
+#end
+#_SC(u::Float32, m::Float32) = _rawSC(u, m, K(m), K(m), √(1f0-m))
+#
+#_sd_helper(jacobituple::Tuple{Float32, Float32}) = jacobituple[1]/jacobituple[3]
+#function _rawSD(u::Float32, m::Float32, Kscreen::Float32, Kactual::Float32, kp::Float32) 
+#    u = u > 4Kscreen ?  u % 4Kactual : u
+#    u = u > 2Kscreen ? u - 2Kactual : u
+#    u > Kscreen && return _sd_helper(fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
+#    u > 0.5f0Kscreen && return _sd_helper(fold_0_50(Kactual - u, m, Kscreen, Kactual, kp))
+#    u > 0.25f0Kscreen && return _sd_helper(fold_0_25(Kactual/2f0 - u, m, kp))
+#    return _sd_helper(_ΔXNloop(u, m, u > 0f0 ? max(6f0+floor(log2(u)), 1f0) : 0f0))
+#end
+#
+#_SD(u::Float32, m::Float32) = _rawSD(u, m, K(m), K(m), √(1f0-m))
+#
+#
+#function sn(u::Float32, m::Float32)  
+#    signu = sign(u)
+#    u = abs(u)
+#    #m < 1f0 && return signu*(_SN(u, m))
+#    m < 1f0 && return signu*(u - _ΔSN(u, m))
+#    sqrtm = √m
+#    #return signu*_SN(u*sqrtm, 1f0/m)/sqrtm
+#    return signu*(u*sqrtm -_ΔSN(u*sqrtm, 1f0/m))/sqrtm
+#end
+#
+#function cn(u::Float32, m::Float32)  
+#    u = abs(u)
+#    m < 1f0 && return _CN(u, m)
+#    sqrtm = √m
+#    return _DN(u*sqrtm, 1/m)
+#end
+#
+#function dn(u::Float32, m::Float32)  
+#    u = abs(u)
+#    m < 1f0 && return _DN(u, m)
+#    sqrtm = √m
+#    return _CN(u*sqrtm, 1/m)
+#end
+#
+#function sc(u::Float32, m::Float32)
+#    signu = sign(u)
+#    u = abs(u)
+#
+#    m < 1f0 && return signu*_SC(u, m)
+#    sqrtm = √m
+#    return signu*_SD(u*sqrtm, 1/m)/sqrtm
+#
+#end
+#
+#function sd(u::Float32, m::Float32)
+#    signu = sign(u)
+#    u = abs(u)
+#
+#    m < 1f0 && return signu*_SD(u, m)
+#    sqrtm = √m
+#    return signu*_SC(u*sqrtm, 1/m)/sqrtm
+#
+#end
+#
+#

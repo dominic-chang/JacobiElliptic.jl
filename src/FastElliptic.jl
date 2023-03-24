@@ -1,5 +1,7 @@
 module FastElliptic
 export E, F, K
+using StaticArrays, Setfield
+import Elliptic
 
 include("./FastElliptic32.jl")
 
@@ -231,6 +233,7 @@ function asn(s, m)
     if y < yA
         return s*serf(y, m)
     end
+
     p = 1
     for _ in 1:10
         y = y / ((1+√(1-y))*(1+√(1-m*y)))
@@ -240,10 +243,10 @@ function asn(s, m)
     return NaN
 end
 
-function acn(c, mc)
-    m = one(1) - mc
+function acn(c, m)
+    mc = 1.0 - m
     x = c^2
-    p = one(c)
+    p = 1
     for _ in 1:10
         if (x > 0.5) 
             return p*asn(√(1-x), m)
@@ -255,32 +258,46 @@ function acn(c, mc)
     return NaN
 end
 
-function _rawF(φ, m)
-    m == 0.0 && return φ
-    sinφ = sin(φ)
+function _rawF(sinφ, m)
+    φS = 0.3976π
+    yS = 0.9000308778823196
+    m == 0.0 && return asin(sinφ)
+    #sinφ = sin(φ)
     m == 1.0 && return atanh(sinφ)
-    signφ = sign(φ)
-    φ = abs(φ)
+    #signφ = sign(φ)
+    #φ = abs(φ)
     
-    sinφ^2 ≤ 0.9 && return signφ*asn(sinφ, m)
+    #(φ < φS) && return asn(sinφ, m)
+    sinφ^2 ≤ yS && return asn(sinφ, m)
 
     mc = 1 - m
 
-    c = sin(HALF_PI-φ)
+    c = √(1-sinφ^2)#sin(HALF_PI-φ)
+    x = c * c
+    d2 = mc + m*x
     z = c/√(mc+m*c^2)
-    z^2 ≤ 0.9 && return signφ*(K(m) - asn(z, m))
+    #z^2 ≤ yS && return (K(m) - asn(z, m))
+    x <  yS*d2 && return (K(m) - asn(c/√(d2), m))
 
-    w = √(1-z^2)
-    c > w && return signφ*acn(c, m)
-    return signφ*(K(m) - acn(w, m))
+    v = mc*(1-x)
+    v < x*d2 && return acn(c, m)
+    return (K(m) - acn(√(v/d2), m))
+
+    #w = √(1-z^2)
+    #c > w && return acn(c, m)
+
+    #return (K(m) - acn(w, m))
 end
 
 function _F(φ, m)
-    abs(φ) < HALF_PI && sign(φ)*return _rawF(abs(φ), m)
+    #return Elliptic.F(φ, m)
+    abs(φ) < HALF_PI && sign(φ)*return _rawF(sin(abs(φ)), m)
     j = round(φ/π)
 
     newφ = φ - j*π
-    return 2*j*K(m) + sign(newφ)*_rawF(abs(newφ), m)
+    #println(j)
+    #println(fld(φ + π/2, π))
+    return 2*j*K(m) + sign(newφ)*_rawF(sin(mod(φ, π)), m)
 end
 
 function F(φ, m)
@@ -288,14 +305,19 @@ function F(φ, m)
         ## Abramowitz & Stegum (17.4.15)
         m12 = sqrt(m)
         theta = asin(m12*sin(φ))
-        return 1/m12*_F(theta, 1/m)
+        signθ = sign(θ)
+        absθ = abs(theta)
+        return signθ/m12*_F(absθ, 1/m)
         #return NaN
     elseif m < 0
         # Abramowitz & Stegum (17.4.17)
         n = -m
         m12 = 1/sqrt(1+n)
         m1m = n/(1+n)
-        return (m12*K(m1m) - m12*_F(HALF_PI-φ, m1m)) 
+        newφ = HALF_PI-φ
+        signφ = sign(newφ)
+        absφ = abs(newφ)
+        return (m12*K(m1m) - signφ*m12*_F(absφ, m1m)) 
     end
     return _F(φ, m)
 end
@@ -435,13 +457,13 @@ for (enum, funcpair) in enumerate(funcs)
     end
 end
 
-function sn(u, m)  
-
-    m < 1 && return _SN(u, m)
-    sqrtm = √m
-    return sn(u*sqrtm, 1/m)/sqrtm
-
-end
+#function sn(u, m)  
+#
+#    m < 1 && return _SN(u, m)
+#    sqrtm = √m
+#    return sn(u*sqrtm, 1/m)/sqrtm
+#
+#end
 
 _sc_helper(jacobituple) = jacobituple[1]/jacobituple[2]
 function _rawSC(u, m, Kscreen, Kactual, kp) 
@@ -471,7 +493,6 @@ function sn(u, m)
     u = abs(u)
     m < 1 && return signu*_SN(u, m)
     sqrtm = √m
-    println("check")
     return signu*_SN(u*sqrtm, 1/m)/sqrtm
 end
 
