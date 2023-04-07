@@ -259,44 +259,31 @@ function acn(c, m)
 end
 
 function _rawF(sinφ, m)
-    φS = 0.3976π
     yS = 0.9000308778823196
     m == 0.0 && return asin(sinφ)
-    #sinφ = sin(φ)
     m == 1.0 && return atanh(sinφ)
-    #signφ = sign(φ)
-    #φ = abs(φ)
     
-    #(φ < φS) && return asn(sinφ, m)
     sinφ^2 ≤ yS && return asn(sinφ, m)
 
     mc = 1 - m
 
-    c = √(1-sinφ^2)#sin(HALF_PI-φ)
+    c = √(1-sinφ^2)
     x = c * c
     d2 = mc + m*x
     z = c/√(mc+m*c^2)
-    #z^2 ≤ yS && return (K(m) - asn(z, m))
     x <  yS*d2 && return (K(m) - asn(c/√(d2), m))
 
     v = mc*(1-x)
     v < x*d2 && return acn(c, m)
     return (K(m) - acn(√(v/d2), m))
 
-    #w = √(1-z^2)
-    #c > w && return acn(c, m)
-
-    #return (K(m) - acn(w, m))
 end
 
 function _F(φ, m)
-    #return Elliptic.F(φ, m)
     abs(φ) < HALF_PI && sign(φ)*return _rawF(sin(abs(φ)), m)
     j = round(φ/π)
 
     newφ = φ - j*π
-    #println(j)
-    #println(fld(φ + π/2, π))
     return 2*j*K(m) + sign(newφ)*_rawF(sin(mod(φ, π)), m)
 end
 

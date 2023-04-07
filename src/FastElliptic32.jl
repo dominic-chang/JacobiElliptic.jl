@@ -216,51 +216,55 @@ function acn(c::Float32, mc::Float32)::Float32
     return NaN32
 end
 
-function _rawF(φ::Float32, m::Float32)::Float32
-    m == 0.0f0 && return φ
-    sinφ = sin(φ)
+function _rawF(sinφ::Float32, m::Float32)
+    yS = 0.90003085f0
+    m == 0.0f0 && return asin(sinφ)
     m == 1.0f0 && return atanh(sinφ)
-    signφ = sign(φ)
-    φ = abs(φ)
     
-    sinφ^2f0 ≤ 0.9f0 && return signφ*asn(sinφ, m)
+    sinφ^2f0 ≤ yS && return asn(sinφ, m)
 
     mc = 1f0 - m
 
-    c = sin(HALF_PI32-φ)
-    z = c/√(mc+m*c*c)
-    z*z ≤ 0.9f0 && return signφ*(K(m) - asn(z, m))
+    c = √(1f0-sinφ^2f0)
+    x = c * c
+    d2 = mc + m*x
+    x <  yS*d2 && return (K(m) - asn(c/√(d2), m))
 
-    w = √(1f0-z*z)
-    c > w && return signφ*acn(c, m)
-    return signφ*(K(m) - acn(w, m))
+    v = mc*(1f0-x)
+    v < x*d2 && return acn(c, m)
+    return (K(m) - acn(√(v/d2), m))
+
 end
 
-function _F(φ::Float32, m::Float32)::Float32
-    abs(φ) < HALF_PI32 && sign(φ)*return _rawF(abs(φ), m)
+function _F(φ::Float32, m::Float32)
+    abs(φ) < HALF_PI32 && sign(φ)*return _rawF(sin(abs(φ)), m)
     j = round(φ/PI32)
 
     newφ = φ - j*PI32
-    return 2f0*j*K(m) + sign(newφ)*_rawF(abs(newφ), m)
+    return 2f0*j*K(m) + sign(newφ)*_rawF(sin(mod(φ, PI32)), m)
 end
 
-function F(φ::Float32, m::Float32)::Float32
-    if m > 1.0f0
-        ## Abramowitz & Stegum (17.4.15f0)
+function F(φ::Float32, m::Float32)
+    if m > 1.f0
+        ## Abramowitz & Stegum (17.4.15)
         m12 = sqrt(m)
         theta = asin(m12*sin(φ))
-        return 1f0/m12*_F(theta, 1f0/m)
+        signθ = sign(θ)
+        absθ = abs(theta)
+        return signθ/m12*_F(absθ, 1f0/m)
         #return NaN
-    elseif m < 0.0f0
-        # Abramowitz & Stegum (17.4.17f0)
+    elseif m < 0f0
+        # Abramowitz & Stegum (17.4.17)
         n = -m
         m12 = 1f0/sqrt(1f0+n)
         m1m = n/(1f0+n)
-        return (m12*K(m1m) - m12*_F(HALF_PI32-φ, m1m)) 
+        newφ = HALF_PI32-φ
+        signφ = sign(newφ)
+        absφ = abs(newφ)
+        return (m12*K(m1m) - signφ*m12*_F(absφ, m1m)) 
     end
     return _F(φ, m)
 end
-
 
 #Elliptic.jl Implementation
 export am,
