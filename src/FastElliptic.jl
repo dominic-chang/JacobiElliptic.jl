@@ -1,7 +1,6 @@
 module FastElliptic
 export E, F, K
 using StaticArrays, Setfield
-using MuladdMacro
 
 include("./FastElliptic32.jl")
 
@@ -282,11 +281,15 @@ function _rawF(sinφ, m)
 end
 
 function _F(φ, m)
-    φ < HALF_PI && sign(φ)*return _rawF(sin(φ), m)
+    2φ < HALF_PI && return sign(φ)*_rawF(sin(φ), m)
     j = round(φ/π)
-
     newφ = φ - j*π
-    return 2*j*K(m) + sign(newφ)*_rawF(sin(mod(φ, π)), m)
+    if newφ > π/2
+        j += 1
+        newφ = newφ - π
+    end
+
+    return 2*j*K(m) + sign(newφ)*_rawF(sin(abs(newφ)), m)
 end
 
 function F(φ, m)
@@ -306,9 +309,11 @@ function F(φ, m)
         newφ = HALF_PI-φ
         signφ = sign(newφ)
         absφ = abs(newφ)
-        return*(m12*K(m1m) - signφ*m12*_F(absφ, m1m)) 
+        return (m12*K(m1m) - signφ*m12*_F(absφ, m1m)) 
     end
-    return _F(φ, m)
+    absφ = abs(φ)
+    signφ = sign(φ)
+    return signφ*_F(absφ, m)
 end
 
 #https://doi.org/10.1016/j.cam.2011.11.007
@@ -319,7 +324,35 @@ function Π(n, φ, m)
     return n*J(n, φ, m) + F(φ, m)
 end
 
-function J(n, φ ,m)
+function J(n, φ, m)
+    if n > 1 
+        nc = 1-n
+        mc = 1-m
+        t2 = sin(φ)*cos(φ)√(1-m*sin(φ)^2)
+        h2 = -n*(m-n)/nc
+        n2 = (m-n)/nc
+        return (F(φ, m) - T(t2, h2) - (mc/nc)*_J(n2, φ, m)) /nc
+    end
+    return _J(n, φ, m)
+end
+function Jred1(n, φ, m)
+    signφ = sign(φ)
+    absφ = abs(φ)
+    absφ == 0 && return 0.0
+    absφ == π/2 && return signφ*J(n, m)
+
+    if absφ > π/2
+        j = round(absφ / (π/2))
+        j = isodd(j) ? (j+1)/2 : j/2
+        newφ = absφ - j*π
+        signnewφ = sign(newφ)*signφ
+        absnewφ = abs(newφ)
+        return (_J(n, absnewφ, m) - 2j*J(n,m))*signnewφ
+    end
+    return _J(n, absφ, m)*signφ
+end
+
+function _J(n, φ ,m)
     mc = 1 - m
     nc = 1 - n
     ys = 0.9 # 0.95 for single
@@ -344,7 +377,7 @@ end
 
 function J(n, m)
     kc = √(1-m^2)
-    (cel3(kc, n) - K(n))/n
+    (cel3(kc, m, n) - K(m))/n
 end
 
 function Jc(n, c, m)
@@ -411,7 +444,9 @@ function Js(n, s, m)
 
     yB = 0.01622
     I = 0
-    while yi > yB
+    for _ in 1:10
+        yi < yB && break
+
         ci = √(1-yi)
         di = √(1-m*yi)
         yi = yi/((1 + ci)*(1 + di))
@@ -442,7 +477,7 @@ end
 
 function JsI(n, y, m)
     #Series[(EllipticPi[n, ArcSin[s], m] − EllipticF[ArcSin[s], m])/n, {s, 0, 19}]
-    @muladd return sqrt(y)*y*(
+    return sqrt(y)*y*(
         0.3333333333333333 + y*(
             0.1 + 0.1*m + 0.2*n + y*(
                 0.05357142857142857 + n*(0.07142857142857142 + 0.14285714285714285*n) + m*(0.03571428571428571 + 0.05357142857142857*m + 0.07142857142857142*n) + y*(
@@ -461,10 +496,6 @@ function JsI(n, y, m)
             )
         )
     )
-end
-
-function Jc(n, s, m)
-    return J(n, acos(s), m)
 end
 
 function T(t, h)
@@ -524,9 +555,9 @@ function el2(x, kc, a, b)
     return*(1/2*(bj/μj+aj))/μj*ϕj + (a-b)*(1/2*(dj/pj+cj))
 end
 
-function cel3(kc, p)
+function cel3(kc, m, p)
     #p = n+1
-    m = 1-kc^2
+    #m = 1-kc^2
     μl = 1
     νl = abs(kc)
     pl = p > 0 ? √p : √((kc^2-p)/(1-p))
