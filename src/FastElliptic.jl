@@ -698,23 +698,52 @@ function fold_1_00(u1, m, Kscreen, Kactual, kp)
     return cn/dn, -kp*sn/dn, kp/dn
 end
 
-funcs = ((:_SN, :_rawSN), (:_CN, :rawCN), (:_DN, :rawDN))
-for (enum, funcpair) in enumerate(funcs)
-    (func, helper) = funcpair
-    @eval begin
-        function $(helper)(u, m, Kscreen, Kactual, kp) 
-            u = u > 4Kscreen ?  u % 4Kactual : u
-            u = u > 2Kscreen ? u - 2Kactual : u
-            u > Kscreen && return fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[$enum]
-            u > 0.5Kscreen && return fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[$enum]
-            u > 0.25Kscreen && return fold_0_25(Kactual/2 - u, m, kp)[$enum]
-            return _ΔXNloop(u, m, u > 0 ? max(6+Int(floor(log2(u))), 1) : 0)[$enum]
-        end
 
-        function $(func)(u, m)
-            return $(helper)(u, m, K(m), K(m), √(1-m))
-        end
-    end
+function _SN(u, m)
+    return _rawSN(u, m, K(m), K(m), √(1-m))
+end
+function _rawSN(u, m, Kscreen, Kactual, kp) 
+    u = u > 4Kscreen ?  u % 4Kactual : u
+    check = u ≥ 2Kscreen 
+    sign = check ? -1 : 1
+    u = check ? u - 2Kactual : u
+    u > Kscreen && return sign*fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[1]
+    u == Kscreen && return 1.0
+    u > 0.5Kscreen && return sign*fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[1]
+    u == Kscreen/2 && return 1/√(1+kp)
+    u ≥ 0.25Kscreen && return sign*fold_0_25(Kactual/2 - u, m, kp)[1]
+    return sign*_ΔXNloop(u, m, u > 0 ? max(6+Int(floor(log2(u))), 1) : 0)[1]
+end
+
+function _CN(u, m)
+    return _rawCN(u, m, K(m), K(m), √(1-m))
+end
+function _rawCN(u, m, Kscreen, Kactual, kp) 
+    u = u ≥ 4Kscreen ?  u % 4Kactual : u
+    check = u ≥ 2Kscreen 
+    sign = check ? -1 : 1
+    u = check ? u - 2Kactual : u
+    u > Kscreen && return sign*fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[2]
+    u == Kscreen && return 0.0
+    u > 0.5Kscreen && return sign*fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[2]
+    u == Kscreen/2 && return √(kp/(1+kp))
+    u ≥ 0.25Kscreen && return sign*fold_0_25(Kactual/2 - u, m, kp)[2]
+    return sign*_ΔXNloop(u, m, u > 0 ? max(6+Int(floor(log2(u))), 1) : 0)[2]
+end
+
+function _DN(u, m)
+    return _rawDN(u, m, K(m), K(m), √(1-m))
+end
+function _rawDN(u, m, Kscreen, Kactual, kp) 
+    u = u ≥ 4Kscreen ?  u % 4Kactual : u
+    check = u ≥ 2Kscreen 
+    u = check ? u - 2Kactual : u
+    u > Kscreen && return fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[3]
+    u == Kscreen && return kp
+    u > 0.5Kscreen && return fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[3]
+    u == Kscreen/2 && return √(kp)
+    u ≥ 0.25Kscreen && return fold_0_25(Kactual/2 - u, m, kp)[3]
+    return _ΔXNloop(u, m, u > 0 ? max(6+Int(floor(log2(u))), 1) : 0)[3]
 end
 
 #function sn(u, m)  
@@ -727,22 +756,26 @@ end
 
 _sc_helper(jacobituple) = jacobituple[1]/jacobituple[2]
 function _rawSC(u, m, Kscreen, Kactual, kp) 
-    u = u > 4Kscreen ?  u % 4Kactual : u
-    u = u > 2Kscreen ? u - 2Kactual : u
+    u = u ≥ 4Kscreen ?  u % 4Kactual : u
+    u = u ≥ 2Kscreen ? u - 2Kactual : u
     u > Kscreen && return _sc_helper(fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
+    u == Kscreen && return Inf
     u > 0.5Kscreen && return _sc_helper(fold_0_50(Kactual - u, m, Kscreen, Kactual, kp))
-    u > 0.25Kscreen && return _sc_helper(fold_0_25(Kactual/2 - u, m, kp))
+    u == Kscreen/2 && return 1/√(kp)
+    u ≥ 0.25Kscreen && return _sc_helper(fold_0_25(Kactual/2 - u, m, kp))
     return _sc_helper(_ΔXNloop(u, m, u > 0 ? max(6+Int(floor(log2(u))), 1) : 0))
 end
 _SC(u, m) = _rawSC(u, m, K(m), K(m), √(1-m))
 
 _sd_helper(jacobituple) = jacobituple[1]/jacobituple[3]
 function _rawSD(u, m, Kscreen, Kactual, kp) 
-    u = u > 4Kscreen ?  u % 4Kactual : u
-    u = u > 2Kscreen ? u - 2Kactual : u
+    u = u ≥ 4Kscreen ?  u % 4Kactual : u
+    u = u ≥ 2Kscreen ? u - 2Kactual : u
     u > Kscreen && return _sd_helper(fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
+    u == Kscreen && return 1/kp
     u > 0.5Kscreen && return _sd_helper(fold_0_50(Kactual - u, m, Kscreen, Kactual, kp))
-    u > 0.25Kscreen && return _sd_helper(fold_0_25(Kactual/2 - u, m, kp))
+    u == Kscreen/2 && return 1/√((1+kp)*kp)
+    u ≥ 0.25Kscreen && return _sd_helper(fold_0_25(Kactual/2 - u, m, kp))
     return _sd_helper(_ΔXNloop(u, m, u > 0 ? max(6+Int(floor(log2(u))), 1) : 0))
 end
 _SD(u, m) = _rawSD(u, m, K(m), K(m), √(1-m))
