@@ -698,10 +698,10 @@ function fold_1_00(u1, m, Kscreen, Kactual, kp)
     return cn/dn, -kp*sn/dn, kp/dn
 end
 
-
 function _SN(u, m)
     return _rawSN(u, m, K(m), K(m), √(1-m))
 end
+
 function _rawSN(u, m, Kscreen, Kactual, kp) 
     u = u > 4Kscreen ?  u % 4Kactual : u
     check = u ≥ 2Kscreen 
