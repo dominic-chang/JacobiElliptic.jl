@@ -317,6 +317,12 @@ function F(φ, m)
 end
 
 #https://doi.org/10.1016/j.cam.2011.11.007
+function Pi(n, m) 
+    n == 0 && return K(m)
+    m == 0 || m == 1 && return Inf #atanh(√(-1 + n)*tan(θ))/√(-1 + n)
+    return n*J(n, m) + K(m)
+end
+
 function Pi(n, φ, m) 
     return Π(n, φ, m)
 end
@@ -389,7 +395,7 @@ function Jc(n, c, m)
 
     c0 = c
     x0 = c^2
-    y0 = 1 - x0
+   
     d0 = √(mc+m*x0)
 
     xi = x0 
@@ -499,8 +505,6 @@ function JsI(n, y, m)
 end
 
 function T(t, h)
-
-
     if h > 0
         return atan(t*√h)/√(h)
     elseif h == 0
@@ -568,16 +572,16 @@ function cel3(kc, m, p)
         μl, νl, pl, cl, dl = 
             (νl+μl), 
             2√(νl*μl), 
-            (νl*μl)/pl+pl, 
-            dl/pl+cl, 
-            2*(νl*μl/pl*cl+dl)
+            (νl*μl)/pl + pl, 
+            dl/pl + cl, 
+            2*(νl*μl/pl*cl + dl)
     end
     μl, νl, pl, cl, dl = 
-        (νl+μl), 
+        (νl + μl), 
         2√(νl*μl), 
-        (νl*μl)/pl+pl, 
-        dl/pl+cl, 
-        2*(νl*μl/pl*cl+dl)
+        (νl*μl)/pl + pl, 
+        dl/pl + cl, 
+        2*(νl*μl/pl*cl + dl)
     cl_p_1 = dl/pl+cl
     return π/4*cl_p_1/μl
 end

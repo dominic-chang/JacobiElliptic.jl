@@ -248,9 +248,9 @@ function F(φ::Float32, m::Float32)
     if m > 1.f0
         ## Abramowitz & Stegum (17.4.15)
         m12 = sqrt(m)
-        theta = asin(m12*sin(φ))
+        θ = asin(m12*sin(φ))
         signθ = sign(θ)
-        absθ = abs(theta)
+        absθ = abs(θ)
         return signθ/m12*_F(absθ, 1f0/m)
         #return NaN
     elseif m < 0f0
