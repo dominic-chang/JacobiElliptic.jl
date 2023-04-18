@@ -280,6 +280,9 @@ function _rawF(sinφ, m)
 
 end
 
+#----------------------------------------------------------------------------------------
+# Elliptic F
+#----------------------------------------------------------------------------------------
 function _F(φ, m)
     2φ < HALF_PI && return sign(φ)*_rawF(sin(φ), m)
     j = round(φ/π)
@@ -316,17 +319,21 @@ function F(φ, m)
     return signφ*_F(absφ, m)
 end
 
+#----------------------------------------------------------------------------------------
+# Elliptic Π
+#----------------------------------------------------------------------------------------
+
 #https://doi.org/10.1016/j.cam.2011.11.007
 function Pi(n, m) 
     n == 0 && return K(m)
     m == 0 || m == 1 && return Inf #atanh(√(-1 + n)*tan(θ))/√(-1 + n)
-    return n*J(n, m) + K(m)
+    kc = √(1-m)
+    nc = 1-n
+    return cel(kc, nc, 1, 1)
+    #return n*J(n, m) + K(m)
 end
 
 function Pi(n, φ, m) 
-    return Π(n, φ, m)
-end
-function Π(n, φ, m)
     return n*J(n, φ, m) + F(φ, m)
 end
 
@@ -353,12 +360,12 @@ function Jred1(n, φ, m)
         newφ = absφ - j*π
         signnewφ = sign(newφ)*signφ
         absnewφ = abs(newφ)
-        return (_J(n, absnewφ, m) - 2j*J(n,m))*signnewφ
+        return (_rawJ(n, absnewφ, m) - 2j*J(n,m))*signnewφ
     end
-    return _J(n, absφ, m)*signφ
+    return _rawJ(n, absφ, m)*signφ
 end
 
-function _J(n, φ ,m)
+function _rawJ(n, φ ,m)
     mc = 1 - m
     nc = 1 - n
     ys = 0.9 # 0.95 for single
@@ -382,8 +389,9 @@ function _J(n, φ ,m)
 end
 
 function J(n, m)
-    kc = √(1-m^2)
-    (cel3(kc, m, n) - K(m))/n
+    kc = √(1-m)
+    nc = 1-n
+    cel(kc, nc, 0, 1)
 end
 
 function Jc(n, c, m)
@@ -559,32 +567,128 @@ function el2(x, kc, a, b)
     return*(1/2*(bj/μj+aj))/μj*ϕj + (a-b)*(1/2*(dj/pj+cj))
 end
 
-function cel3(kc, m, p)
-    #p = n+1
-    #m = 1-kc^2
-    μl = 1
-    νl = abs(kc)
-    pl = p > 0 ? √p : √((kc^2-p)/(1-p))
-    cl = p > 0 ? 1.0 : 0.0
-    dl = 1/pl * (p > 0 ? 1 : -m/(1-p))
-
-    while abs(1 - νl/μl) > 1e-6
-        μl, νl, pl, cl, dl = 
-            (νl+μl), 
-            2√(νl*μl), 
-            (νl*μl)/pl + pl, 
-            dl/pl + cl, 
-            2*(νl*μl/pl*cl + dl)
+function cel1(kc)
+    ca = 1e-6
+    m = 1
+    while true
+        h = m 
+        m = kc + m
+        if abs(h-kc) < ca*h
+            break
+        end
+        kc = √(h*kc)
+        m = m/2
     end
-    μl, νl, pl, cl, dl = 
-        (νl + μl), 
-        2√(νl*μl), 
-        (νl*μl)/pl + pl, 
-        dl/pl + cl, 
-        2*(νl*μl/pl*cl + dl)
-    cl_p_1 = dl/pl+cl
-    return π/4*cl_p_1/μl
+    return π/m
 end
+
+#https://link-springer-com.ezp-prod1.hul.harvard.edu/article/10.1007/BF02165405
+function cel(kc, p, a, b)
+    ca = 1e-6
+    kc = abs(kc)
+    e = kc
+    m = 1
+
+    f, g, q = 0, 0, 0
+    if p > 0
+        p = √p
+        b = b/p
+    else
+        f = kc^2
+        q = 1 - f
+        g = 1 - p
+        f = f-p
+        q = (b-a*p)*q
+        p = √(f/g)
+        a = (a-b)/g
+        b = -q*(g^2*p) + a*p
+    end
+    while true
+        f = a
+        a = b/p + a
+        g = e/p
+        b = f*g + b
+        b = b + b
+        p = g+p
+        g = m
+        m = kc+m
+        if abs(g-kc) < g*ca
+            break
+        end
+        kc = √e
+        kc = kc+kc
+        e = kc*m
+    end
+    return π/2*(a*m+b)/(m*(m+p))
+end
+
+function cel3(m, n)
+
+    p = n + 1
+    kc = √(1-m)
+    kc*p == 0 && return NaN
+    
+    ca = 1e-6
+
+    c, d, e, f, g, m0 = 0, 0, 0, 0, 0, 1
+    kc = abs(kc)
+    if p > 0
+        c = 1/p + 1
+        p = √p
+        d = 1/p
+        f = 1
+    else
+        e = 1 - p
+        f = kc^2-p
+        p = √(f/e)
+        d = -m/(e*p)
+        c = -m/f
+        f = 0
+    end
+
+    while true
+        e = m0*kc
+        g = e/p
+        d = (f*g+d)*2
+        f = c
+        p = g+p
+        g = m0
+        c = d/p + c
+        m0 = kc + m0
+        if abs(g-kc) ≤ ca*g
+            break
+        end
+        kc = √e * 2
+    end
+
+    return π/4*c/m0
+end
+
+#function cel3(kc, m, p)
+#
+#    νl = abs(kc)
+#    μl = 1
+#    pl = p > 0 ? √p : √((kc^2-p)/(1-p))
+#    cl = p > 0 ? 1.0 : 0.0
+#    dl = 1/pl * (p > 0 ? 1 : -m/(1-p))
+#
+#    while abs(1 - νl/μl) > 1e-6
+#        μl, νl, pl, cl, dl = 
+#            (νl+μl), 
+#            2√(νl*μl), 
+#            (νl*μl)/pl + pl, 
+#            dl/pl + cl, 
+#            2*(νl*μl/pl*cl + dl)
+#    end
+#    μl, νl, pl, cl, dl = 
+#        (νl + μl), 
+#        2√(νl*μl), 
+#        (νl*μl)/pl + pl, 
+#        dl/pl + cl, 
+#        2*(νl*μl/pl*cl + dl)
+#    cl_p_1 = dl/pl+cl
+#    return π/4*cl_p_1/μl
+#end
 
 #https://doi-org.ezp-prod1.hul.harvard.edu/10.031007/s10569-008-9177-y
 #https://link.springer.com/article/10.1007/s10569-008-9177-y
@@ -828,4 +932,3 @@ function sd(u, m)
 end
 
 end
-
