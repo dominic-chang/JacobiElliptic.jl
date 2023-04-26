@@ -6,6 +6,7 @@ using DelimitedFiles: readdlm
 ArbNumerics.elliptic_k(m::Float64) = ArbNumerics.elliptic_k(ArbNumerics.ArbFloat(m))
 ArbNumerics.elliptic_e(m::Float64) = ArbNumerics.elliptic_e(ArbNumerics.ArbFloat(m))
 ArbNumerics.elliptic_f(φ::Float64, m::Float64) = ArbNumerics.elliptic_f(ArbNumerics.ArbFloat(φ), ArbNumerics.ArbFloat(m))
+ArbNumerics.elliptic_pi(n::Float64, φ::Float64, m::Float64) = ArbNumerics.elliptic_pi(ArbNumerics.ArbFloat(n), ArbNumerics.ArbFloat(φ), ArbNumerics.ArbFloat(m))
 
 #Test EllipticK
 @testset "Elliptic K" begin
@@ -13,10 +14,9 @@ ArbNumerics.elliptic_f(φ::Float64, m::Float64) = ArbNumerics.elliptic_f(ArbNume
 end
 
 #Test EllipticE
-@testset "Elliptic E" begin
+@testset "Complete Elliptic E" begin
     @test all([isapprox(FastElliptic.E(m), ArbNumerics.elliptic_e(m), rtol=1e-6) for m in range(0.0,1.0,length=1000)])
 end
-
 
 #Test EllipticF
 @testset "Elliptic F" begin
@@ -40,6 +40,33 @@ end
         end
     end
 end
+
+#Test EllipticPI
+@testset "Elliptic Pi" begin
+    @testset "Standard Domain" for φ in range(1e-3, π/2, length=100)
+        @testset "φ :$(round(φ*180/pi, digits=2))" for n in range(1e-3,1-1e-3, length=100)
+            @testset "m :$m)" for m in range(1e-3, 0.95,length=100)
+                @test FastElliptic.Pi(n, φ, m)/ArbNumerics.elliptic_pi(n, φ, m) ≈ 1.0 atol=1e-6
+            end
+        end
+    end
+    ##abs(φ) > π/2: 
+    #@testset "φ = $φ" for φ in range(-10π/2, 10π/2, length=10)
+    #    for m in range(1e-3, 1-1e-3,length=10)
+    #        @test FastElliptic.F(φ, m)/ArbNumerics.elliptic_f(φ, m) ≈ 1.0 atol=1e-6
+    #    end
+    #end
+    ##|m sin(φ)| ≤ 1 && |m| > 1
+    #@testset "m = $m" for m in range(-100, 100,length=10)
+    #    mmax = asin(1/√abs(m))
+    #    for i in -1.0:0.10001:1.0
+    #        φ = i*mmax
+    #        @test FastElliptic.F(φ, m)/ArbNumerics.elliptic_f(φ, m) ≈ 1.0 atol=1e-6
+    #    end
+    #end
+end
+
+
 
 #Taken from Elliptic.jl
 #https://github.com/nolta/Elliptic.jl/blob/master/test/jacobi_tests.jl

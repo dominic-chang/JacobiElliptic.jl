@@ -344,9 +344,9 @@ function J(n, φ, m)
         t2 = sin(φ)*cos(φ)√(1-m*sin(φ)^2)
         h2 = -n*(m-n)/nc
         n2 = (m-n)/nc
-        return (F(φ, m) - T(t2, h2) - (mc/nc)*_J(n2, φ, m)) /nc
+        return (F(φ, m) - T(t2, h2) - (mc/nc)*_rawJ(n2, φ, m)) /nc
     end
-    return _J(n, φ, m)
+    return _rawJ(n, φ, m)
 end
 function Jred1(n, φ, m)
     signφ = sign(φ)
@@ -401,58 +401,61 @@ function Jc(n, c, m)
     mc = 1 - m
     h = n*nc*(n-m)
 
-    c0 = c
+    #c0 = c
     x0 = c^2
    
-    d0 = √(mc+m*x0)
+    #d0 = √(mc+m*x0)
 
     xi = x0 
-    ci = c0
-    di = d0
+    #ci = c0
+    #di = d0
 
     xB = 0.98378
     I = 0
-    while xi > xB
-        xi = (ci +di)/(1+di)
+    for _ in 1:10
+        if xi < xB
+            break
+        end
         I += 1
+        @set! _ybuf[I] = 1.0 - xi
         ci = √xi
         di = √(mc+m*xi)
-
-        @set! _ybuf[I] = 1.0 - xi
+        xi = (ci +di)/(1+di)
+        
     end
     J0 = JsI(n, 1-xi, m)
     I == 0 && return J0
     Ji = J0
-    
-    for n in I:-1:2
-        yi = _ybuf[n]
-        yim1 = _ybuf[I-1]
+    yi = 1.0 - xi 
+    ti = 0
+    for i in I:-1:1
+        yim1 = _ybuf[i]
         sim1 = √yim1
         cim1 = √(1-yim1)
         dim1 = √(1-m*yim1)
         
         ti = sim1*yi / (1-n*(yim1 - cim1*dim1*yi))
         Ji = 2Ji + T(ti, h)
-    end
-    yi = _ybuf[1]
 
-    ti = s0*yi / (1 - (y0 - c0*d0*yi))
-    return 2Ji + T(ti, h)
+        yi = yim1
+    end
+    #yi = _ybuf[1]
+
+    #ti = s0*yi / (1 - (y0 - c0*d0*yi))
+    return Ji#2Ji + T(ti, h)
 
 end
-
-
 
 function Js(n, s, m)
     _ybuf = @SVector [0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0,0.0]#
 
     nc = 1 - n
     h = n*nc*(n-m)
-    
-    s0 = s
+
+    #s0 = s
     y0 = s^2
-    c0 = √(1-y0)
-    d0 = √(1-m*y0)
+    #c0 = √(1-y0)
+    #d0 = √(1-m*y0)
 
     yi = y0 
 
@@ -460,32 +463,31 @@ function Js(n, s, m)
     I = 0
     for _ in 1:10
         yi < yB && break
+        I += 1
+        @set! _ybuf[I] = yi
 
         ci = √(1-yi)
         di = √(1-m*yi)
         yi = yi/((1 + ci)*(1 + di))
-        I += 1
-
-        @set! _ybuf[I] = yi
     end
+
     J0 = JsI(n, yi, m)
     I == 0 && return J0
     Ji = J0
+    ti = 0
     
-    for n in I:-1:2
-        yi = _ybuf[n]
-        yim1 = _ybuf[I-1]
+    for i in I:-1:1
+        yim1 = _ybuf[i]
         sim1 = √yim1
         cim1 = √(1-yim1)
         dim1 = √(1-m*yim1)
 
         ti = sim1*yi / (1-n*(yim1 - cim1*dim1*yi))
         Ji = 2Ji + T(ti, h)
-    end
-    yi = _ybuf[1]
 
-    ti = s0*yi / (1 - (y0 - c0*d0*yi))
-    return 2Ji + T(ti, h)
+        yi = yim1
+    end
+    return Ji#2Ji + T(ti, h)
 
 end
 
