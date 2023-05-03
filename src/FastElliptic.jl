@@ -8,7 +8,7 @@ const HALF_PI = π/2
 const ONE_DIV_PI = 0.3183098861837907
 
 ############################################################################
-# Complete Elliptic egrals (https://doi.org/T(10).1007/s10569-009-9228-z)
+# Complete Elliptic Integrals (https://doi.org/T(10).1007/s10569-009-9228-z)
 ############################################################################
 
 function K(m::T) where T
