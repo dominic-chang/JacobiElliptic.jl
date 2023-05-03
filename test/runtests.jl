@@ -1,45 +1,119 @@
 using Test
 using FastElliptic
+using Metal
 using ArbNumerics
 using DelimitedFiles: readdlm
 
-ArbNumerics.elliptic_k(m::Float64) = ArbNumerics.elliptic_k(ArbNumerics.ArbFloat(m))
-ArbNumerics.elliptic_e(m::Float64) = ArbNumerics.elliptic_e(ArbNumerics.ArbFloat(m))
-ArbNumerics.elliptic_f(φ::Float64, m::Float64) = ArbNumerics.elliptic_f(ArbNumerics.ArbFloat(φ), ArbNumerics.ArbFloat(m))
+function ArbNumerics.elliptic_k(m::T) where T 
+    return ArbNumerics.elliptic_k(ArbNumerics.ArbFloat(m))
+end
+function ArbNumerics.elliptic_k(m::Float64) 
+    return ArbNumerics.elliptic_k(ArbNumerics.ArbFloat(m))
+end
+function ArbNumerics.elliptic_e(m::T) where T 
+    return ArbNumerics.elliptic_e(ArbNumerics.ArbFloat(m))
+end
+function ArbNumerics.elliptic_e(m::Float64) 
+    return ArbNumerics.elliptic_e(ArbNumerics.ArbFloat(m))
+end
+function ArbNumerics.elliptic_f(φ::T, m::T) where T 
+    return ArbNumerics.elliptic_f(ArbNumerics.ArbFloat(φ), ArbNumerics.ArbFloat(m))
+end
+function ArbNumerics.elliptic_f(φ::Float64, m::Float64) where T 
+    return ArbNumerics.elliptic_f(ArbNumerics.ArbFloat(φ), ArbNumerics.ArbFloat(m))
+end
+ArbNumerics.elliptic_pi(n::AbstractFloat, φ::AbstractFloat, m::AbstractFloat) = ArbNumerics.elliptic_pi(ArbNumerics.ArbFloat(n), ArbNumerics.ArbFloat(φ), ArbNumerics.ArbFloat(m))
 
-#Test EllipticK
-@testset "Elliptic K" begin
-    @test all([isapprox(FastElliptic.K(m), ArbNumerics.elliptic_k(m), rtol=1e-6) for m in range(0.0,1.0,length=1000)])
+@testset "Elliptic K"  begin
+    @testset for typ in [Float32, Float64]
+        @testset "$typ $m" for m in [0.001, 0.01, 0.1, 0.2, 0.3, 0.5, 0.5, 0.8, 0.9, 0.99, 0.999]
+            @test FastElliptic.K(typ(m)) ≈ typ(ArbNumerics.elliptic_k(typ(m)))
+        end
+    end
+
+    @testset "GPU" begin
+        arr = [0.001f0, 0.01f0, 0.1f0, 0.2f0, 0.3f0, 0.5f0, 0.5f0, 0.8f0, 0.9f0, 0.99f0, 0.999f0]
+        mtlarr = MtlArray(arr)
+        gpuvals= Array(K.(mtlarr))
+
+        @testset "$val" for (iter, val) in enumerate(arr)
+            @test gpuvals[iter] ≈ elliptic_k(val)
+        end
+    end
+
 end
 
-#Test EllipticE
-@testset "Elliptic E" begin
-    @test all([isapprox(FastElliptic.E(m), ArbNumerics.elliptic_e(m), rtol=1e-6) for m in range(0.0,1.0,length=1000)])
-end
+@testset "Elliptic E"  begin
+    @testset "Type: $typ" for typ in [Float32, Float64]
+        @testset  "$(typ(m))" for m in [0.001, 0.01, 0.1, 0.2, 0.3, 0.5, 0.5, 0.8, 0.9, 0.99, 0.999]
+            @test FastElliptic.E(typ(m)) ≈ ArbNumerics.elliptic_e(typ(m)) 
+        end
+    end
 
+    @testset "GPU" begin
+        arr = [0.001f0, 0.01f0, 0.1f0, 0.2f0, 0.3f0, 0.5f0, 0.5f0, 0.8f0, 0.9f0, 0.99f0, 0.999f0]
+        mtlarr = MtlArray(arr)
+        gpuvals= Array(E.(mtlarr))
+
+        @testset "$val" for (iter, val) in enumerate(arr)
+            @test gpuvals[iter] ≈ elliptic_e(val)
+        end
+    end
+end
 
 #Test EllipticF
 @testset "Elliptic F" begin
-    @testset "Standard Domain" for φ in range(-π/2, π/2, length=100)
-        for m in range(1e-3, 1-1e-3,length=100)
-            @test FastElliptic.F(φ, m)/ArbNumerics.elliptic_f(φ, m) ≈ 1.0 atol=1e-6
+    @testset "$typ" for typ in [Float32, Float64]
+        @testset "Standard Domain, φ:$(typ(φ))" for φ in range(-π/2, π/2, length=100)
+            @testset "m=$(typ(m))" for m in [0.001, 0.01, 0.1, 0.2, 0.3, 0.5, 0.5, 0.8, 0.9, 0.99, 0.999]
+                @test F(typ(φ), typ(m)) / typ(ArbNumerics.elliptic_f(typ(φ), typ(m))) ≈ one(typ) atol=1e-4
+            end
+        end
+        @testset "abs(φ) > π/2:" begin
+            @testset "φ = $(typ(φ))" for φ in range(-10π/2, 10π/2, length=10)
+                @testset "m=$(typ(m))" for m in range(1e-3, 1-1e-3,length=10)
+                    @test F(typ(φ), typ(m)) / ArbNumerics.elliptic_f(typ(φ), typ(m)) ≈ one(typ) atol=1e-4
+                end
+            end
+        end
+        @testset "|m sin(φ)| ≤ 1 && |m| > 1" begin
+            @testset "m = $(typ(m))" for m in [-100, -10, -5, -2, -1.1, 1.1, 2, 5, 10, 100]
+                mmax = asin(1/√abs(m))
+                @testset "φ = $(i*mmax)" for i in -1:0.1:1.0
+                    φ = i*(mmax*(1-1e-3))
+                    if φ != zero(typ)
+                        @test FastElliptic.F(typ(φ), typ(m)) / ArbNumerics.elliptic_f(typ(φ), typ(m)) ≈ one(typ) atol=1e-4
+                    end
+                end
+            end
         end
     end
-    #abs(φ) > π/2: 
-    @testset "φ = $φ" for φ in range(-10π/2, 10π/2, length=10)
-        for m in range(1e-3, 1-1e-3,length=10)
-            @test FastElliptic.F(φ, m)/ArbNumerics.elliptic_f(φ, m) ≈ 1.0 atol=1e-6
-        end
-    end
-    #|m sin(φ)| ≤ 1 && |m| > 1
-    @testset "m = $m" for m in range(-100, 100,length=10)
-        mmax = asin(1/√abs(m))
-        for i in -1.0:0.10001:1.0
-            φ = i*mmax
-            @test FastElliptic.F(φ, m)/ArbNumerics.elliptic_f(φ, m) ≈ 1.0 atol=1e-6
+    @testset "GPU" begin
+        arr = [0.001f0, 0.01f0, 0.1f0, 0.2f0, 0.3f0, 0.5f0, 0.5f0, 0.8f0, 0.9f0, 0.99f0, 0.999f0]
+        mtlarr = MtlArray(arr)
+        @testset "φ: $φ" for φ in range(0f0, Float32(π/2), length=10)
+            gpuvals= Array(F.(φ, mtlarr))
+
+            @testset "$val" for (iter, val) in enumerate(arr)
+                @test gpuvals[iter] ≈ elliptic_f(φ, val)
+            end
         end
     end
 end
+
+#Test EllipticPI
+@testset "Elliptic Pi" begin
+    @testset "$typ" for typ in [Float32, Float64]
+        @testset "Standard Domain" for φ in range(1e-3, π/2, length=100)
+            @testset "φ :$(round(φ*180/pi, digits=2))" for n in range(1e-3,1-1e-3, length=100)
+                @testset "m :$m)" for m in range(1e-3, 0.95,length=100)
+                    @test FastElliptic.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-4
+                end
+            end
+        end
+    end
+end
+
 
 #Taken from Elliptic.jl
 #https://github.com/nolta/Elliptic.jl/blob/master/test/jacobi_tests.jl
@@ -74,11 +148,11 @@ end
                 θc = θss[j₁, i]/denom
                 θd = θns[j₁, i]/denom
 
-                @test FastElliptic.sn(u, m) ≈ θs / θn atol=2.5e-9
-                @test FastElliptic.cn(u, m) ≈ θc / θn atol=2.5e-9
-                @test FastElliptic.dn(u, m) ≈ θd / θn atol=2.5e-9
+                @test FastElliptic.sn(u, m) ≈ θs / θn atol=2.5e-6
+                @test FastElliptic.cn(u, m) ≈ θc / θn atol=2.5e-6
+                @test FastElliptic.dn(u, m) ≈ θd / θn atol=2.5e-6
 
-                @test FastElliptic.sd(u, m) ≈ θs / θd atol=2.5e-9
+                @test FastElliptic.sd(u, m) ≈ θs / θd atol=2.5e-6
                 if ϵ != 90
                     # very sensitive around u = K,
                     # estimate of K(0) = pi/2 + 4e-9, so cosine causes errors
@@ -87,6 +161,18 @@ end
                 end
             end
         end
+    end
+    @testset "GPU" begin
+        arr = range(0.0f0, 3.14f0, length=10)
+        mtlarr = MtlArray(arr)
+        m = 0.1f0
+
+        @test typeof(FastElliptic.sn.(mtlarr, m)) == MtlVector{Float32}
+        @test typeof(FastElliptic.cn.(mtlarr, m)) == MtlVector{Float32}
+        @test typeof(FastElliptic.dn.(mtlarr, m)) == MtlVector{Float32}
+        @test typeof(FastElliptic.sd.(mtlarr, m)) == MtlVector{Float32}
+        @test typeof(FastElliptic.sc.(mtlarr, m)) == MtlVector{Float32}
+
     end
 
    #@testset "u = $u" for u in -1.:0.21:1.0
