@@ -1,9 +1,9 @@
 using Test
 using FastElliptic
-using Metal
 using ArbNumerics
 using DelimitedFiles: readdlm
 
+# Testing Algorithm uality by comparing Carlson Elliptic Integral Algorithm implementation in Arbnumerics
 function ArbNumerics.elliptic_k(m::T) where T 
     return ArbNumerics.elliptic_k(ArbNumerics.ArbFloat(m))
 end
@@ -19,10 +19,12 @@ end
 function ArbNumerics.elliptic_f(φ::T, m::T) where T 
     return ArbNumerics.elliptic_f(ArbNumerics.ArbFloat(φ), ArbNumerics.ArbFloat(m))
 end
-function ArbNumerics.elliptic_f(φ::Float64, m::Float64) where T 
+function ArbNumerics.elliptic_f(φ::Float64, m::Float64)
     return ArbNumerics.elliptic_f(ArbNumerics.ArbFloat(φ), ArbNumerics.ArbFloat(m))
 end
 ArbNumerics.elliptic_pi(n::AbstractFloat, φ::AbstractFloat, m::AbstractFloat) = ArbNumerics.elliptic_pi(ArbNumerics.ArbFloat(n), ArbNumerics.ArbFloat(φ), ArbNumerics.ArbFloat(m))
+
+#include("./GPUtests.jl")
 
 @testset "Elliptic K"  begin
     @testset for typ in [Float32, Float64]
@@ -30,33 +32,12 @@ ArbNumerics.elliptic_pi(n::AbstractFloat, φ::AbstractFloat, m::AbstractFloat) =
             @test FastElliptic.K(typ(m)) ≈ typ(ArbNumerics.elliptic_k(typ(m)))
         end
     end
-
-    @testset "GPU" begin
-        arr = [0.001f0, 0.01f0, 0.1f0, 0.2f0, 0.3f0, 0.5f0, 0.5f0, 0.8f0, 0.9f0, 0.99f0, 0.999f0]
-        mtlarr = MtlArray(arr)
-        gpuvals= Array(K.(mtlarr))
-
-        @testset "$val" for (iter, val) in enumerate(arr)
-            @test gpuvals[iter] ≈ elliptic_k(val)
-        end
-    end
-
 end
 
 @testset "Elliptic E"  begin
     @testset "Type: $typ" for typ in [Float32, Float64]
         @testset  "$(typ(m))" for m in [0.001, 0.01, 0.1, 0.2, 0.3, 0.5, 0.5, 0.8, 0.9, 0.99, 0.999]
             @test FastElliptic.E(typ(m)) ≈ ArbNumerics.elliptic_e(typ(m)) 
-        end
-    end
-
-    @testset "GPU" begin
-        arr = [0.001f0, 0.01f0, 0.1f0, 0.2f0, 0.3f0, 0.5f0, 0.5f0, 0.8f0, 0.9f0, 0.99f0, 0.999f0]
-        mtlarr = MtlArray(arr)
-        gpuvals= Array(E.(mtlarr))
-
-        @testset "$val" for (iter, val) in enumerate(arr)
-            @test gpuvals[iter] ≈ elliptic_e(val)
         end
     end
 end
@@ -85,17 +66,6 @@ end
                         @test FastElliptic.F(typ(φ), typ(m)) / ArbNumerics.elliptic_f(typ(φ), typ(m)) ≈ one(typ) atol=1e-4
                     end
                 end
-            end
-        end
-    end
-    @testset "GPU" begin
-        arr = [0.001f0, 0.01f0, 0.1f0, 0.2f0, 0.3f0, 0.5f0, 0.5f0, 0.8f0, 0.9f0, 0.99f0, 0.999f0]
-        mtlarr = MtlArray(arr)
-        @testset "φ: $φ" for φ in range(0f0, Float32(π/2), length=10)
-            gpuvals= Array(F.(φ, mtlarr))
-
-            @testset "$val" for (iter, val) in enumerate(arr)
-                @test gpuvals[iter] ≈ elliptic_f(φ, val)
             end
         end
     end
@@ -162,19 +132,6 @@ end
             end
         end
     end
-    @testset "GPU" begin
-        arr = range(0.0f0, 3.14f0, length=10)
-        mtlarr = MtlArray(arr)
-        m = 0.1f0
-
-        @test typeof(FastElliptic.sn.(mtlarr, m)) == MtlVector{Float32}
-        @test typeof(FastElliptic.cn.(mtlarr, m)) == MtlVector{Float32}
-        @test typeof(FastElliptic.dn.(mtlarr, m)) == MtlVector{Float32}
-        @test typeof(FastElliptic.sd.(mtlarr, m)) == MtlVector{Float32}
-        @test typeof(FastElliptic.sc.(mtlarr, m)) == MtlVector{Float32}
-
-    end
-
    #@testset "u = $u" for u in -1.:0.21:1.0
    #    @test FastElliptic.sn(u,0) ≈ sin(u)
    #    @test FastElliptic.cn(u,0) ≈ cos(u)

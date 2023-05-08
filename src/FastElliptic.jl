@@ -1,6 +1,7 @@
 module FastElliptic
-export E, F, K
 using StaticArrays, Setfield
+export K, E, F, Pi, J
+export sn, cn, dn, sc, sd, asn, acn
 
 #include("./FastElliptic32.jl")
 
@@ -10,7 +11,16 @@ const ONE_DIV_PI = 0.3183098861837907
 ############################################################################
 # Complete Elliptic Integrals (https://doi.org/T(10).1007/s10569-009-9228-z)
 ############################################################################
+"""
+    K(m)
+# Params
 
+`m` : Elliptic modulus
+    
+``K(m) = \\int_0^{\\pi/2}\\frac{d\\theta}{\\sqrt{1-k^2\\sin(\\theta)^2}}.``
+
+Returns the complete elliptic integral of the first kind.
+"""
 function K(m::T) where T
     if m < one(T)
         # I didn't really see any speedup from evalpoly, so I left the evaluation in this form
@@ -77,6 +87,16 @@ function K(m::T) where T
     return T(NaN)
 end
 
+"""
+    E(m)
+# Params
+
+`m` : Elliptic modulus
+    
+``E(m) = \\int_0^{\\pi/2}\\sqrt{1-k^2\\sin(\\theta)^2}d\\theta.``
+
+Returns the complete elliptic integral of the second kind.
+"""
 function E(m::T) where T
     m == zero(T) && return T(HALF_PI)
     if m < one(T)
@@ -192,6 +212,19 @@ function serf(y::T, m::T) where T
                     T(0.00976161)*m)*m))))))))*y))))))))
 end
 
+"""
+    asn(u, m)
+# Params
+
+`u` : Amplitude
+
+`m` : Elliptic modulus
+
+
+``\\text{asn}(u,m)=\\text{sn}(u,m)^{-1}``.
+
+Returns the inverse Jacobi Elliptic sn.
+"""
 function asn(s::T, m::T) where T
     yA = T(0.04094) - T(0.00652)*m
     y = s * s
@@ -208,6 +241,19 @@ function asn(s::T, m::T) where T
     return T(NaN)
 end
 
+"""
+    acn(u, m)
+# Params
+
+`u` : Amplitude
+
+`m` : Elliptic modulus
+
+
+``\\text{acn}(u,m)=\\text{cn}(u,m)^{-1}``.
+
+Returns the inverse Jacobi Elliptic cn.
+"""
 function acn(c::T, m::T) where T
     mc = one(T) - m
     x = c*c
@@ -260,6 +306,18 @@ function _F(φ::T, m::T) where T
     return 2*j*K(m) + sign(newφ)*_rawF(sin(abs(newφ)), m)
 end
 
+"""
+    F(φ|\\, m)
+# Params
+
+`φ` : Amplitude
+
+`m` : Elliptic modulus
+
+``F(\\varphi, m) = \\int_0^{\\varphi}\\frac{d\\theta}{\\sqrt{1-k^2\\sin(\\theta)^2}}.``
+
+Returns the complete elliptic integral of the first kind.
+"""
 function F(φ::T, m::T) where T
     if m > one(T)
         ## Abramowitz & Stegum*(17.4.15)
@@ -286,8 +344,21 @@ end
 #----------------------------------------------------------------------------------------
 # Elliptic Π
 #----------------------------------------------------------------------------------------
-
+Π(n, m) = Pi(n, m)
+Π(n, φ, m) = Pi(n, φ, m)
 #https://doi.org/T(10).1016/j.cam.2011.1107
+"""
+    Pi(n, m)
+# Params
+
+`n` : Characteristic
+
+`m` : Elliptic modulus
+
+``\\Pi(n;\\varphi \\,|\\,m)=\\int_{0}^{1 }{\\frac{1}{1-nt^{2}}}{\\frac{dt}{\\sqrt{\\left(1-mt^{2}\\right)\\left(1-t^{2}\\right)}}}.``
+
+Returns the complete elliptic integral of the third kind.
+"""
 function Pi(n::T, m::T) where{T}
     n == zero(T) && return K(m)
     m == zero(T) || m == one(T) && return Inf #atanh(√(-1 + n)*tan(θ))/√(-1 + n)
@@ -296,10 +367,40 @@ function Pi(n::T, m::T) where{T}
     return cel(kc, nc, one(T), one(T))
 end
 
+"""
+    Pi(n, φ, m)
+# Params
+
+`n` : Characteristic
+
+`φ` : Amplitude
+
+`m` : Elliptic modulus
+
+
+``\\Pi (n;\\varphi \\,|\\,m)=\\int _{0}^{\\sin \\varphi }{\\frac {1}{1-nt^{2}}}{\\frac {dt}{\\sqrt {\\left(1-mt^{2}\\right)\\left(1-t^{2}\\right)}}}.``
+
+Returns the incomplete elliptic integral of the third kind.
+"""
 function Pi(n::T, φ::T, m::T) where{T}
     return n*J(n, φ, m) + F(φ, m)
 end
 
+"""
+    J(n, φ, m)
+# Params
+
+`n` : Characteristic
+
+`φ` : Amplitude
+
+`m` : Elliptic modulus
+
+
+``J (n;\\varphi \\,|\\,m)=\\frac{\\Pi(n;\\varphi|\\, m) - F(\\varphi|\\,m)}{n}.``
+
+Returns the associate incomplete elliptic integral of the third kind.
+"""
 function J(n::T, φ::T, m::T) where {T}
     if n > one(T)
         nc = one(T)-n
@@ -351,6 +452,18 @@ function _rawJ(n::T, φ::T ,m::T) where {T}
     end
 end
 
+"""
+    J(n, m)
+# Params
+
+`n` : Characteristic
+
+`m` : Elliptic modulus
+
+``J(n;\\varphi \\,|\\,m)=\\frac{\\Pi(n;\\pi/2|\\, m) - K(m)}{n}.``
+
+Returns the associate complete elliptic integral of the third kind.
+"""
 function J(n::T, m::T) where{T}
     kc = √(one(T)-m)
     nc = one(T)-n
@@ -771,6 +884,20 @@ function _SD(u::T, m::T) where T
     return _rawSD(u, m, K(m), K(m), √(one(T)-m))
 end
 
+"""
+    sn(u, m)
+# Params
+
+`u` : Amplitude
+
+`m` : Elliptic modulus
+
+
+``\\text{sn}(u,m)=\\sin\\,\\text{am}(u,m)``, where ``\\text{am}(u|\\,m)=F^{-1}(u|\\,m)`` 
+is the Jacobi amplitude.
+
+Returns the Jacobi Elliptic sn.
+"""
 function sn(u::T, m::T) where T  
     signu = sign(u)
     u = abs(u)
@@ -779,6 +906,20 @@ function sn(u::T, m::T) where T
     return signu*_SN(u*sqrtm, inv(m))/sqrtm
 end
 
+"""
+    cn(u, m)
+# Params
+
+`u` : Amplitude
+
+`m` : Elliptic modulus
+
+
+``\\text{cn}(u,m)=\\cos\\,\\text{am}(u,m)``, where ``\\text{am}(u|\\,m)=F^{-1}(u|\\,m)`` 
+is the Jacobi amplitude.
+
+Returns the Jacobi Elliptic cn.
+"""
 function cn(u::T, m::T) where T  
     u = abs(u)
     m < one(T) && return _CN(u, m)
@@ -786,6 +927,20 @@ function cn(u::T, m::T) where T
     return _DN(u*sqrtm, inv(m))
 end
 
+"""
+    dn(u, m)
+# Params
+
+`u` : Amplitude
+
+`m` : Elliptic modulus
+
+
+``\\text{dn}(u,m)=\\frac{d}{d u}\\,\\text{am}(u,m)``, where ``\\text{am}(u|\\,m)=F^{-1}(u|\\,m)`` 
+is the Jacobi amplitude.
+
+Returns the Jacobi Elliptic dn.
+"""
 function dn(u::T, m::T) where T  
     u = abs(u)
     m < one(T) && return _DN(u, m)
