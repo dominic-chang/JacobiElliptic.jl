@@ -36,7 +36,7 @@ end
 
 @testset "Elliptic E"  begin
     @testset "Type: $typ" for typ in [Float32, Float64]
-        @testset  "$(typ(m))" for m in [0.001, 0.01, 0.1, 0.2, 0.3, 0.5, 0.5, 0.8, 0.9, 0.99, 0.999]
+        @testset  "$(typ(m))" for m in [0.001, 0.01, 0.1, 0.19, 0.29, 0.39, 0.49, 0.59, 0.69, 0.79, 0.89, 0.99, 0.999]
             @test FastElliptic.E(typ(m)) ≈ ArbNumerics.elliptic_e(typ(m)) 
         end
     end
@@ -83,7 +83,6 @@ end
         end
     end
 end
-
 
 #Taken from Elliptic.jl
 #https://github.com/nolta/Elliptic.jl/blob/master/test/jacobi_tests.jl

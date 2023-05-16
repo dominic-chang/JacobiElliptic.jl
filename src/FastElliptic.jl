@@ -589,66 +589,6 @@ function FukushimaT(t::T, h::T) where {T}
     end
 end
 
-function el2(x::T, kc::T, a::T, b::T) where{T}
-    μj = one(T)
-    νj = abs(kc)
-    aj = a
-    bj = b
-    xj = one(T)/x
-    pj = √((one(T)+kc^2*x^2)/(one(T)+x^2))
-    cj = zero(T)
-    dj = x/(one(T)+x^2)
-    ϕj_temp_2 = zero(T)
-    j = zero(T)
-
-    while abs(one(T) - νj/μj) ≥ T(1e-6)
-        ϕj_temp_2 += T(2)^(-j-one(T))*(one(T)-sign(xj))
-        (;μj, νj, aj, bj, xj, pj, cj, dj) = (
-            μj = νj + μj, 
-            νj = T(2)*√(μj*νj), 
-            aj = T(0.5)*(bj/μj + aj), 
-            bj = aj*νj + bj, 
-            xj = -μj*νj/xj + xj, 
-            pj = μj*νj/pj + pj, 
-            cj = T(0.5)*(dj/pj + cj), 
-            dj = μj*νj/pj*cj + dj
-        )
-        j += one(T)
-    end
-    ϕj_temp_2 += T(2)^(-j-one(T))*(one(T)-sign(xj))
-    (;μj, νj, aj, bj, xj, pj, cj, dj) = (
-        μj = νj + μj, 
-        νj = T(2)*√(μj*νj), 
-        aj = T(0.5)*(bj/μj + aj), 
-        bj = aj*νj + bj, 
-        xj = -μj*νj/xj + xj, 
-        pj = μj*νj/pj + pj, 
-        cj = T(0.5)*(dj/pj + cj), 
-        dj = μj*νj/pj*cj + dj
-    )
-    j += one(T)
-    ϕj_temp_2 += T(2)^(-j-1.0)*(one(T)-sign(xj))
-    ϕj_temp_2 *= T(2)^j
-    ϕj_temp_2 += (one(T)-sign(xj))*T(0.5)
-    ϕj = atan(μj/xj) + T(π/T(2))*(ϕj_temp_2)
-    return*((0.5)*(bj/μj+aj))/μj*ϕj + (a-b)*(T(0.5)*(dj/pj+cj))
-end
-
-function cel1(kc::T) where T
-    ca = T(1e-6)
-    m = one(T)
-    while true
-        h = m 
-        m = kc + m
-        if abs(h-kc) < ca*h
-            break
-        end
-        kc = √(h*kc)
-        m = m*T(0.5)
-    end
-    return T(π)/m
-end
-
 #https://link-springer-com.ezp-prod1.hul.harvard.edu/article/T(10).1007/BF02165405
 function cel(kc::T, p::T, a::T, b::T) where T
     ca = T(1e-6)
@@ -687,50 +627,6 @@ function cel(kc::T, p::T, a::T, b::T) where T
         e = kc*m
     end
     return T(π/T(2))*(a*m+b)/(m*(m+p))
-end
-
-function cel3(m::T, n::T) where T
-
-    p = n + one(T)
-    kc = √(one(T)-m)
-    kc*p == zero(T) && return T(NaN)
-    
-    ca = T(1e-6)
-
-    c, d, e, f, g, m0 = zero(T), zero(T), zero(T), zero(T), zero(T), one(T)
-    kc = abs(kc)
-    if p > zero(T)
-        c = inv(p) + one(T)
-        p = √p
-        d = inv(p)
-        f = one(T)
-    else
-        e = one(T) - p
-        f = kc^2-p
-        p = √(f/e)
-        d = -m/(e*p)
-        c = -m/f
-        f = zero(0)
-    end
-
-    while true
-        e = m0*kc
-        g = e/p
-        d = (f*g+d)
-        d += d
-        f = c
-        p = g+p
-        g = m0
-        c = d/p + c
-        m0 = kc + m0
-        if abs(g-kc) ≤ ca*g
-            break
-        end
-        kc = √e 
-        kc += kc
-    end
-
-    return T(π/4)*c/m0
 end
 
 #https://doi-org.ezp-prod1.hul.harvard.edu/T(10).031007/s10569-008-9177-y
