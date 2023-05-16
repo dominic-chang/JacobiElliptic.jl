@@ -1,4 +1,4 @@
-name: Continuout Integration
+name: Continuous Integration
 on:
   pull_request:
     branches: [master]
