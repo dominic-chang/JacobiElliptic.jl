@@ -295,15 +295,17 @@ end
 # Elliptic F
 #----------------------------------------------------------------------------------------
 function _F(φ::T, m::T) where T
-    (φ+φ)  < T(HALF_PI) && return sign(φ)*_rawF(sin(φ), m)
-    j = round(φ/T(π))
+    abs(φ)  < T(HALF_PI) && return sign(φ)*_rawF(sin(φ), m)
+    j = floor(φ/T(π))
     newφ = φ - j*T(π)
-    if newφ > T(π)/T(2)
-        j += one(T)
-        newφ = newφ - T(π)
+    signφ = sign(newφ)
+    if abs(newφ) > T(π/2)
+        j += signφ*one(T)
+        newφ = newφ - signφ*T(π)
     end
+    signφ = sign(newφ)
 
-    return 2*j*K(m) + sign(newφ)*_rawF(sin(abs(newφ)), m)
+    return 2*j*K(m) + signφ*_rawF(sin(abs(newφ)), m)
 end
 
 """
@@ -360,8 +362,9 @@ end
 Returns the complete elliptic integral of the third kind.
 """
 function Pi(n::T, m::T) where{T}
+    n > one(T) && return K(m) - Pi(m/n, m)
     n == zero(T) && return K(m)
-    m == zero(T) || m == one(T) && return Inf #atanh(√(-1 + n)*tan(θ))/√(-1 + n)
+    m == zero(T) || m == one(T) && return T(Inf) #atanh(√(-1 + n)*tan(θ))/√(-1 + n)
     kc = √(one(T)-m)
     nc = one(T)-n
     return cel(kc, nc, one(T), one(T))
@@ -382,8 +385,26 @@ end
 
 Returns the incomplete elliptic integral of the third kind.
 """
-function Pi(n::T, φ::T, m::T) where{T}
+function Pi(n::T, φ::T, m::T) where T
+    if m < zero(T) # Imaginary modulus transformation https://dlmf.nist.gov/19.7#iii
+        mc = one(T) - m
+        imc = inv(mc) 
+        mN = -m*imc
+        φN = asin(sqrt(mc/(one(T)−m*sin(φ)^2)) * sin(φ) ) 
+
+        nN = (n-m)*imc
+
+        return sqrt(imc)/nN*(mN*F(φN, mN) + imc*n*Pi(nN, φN, mN))
+    end # https://link.springer.com/book/10.1007/978-3-642-65138-0 117.01
+    if n > one(T)
+        nc = one(T) - n
+        t1 = tan(φ)/sqrt(one(T) − m*sin(φ)^2) 
+        h1 = nc*(n−m)/n 
+        n1 = m/n
+        return (FukushimaT(t1, h1) - n1*J(n1, φ, m))
+    end
     return n*J(n, φ, m) + F(φ, m)
+    
 end
 
 """
@@ -401,39 +422,80 @@ end
 
 Returns the associate incomplete elliptic integral of the third kind.
 """
-function J(n::T, φ::T, m::T) where {T}
-    if n > one(T)
-        nc = one(T)-n
-        mc = one(T)-m
-        t2 = sin(φ)*cos(φ)√(one(T)-m*sin(φ)^2)
-        h2 = -n*(m-n)/nc
-        n2 = (m-n)/nc
-        return (F(φ, m) - FukushimaT(t2, h2) - (mc/nc)*_rawJ(n2, φ, m)) /nc
-    end
-    return _rawJ(n, φ, m)
-end
-function Jred1(n::T, φ::T, m::T) where{T}
-    signφ = sign(φ)
-    absφ = abs(φ)
-    absφ == zero(T) && return zero(T)
-    absφ == T(π/T(2)) && return signφ*J(n, m)
+function J(n::T, φ::T, m::T) where T #Appendix A
+    # Reduction of Amplitude
+    φ == zero(T) && return zero(T)
+    φ == T(π/2) && return J(n,m)
 
-    if absφ > T(π/T(2))
-        j = round(absφ / T(π/T(2)))
-        j = isodd(j) ? (j+one(T))/T(2) : j/T(2)
-        newφ = absφ - j*T(π)
-        signnewφ = sign(newφ)*signφ
-        absnewφ = abs(newφ)
-        return (_rawJ(n, absnewφ, m) - T(2)j*J(n,m))*signnewφ
+    if abs(φ) > T(π/2) && m < one(T)
+        j = floor(φ/T(π))
+        newφ = φ - j*T(π)
+        signφ = sign(newφ)
+        if abs(newφ) > T(π/2)
+            j += signφ*one(T)
+            newφ = newφ - signφ*T(π)
+        end
+        signφ = sign(newφ)
+
+        return 2*j*J(n, m) + signφ*J(n, abs(newφ), m)
     end
-    return _rawJ(n, absφ, m)*signφ
+    φ < zero(T) && return -J(n, -φ, m)
+
+    # Reduction of parameter
+    if zero(T) < φ < T(π/2) && m*sin(φ)^2 ≤ one(T)
+        nc = one(T) - n
+        iszero(m) && !iszero(n) && return (FukushimaT(tan(φ), nc) - φ) / n
+
+        iszero(m) && iszero(n) && return φ/2 - sin(2*φ)/4
+
+        isone(m) && !isone(n) && return (atanh(sin(φ)) - FukushimaT(sin(φ), -n))/nc
+
+        isone(m) && isone(n) && return 1/2*(sin(φ)/cos(φ)^2 - atanh*sin(φ))
+    end
+
+    if one(T) < m < inv(sin(φ)^2)
+        φR = asin(√m*sin(φ))
+        nR = n/m
+        mR = inv(m)
+        #return NaN
+        return mR*√mR*J(nR, φR, mR)
+    elseif m < zero(T)
+        mc = one(T) - m
+        φN = asin(sqrt(mc/(one(T)−m*sin(φ)^2)) * sin(φ) ) 
+        nN = (n−m)/mc 
+        mN = -m/mc
+        return mN*√mN*J(nN, φN, mN)
+    end
+    # Reduction of Characteristics
+    if zero(T) < φ < one(T) && zero(T) < m < one(T) 
+        if n > one(T)
+            # t = inv(x^2)
+            # h = y - x
+            nc = one(T) - n
+            t1 = tan(φ)/sqrt(one(T)−m*sin(φ)^2) 
+            h1 = nc*(n−m)/n 
+            n1 = m/n
+            return (-F(φ, m) + FukushimaT(t1, h1) - n1*J(n1, φ, m))/n
+        elseif n < zero(T)
+            mc = one(T) - m
+            nc = one(T) - n
+            t2 = sin(φ)*cos(φ)/sqrt(one(T)−m*sin(φ)^2) 
+            h2 = -n*(m-n)/nc
+            n2 = (m−n)/nc 
+            #return NaN
+            return(F(φ, m) - FukushimaT(t2, h2) - (mc/nc)*J(n2, φ, m))/nc
+        end
+    end
+    
+    zero(T) < φ < T(π/2) && zero(T) < m < one(T) && zero(T) < n < one(T) && return _rawJ(n, φ, m)
+    return NaN
 end
 
 function _rawJ(n::T, φ::T ,m::T) where {T}
     mc = one(T) - m
     nc = one(T) - n
-    ys = T(0.9) # T(0.95) for single
-    φs = T(1.249) # T(1.345) for single
+    ys = T == Float32 ? T(0.95) : T(0.9) # T(0.95) for single
+    φs = T == Float32 ? T(1.345) : T(1.249) # T(1.345) for single
     s = sin(φ)
     c = cos(φ)
     z = c/√(mc + m*c^2)
@@ -446,9 +508,9 @@ function _rawJ(n::T, φ::T ,m::T) where {T}
     elseif z^2 < ys
         return J(n, m) - Js(n, z, m) - FukushimaT(ts, h)
     elseif c < w
-        return Jc(n, c, m)
+        return Js(n, s, m)
     else
-        return J(n, m) - Jc(n, w, m) - FukushimaT(tc, h)
+        return J(n, m) - Js(n, sqrt(one(T)-w^2), m) - FukushimaT(tc, h)
     end
 end
 
@@ -464,55 +526,69 @@ end
 
 Returns the associate complete elliptic integral of the third kind.
 """
-function J(n::T, m::T) where{T}
+function J(n::T, m::T) where T
+    n > one(T) && return m/n*J(m/n, m)
     kc = √(one(T)-m)
     nc = one(T)-n
-    cel(kc, nc, zero(T), one(T))
+    return cel(kc, nc, zero(T), one(T))
 end
 
-function Jc(n::T, c::T, m::T) where{T}
-    _ybuf = @SVector [zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T)]#
-
-    nc = one(T) - n
-    mc = one(T) - m
-    h = n*nc*(n-m)
-
-    x0 = c^2
-   
-    xi = x0 
-
-    xB = 0.98378
-    I = 0
-    for _ in 1:10
-        if xi < xB
-            break
-        end
-        I += 1
-        @set! _ybuf[I] = T(1.0) - xi
-        ci = √xi
-        di = √(mc+m*xi)
-        xi = (ci +di)/(1+di)
-        
-    end
-    J0 = JsI(n, one(T)-xi, m)
-    I == 0 && return J0
-    Ji = J0
-    yi = T(1.0) - xi 
-    ti = 0
-    for i in I:-1:1
-        yim1 = _ybuf[i]
-        sim1 = √yim1
-        cim1 = √(one(T)-yim1)
-        dim1 = √(one(T)-m*yim1)
-        
-        ti = sim1*yi / (one(T)-n*(yim1 - cim1*dim1*yi))
-        Ji = 2Ji + FukushimaT(ti, h)
-
-        yi = yim1
-    end
-    return Ji
-
-end
+#function Jc(n::T, c::T, m::T) where{T}
+#    #_ybuf = @SVector [zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T)]#
+#    _xbuf = @SVector [zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T)]#
+#
+#    nc = one(T) - n
+#    mc = one(T) - m
+#    h = n*nc*(n-m)
+#
+#    x0 = c^2
+#   
+#    xi = x0 
+#
+#    xB = T == Float32 ? T(0.94095) : T(0.98378)
+#    I = 0
+#    for _ in 1:10
+#        if xi < xB
+#            break
+#        end
+#        I += 1
+#        #@set! _ybuf[I] = one(T) - xi
+#        @set! _xbuf[I] = xi
+#        ci = √xi
+#        di = √(mc+m*xi)
+#        xi = (ci +di)/(one(T)+di)
+#    end
+#    J0 = JsI(n, one(T)-xi, m)
+#    I == 0 && return J0
+#    Ji = J0
+#    yi = one(T) - xi 
+#    ti = 0
+#    for i in I:-1:1
+#        #yim1 = _ybuf[i]
+#        #sim1 = √yim1
+#        #cim1 = √(one(T)-yim1)
+#        #dim1 = √(one(T)-m*yim1)
+#        
+#        #ti = sim1*yi / (one(T)-n*(yim1 - cim1*dim1*yi))
+#        #Ji = 2Ji + FukushimaT(ti, h)
+#
+#        #yi = yim1
+#
+#        xim1 = _xbuf[i]
+#        yim1 = one(T) - xim1
+#        sim1 = √yim1
+#        cim12 = (xim1)
+#        dim12 = (one(T)-m*yim1)
+#        
+#        ti = sim1*yi / (one(T)-n*(yim1 - sqrt(cim1*dim1)*yi))
+#        Ji = 2Ji + FukushimaT(ti, h)
+#
+#        xi = xim1
+#
+#    end
+#    return Ji
+#
+#end
 
 function Js(n::T, s::T, m::T) where T
     _ybuf = @SVector [zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T)]#
@@ -524,7 +600,7 @@ function Js(n::T, s::T, m::T) where T
 
     yi = y0 
 
-    yB = 0.01622
+    yB = T == Float32 ? T(0.05905) : T(0.01622)
     I = 0
     for _ in 1:10
         yi < yB && break
@@ -580,12 +656,13 @@ function JsI(n::T, y::T, m::T) where {T}
 end
 
 function FukushimaT(t::T, h::T) where {T}
+    #FixMe : Use a cersion of atanh that does not require complex inputs
     if h > zero(T)
         return atan(t*√h)/√(h)
     elseif h == zero(T)
         return t
     else
-        return atanh(t*√(-h))/√(-h)
+        return real(atanh(t*√(-h) + zero(T)*im))/√(-h)
     end
 end
 
