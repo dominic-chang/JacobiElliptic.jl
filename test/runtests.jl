@@ -3,6 +3,7 @@ using FastElliptic
 using ArbNumerics
 using DelimitedFiles: readdlm
 
+
 # Testing Algorithm uality by comparing Carlson Elliptic Integral Algorithm implementation in Arbnumerics
 function ArbNumerics.elliptic_k(m::T) where T 
     return ArbNumerics.elliptic_k(ArbNumerics.ArbFloat(m))
@@ -31,7 +32,6 @@ function ArbNumerics.elliptic_pi(n::Float32, m::Float32)
 end
 
 
-#include("./GPUtests.jl")
 
 @testset "Elliptic K"  begin
     @testset for typ in [Float32, Float64]
@@ -209,3 +209,5 @@ end
    #end
 
 end
+
+#include("./GPUtests.jl")

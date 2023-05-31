@@ -450,7 +450,7 @@ function J(n::T, φ::T, m::T) where T #Appendix A
 
         isone(m) && !isone(n) && return (atanh(sin(φ)) - FukushimaT(sin(φ), -n))/nc
 
-        isone(m) && isone(n) && return 1/2*(sin(φ)/cos(φ)^2 - atanh*sin(φ))
+        isone(m) && isone(n) && return (sin(φ)/cos(φ)^2 - atanh(sin(φ)))/2
     end
 
     if one(T) < m < inv(sin(φ)^2)
@@ -488,7 +488,7 @@ function J(n::T, φ::T, m::T) where T #Appendix A
     end
     
     zero(T) < φ < T(π/2) && zero(T) < m < one(T) && zero(T) < n < one(T) && return _rawJ(n, φ, m)
-    return NaN
+    return T(NaN)
 end
 
 function _rawJ(n::T, φ::T ,m::T) where {T}
@@ -655,14 +655,24 @@ function JsI(n::T, y::T, m::T) where {T}
     )
 end
 
+function custom_atanh(a::T) where T
+
+    arg1 = abs(one(T) + a)
+    arg2 = abs(one(T) - a)
+
+    ans = (log(arg1/arg2))/2
+    return ans 
+end
+
 function FukushimaT(t::T, h::T) where {T}
-    #FixMe : Use a cersion of atanh that does not require complex inputs
     if h > zero(T)
         return atan(t*√h)/√(h)
     elseif h == zero(T)
         return t
     else
-        return real(atanh(t*√(-h) + zero(T)*im))/√(-h)
+        arg = t*√(-h)
+        ans = abs(arg) < one(T) ? atanh(arg) : custom_atanh(t*√(-h))
+        return ans/√(-h)
     end
 end
 
@@ -703,7 +713,7 @@ function cel(kc::T, p::T, a::T, b::T) where T
         kc = kc+kc
         e = kc*m
     end
-    return T(π/T(2))*(a*m+b)/(m*(m+p))
+    return T(π/2)*(a*m+b)/(m*(m+p))
 end
 
 #https://doi-org.ezp-prod1.hul.harvard.edu/T(10).031007/s10569-008-9177-y
