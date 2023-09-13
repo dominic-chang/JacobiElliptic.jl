@@ -344,6 +344,151 @@ function F(φ::T, m::T) where T
 end
 
 #----------------------------------------------------------------------------------------
+# Elliptic D
+#----------------------------------------------------------------------------------------
+function D(m::T) where T
+	return cel2(√(one(T) - m), zero(T), one(T))
+end
+
+function Dsi(s::T, m::T) where T
+	s2 = s^2
+	return s * s2 *
+		   (
+			   T(1 / 3) +
+			   s2 * (
+				   T(1 / 10) + m / 10 +
+				   s2 * (
+					   T(3 / 56) + (T(1 / 28) + (3 * m) / 56) * m +
+					   s2 * (
+						   T(5 / 144) + m * (T(1 / 48) + (T(1 / 48) + (5 * m) / 144) * m) +
+						   s2 * (
+							   T(35 / 1408) + m * (T(5 / 352) + m * (T(9 / 704) + (T(5 / 352) + (35 * m) / 1408) * m)) +
+							   s2 * (
+								   T(63 / 3328) + m * (T(35 / 3328) + m * (T(15 / 1664) + m * (T(15 / 1664) +
+																							   (T(35 / 3328) + (63 * m) / 3328) * m))) +
+								   s2 * (
+									   T(77 / 5120) + m * (T(21 / 2560) + m * (T(7 / 1024) + m * (T(5 / 768) +
+																								  m * (T(7 / 1024) + (T(21 / 2560) + (77 * m) / 5120) * m)))) +
+									   s2 * (
+										   T(429 / 34816) + m * (T(231 / 34816) + m * (T(189 / 34816) +
+																					   m * (T(175 / 34816) + m * (T(175 / 34816) + m * (T(189 / 34816) +
+																																		(T(231 / 34816) + (429 * m) / 34816) * m))))) +
+										   (T(6435 / 622592) + m * (T(429 / 77824) + m * (T(693 / 155648) +
+																						  m * (T(315 / 77824) + m * (T(1225 / 311296) + m * (T(315 / 77824) +
+																																			 m * (T(693 / 155648) + (T(429 / 77824) + (6435 * m) / 622592) *
+																																									m))))))) * s2
+									   )
+								   )
+							   )
+						   )
+					   )
+				   )
+			   )
+		   )
+end
+
+function Ds(s::T, m::T) where T
+	_ybuf = @SVector [zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T)]#
+
+	y0 = s^2
+	yi = y0
+
+	yA(m) = T == Float32 ? (T(0.1888) - 0.0378 * m) : (T(0.04094) - 0.00652 * m)
+	I = 0
+	for _ in 1:10
+		yi < yA(m) && break
+		I += 1
+		@set! _ybuf[I] = yi
+
+		ci = √(one(T) - yi)
+		di = √(one(T) - m * yi)
+		yi = yi / ((1 + ci) * (1 + di))
+	end
+
+	D0 = Dsi(sqrt(yi), m)
+	I == zero(T) && return D0
+	Di = D0
+
+	for i in I:-1:1
+		yim1 = _ybuf[i]
+		sim1 = √yim1
+
+		Di = 2Di + sim1 * yi
+
+		yi = yim1
+	end
+	return Di
+end
+
+function _rawD(φ::T, m::T) where T
+	ys = T == Float32 ? T(0.95) : T(0.9) # T(0.95) for single
+	φs = T == Float32 ? T(1.345) : T(1.249) # T(1.345) for single
+	s = sin(φ)
+
+	if φ < φs
+		return Ds(s, m)
+	end
+
+	mc = one(T) - m
+	c = cos(φ)
+	z = c / √(mc + m * c^2)
+	if z^2 < ys
+		return D(m) - Ds(z, m) - s * z
+	end
+
+	w = √(1 - z^2)
+	if c < w
+		return Ds(s, m)
+	end
+
+	return D(m) - Ds(sqrt(one(T) - w^2), m) - √((one(T) - c^2) * (one(T) - w^2))
+end
+
+# https://www.sciencedirect.com/science/article/pii/S0377042711001270?ref=pdf_download&fr=RR-2&rr=80442ff79ecc4cef
+function D(φ::T, m::T) where T
+
+	# Reduction of Amplitude
+	if abs(φ) > T(π / 2) && m < one(T)
+		j = floor(φ / T(π))
+		newφ = φ - j * T(π)
+		signφ = sign(newφ)
+		if abs(newφ) > T(π / 2)
+			j += signφ * one(T)
+			newφ = newφ - signφ * T(π)
+		end
+		signφ = sign(newφ)
+
+		return 2 * j * D(m) + signφ * D(abs(newφ), m)
+	end
+
+	φ < zero(T) && return -D(-φ, m)
+
+	#Reduction of Parameter
+	if m > one(T) && m * sin(φ)^2 ≤ one(T)
+		mr = inv(m)
+		φr = asin(√m * sin(φ))
+		return mr * √mr * D(φr, mr)
+    end
+
+	#if m < zero(T)
+	#	mN = -m / (1 - m)
+	#	φN = asin(√(mc / (1 - m * sin(φ)^2)) * sin(φ))
+	#	return √(1 - mN) * (D(φN, mN) - sin(φN) * cos(φN) / √(1 - mN * sin(φN)^2))
+	#end
+
+
+	return _rawD(φ, m)
+end
+
+#----------------------------------------------------------------------------------------
+# Elliptic E
+#----------------------------------------------------------------------------------------
+
+function E(φ::T, m::T) where T
+	return F(φ, m) - m * D(φ, m)
+end
+
+#----------------------------------------------------------------------------------------
 # Elliptic Π
 #----------------------------------------------------------------------------------------
 Π(n, m) = Pi(n, m)
@@ -657,23 +802,25 @@ end
 
 function custom_atanh(a::T) where T
 
-    arg1 = abs(one(T) + a)
-    arg2 = abs(one(T) - a)
+	arg1 = abs(one(T) + a)
+	arg2 = abs(one(T) - a)
 
-    ans = (log(arg1/arg2))/2
-    return ans 
+	ans = (log(arg1 / arg2)) / 2
+	return ans
 end
 
 function FukushimaT(t::T, h::T) where {T}
-    if h > zero(T)
-        return atan(t*√h)/√(h)
-    elseif h == zero(T)
-        return t
-    else
-        arg = t*√(-h)
-        ans = abs(arg) < one(T) ? atanh(arg) : custom_atanh(t*√(-h))
-        return ans/√(-h)
-    end
+	if h > zero(T)
+		return atan(t * √h) / √(h)
+	elseif h == zero(T)
+		return t
+	else
+        if T == Float32
+		    return custom_atanh(t * √(-h))/ √(-h)
+        else
+            return atanh(t * √(-h))/ √(-h)
+        end
+	end
 end
 
 #https://link-springer-com.ezp-prod1.hul.harvard.edu/article/T(10).1007/BF02165405
@@ -719,6 +866,9 @@ end
 #https://doi-org.ezp-prod1.hul.harvard.edu/T(10).031007/s10569-008-9177-y
 #https://link.springer.com/article/T(10).1007/s10569-008-9177-y
 
+function cel2(kc::T, a::T, b::T) where T
+	return cel(kc, one(T), a, b)
+end
 
 function _Kscreen(m::T) where T
     return T(HALF_PI)*(one(T) + m*(T(0.25) + m*(T(0.36) + m*(T(0.09765625) + m*T(0.07476806640625)))))
