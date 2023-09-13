@@ -318,7 +318,7 @@ end
 
 ``F(\\varphi, m) = \\int_0^{\\varphi}\\frac{d\\theta}{\\sqrt{1-k^2\\sin(\\theta)^2}}.``
 
-Returns the complete elliptic integral of the first kind.
+Returns the incomplete elliptic integral of the first kind.
 """
 function F(φ::T, m::T) where T
     if m > one(T)
@@ -484,6 +484,18 @@ end
 # Elliptic E
 #----------------------------------------------------------------------------------------
 
+"""
+    E(φ|\\, m)
+# Params
+
+`φ` : Amplitude
+
+`m` : Elliptic modulus
+
+``E(\\varphi, m) = \\int_0^{\\varphi}d\\theta \\sqrt{1-k^2\\sin(\\theta)^2}.``
+
+Returns the incomplete elliptic integral of the second kind.
+"""
 function E(φ::T, m::T) where T
 	return F(φ, m) - m * D(φ, m)
 end
