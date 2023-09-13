@@ -3,7 +3,7 @@ FastElliptic is an implementation of Toshio Fukushima's algorithms for calculati
 
 
 ## Documentation
-[![Dev](https://img.shields.io/badge/docs-stable-blue.svg)](https://dchang19.github.io/FastElliptic.jl/dev/)
+[![Dev](https://img.shields.io/badge/docs-stable-blue.svg)](https://dchang19.github.io/FastElliptic/dev/)
 
 ## Repo Status
 [![Build Status](https://github.com/dchang10/FastElliptic/workflows/CI/badge.svg)](https://github.com/dchang10/FastElliptic/actions)
