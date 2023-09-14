@@ -1,5 +1,5 @@
 # FastElliptic
-FastElliptic is an implementation of Toshio Fukushima's algorithms for calculating [Elliptic Integrals and Jacobi Elliptic Functions](https://www.sciencedirect.com/science/article/pii/S037704271300201X).
+FastElliptic is an implementation of Toshio Fukushima's algorithms for calculating [Elliptic Integrals and Jacobi Elliptic Functions](https://ieeexplore.ieee.org/document/7203795).
 
 
 ## Documentation
