@@ -950,11 +950,14 @@ function fold_1_00(u1::T, m::T, Kscreen::T, Kactual::T, kp::T) where T
 end
 
 function _SN(u::T, m::T) where T
-    return _rawSN(u, m, K(m), K(m), √(one(T)-m))
+    tempK = K(m)
+    if u > (4tempK)
+        return _rawSN(u % (4tempK), m, tempK, tempK, √(one(T)-m))
+    end
+    return _rawSN(u, m, tempK, tempK, √(one(T)-m))
 end
 
 function _rawSN(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
-    u = u > T(4)*Kscreen ? u % T(4)*Kactual : u
     check = u ≥ T(2)*Kscreen 
     sign = check ? -one(T) : one(T)
     u = check ? u - T(2)*Kactual : u
@@ -967,10 +970,13 @@ function _rawSN(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T
 end
 
 function _CN(u::T, m::T) where T
-    return _rawCN(u, m, K(m), K(m), √(one(T)-m))
+    tempK = K(m)
+    if u > (4tempK)
+        return _rawCN(u % (4tempK), m, tempK, tempK, √(one(T)-m))
+    end
+    return _rawCN(u, m, tempK, tempK, √(one(T)-m))
 end
 function _rawCN(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
-    u = u ≥ T(4)*Kscreen ? u % T(4)*Kactual : u
     check = u ≥ T(2)*Kscreen 
     sign = check ? -one(T) : one(T)
     u = check ? u - T(2)*Kactual : u
@@ -983,10 +989,13 @@ function _rawCN(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T
 end
 
 function _DN(u::T, m::T) where T
-    return _rawDN(u, m, K(m), K(m), √(one(T)-m))
+    tempK = K(m)
+    if u > 4tempK
+        return _rawDN(u % (4tempK), m, tempK, tempK, √(one(T)-m))
+    end
+    return _rawDN(u, m, tempK, tempK, √(one(T)-m))
 end
 function _rawDN(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
-    u = u ≥ T(4)*Kscreen ?  u % T(4)*Kactual : u
     check = u ≥ T(2)*Kscreen 
     u = check ? u - T(2)*Kactual : u
     u > Kscreen && return fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[3]
