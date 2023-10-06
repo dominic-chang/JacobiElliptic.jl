@@ -827,10 +827,12 @@ function FukushimaT(t::T, h::T) where {T}
 	elseif h == zero(T)
 		return t
 	else
+        arg = t * √(-h)
         if T == Float32
-		    return custom_atanh(t * √(-h))/ √(-h)
+		    return custom_atanh(arg)/ √(-h)
         else
-            return atanh(t * √(-h))/ √(-h)
+            ans = abs(arg) < one(T) ? atanh(arg) : custom_atanh(arg)
+            return ans / √(-h)
         end
 	end
 end
