@@ -1,4 +1,4 @@
-# FastElliptic API
+# FElliptic API
 
 ## Index
 ```@index
@@ -7,18 +7,18 @@ api.md
 
 ### Elliptic Integrals
 ```@docs
-FastElliptic.K
-FastElliptic.E
-FastElliptic.F
-FastElliptic.Pi
-FastElliptic.J
+FElliptic.K
+FElliptic.E
+FElliptic.F
+FElliptic.Pi
+FElliptic.J
 ```
 
 ### Jacobi Elliptic Functions
 ```@docs
-FastElliptic.sn
-FastElliptic.cn
-FastElliptic.dn
-FastElliptic.asn
-FastElliptic.acn
+FElliptic.sn
+FElliptic.cn
+FElliptic.dn
+FElliptic.asn
+FElliptic.acn
 ```

@@ -1,4 +1,4 @@
-name = "FastElliptic"
+name = "FElliptic"
 uuid = "2a8b799e-c098-4961-872a-356c768d184c"
 authors = ["dominicchang <dchang3419@hotmail.com>"]
 version = "0.1.0"

@@ -1,15 +1,15 @@
-using Documenter, FastElliptic
+using Documenter, FElliptic
 
-makedocs(sitename="FastElliptic.jl")
+makedocs(sitename="FElliptic.jl")
 
 makedocs(;
-    modules=[FastElliptic],
+    modules=[FElliptic],
     authors="Dominic <dchang3419@hotmail.com> and contributors",
-    repo="https://github.com/dchang10/FastElliptic/blob/{commit}{path}#{line}",
-    sitename="FastElliptic",
+    repo="https://github.com/dchang10/FElliptic/blob/{commit}{path}#{line}",
+    sitename="FElliptic",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://dchang10.github.io/FastElliptic",
+        canonical="https://dchang10.github.io/FElliptic",
         edit_link="main",
         assets=String[],
     ),
@@ -19,4 +19,4 @@ makedocs(;
     ],
 )
 
-deploydocs(repo = "github.com/dchang10/FastElliptic.git",)
+deploydocs(repo = "github.com/dchang10/FElliptic.git",)

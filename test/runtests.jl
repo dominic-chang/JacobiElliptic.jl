@@ -1,5 +1,5 @@
 using Test
-using FastElliptic
+using FElliptic
 using ArbNumerics
 using DelimitedFiles: readdlm
 
@@ -42,7 +42,7 @@ end
 @testset "Elliptic K"  begin
     @testset for typ in [Float32, Float64]
         @testset "$typ $m" for m in [0.001, 0.01, 0.1, 0.2, 0.3, 0.5, 0.5, 0.8, 0.9, 0.99, 0.999]
-            @test FastElliptic.K(typ(m)) ≈ typ(ArbNumerics.elliptic_k(typ(m)))
+            @test FElliptic.K(typ(m)) ≈ typ(ArbNumerics.elliptic_k(typ(m)))
         end
     end
 end
@@ -50,7 +50,7 @@ end
 @testset "Complete Elliptic E"  begin
     @testset "Type: $typ" for typ in [Float32, Float64]
         @testset  "$(typ(m))" for m in [0.001, 0.01, 0.1, 0.19, 0.29, 0.39, 0.49, 0.59, 0.69, 0.79, 0.89, 0.99, 0.999]
-            @test FastElliptic.E(typ(m)) ≈ ArbNumerics.elliptic_e(typ(m)) 
+            @test FElliptic.E(typ(m)) ≈ ArbNumerics.elliptic_e(typ(m)) 
         end
     end
 end
@@ -76,7 +76,7 @@ end
                 @testset "φ = $(i*mmax)" for i in -1:0.1:1.0
                     φ = i*(mmax*(1-1e-3))
                     if φ != zero(typ)
-                        @test FastElliptic.F(typ(φ), typ(m)) / ArbNumerics.elliptic_f(typ(φ), typ(m)) ≈ one(typ) atol=1e-4
+                        @test FElliptic.F(typ(φ), typ(m)) / ArbNumerics.elliptic_f(typ(φ), typ(m)) ≈ one(typ) atol=1e-4
                     end
                 end
             end
@@ -105,7 +105,7 @@ end
                 @testset "φ = $(i*mmax)" for i in -1:0.1:1.0
                     φ = i*(mmax*(0.999))
                     if φ != zero(typ)
-                        @test FastElliptic.E(typ(φ), typ(m)) / ArbNumerics.elliptic_e(typ(φ), typ(m)) ≈ one(typ) atol=1e-4
+                        @test FElliptic.E(typ(φ), typ(m)) / ArbNumerics.elliptic_e(typ(φ), typ(m)) ≈ one(typ) atol=1e-4
                     end
                 end
             end
@@ -120,22 +120,22 @@ end
                 @testset "n : $n" for n in range(1e-3,typ == Float32 ? 0.99 : 0.999, length=10)
                     @testset "Standard m" begin
                         @testset "m : $m" for m in range(0.1, typ == Float32 ? 0.99 : 0.999,length=20)
-                            @test FastElliptic.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-4
+                            @test FElliptic.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-4
                         end
                     end
                     @testset "small m" begin
                         @testset "m :$m" for m in [3.874e-4, 4.25e-3, 6.83e-2]
-                            @test FastElliptic.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-4
+                            @test FElliptic.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-4
                         end
                     end
                     @testset "large m" begin
                         @testset "m :$m" for m in [1-3.874e-4, 1-4.25e-3, 1-6.83e-2]
-                            @test FastElliptic.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-4
+                            @test FElliptic.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-4
                         end
                     end
                     @testset "negative m" begin
                         @testset "m :$m" for m in [-3.874e-4, -4.25e-3, -6.83e-2]
-                            @test FastElliptic.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-4
+                            @test FElliptic.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-4
                         end
                     end
                 end
@@ -148,7 +148,7 @@ end
                     @testset "φ = $(i*mmax)" for i in -1:0.1:1.0
                         φ = i*(mmax*(1-1e-3))
                         if φ != zero(typ)
-                            @test FastElliptic.Pi(typ(n), typ(φ), typ(m)) / ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ one(typ) atol=1e-4
+                            @test FElliptic.Pi(typ(n), typ(φ), typ(m)) / ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ one(typ) atol=1e-4
                         end
                     end
                 end
@@ -158,11 +158,11 @@ end
             @testset "φ : $φ" for φ in range(π/2, 3π, length=10)
                 @testset "n : $n" for n in range(1e-3,typ == Float32 ? 0.99 : 0.999, length=10)
                     @testset "m : $m" for m in range(1e-3, typ == Float32 ? 0.99 : 0.999,length=20)
-                        @test FastElliptic.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-5
+                        @test FElliptic.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-5
                     end
                     @testset "large m" begin
                         @testset "m :$m)" for m in [1-1e-5, 1-3.874e-4, 1-4.25e-3, 1-6.83e-2, 1-1.32e-1]
-                            @test FastElliptic.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-5
+                            @test FElliptic.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-5
                         end
                     end
                 end
@@ -176,7 +176,7 @@ end
     @testset "$typ" for typ in [Float32, Float64]
         @testset "n : $n" for n in range(1e-3,10, length=10)
             @testset "m : $m" for m in range(0.1, 0.999,length=20)
-                @test FastElliptic.Pi(typ(n), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(m)) ≈ typ(1.0) atol=1e-4
+                @test FElliptic.Pi(typ(n), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(m)) ≈ typ(1.0) atol=1e-4
             end
         end
     end
@@ -215,32 +215,32 @@ end
                 θc = θss[j₁, i]/denom
                 θd = θns[j₁, i]/denom
 
-                @test FastElliptic.sn(u, m) ≈ θs / θn atol=2.5e-6
-                @test FastElliptic.cn(u, m) ≈ θc / θn atol=2.5e-6
-                @test FastElliptic.dn(u, m) ≈ θd / θn atol=2.5e-6
+                @test FElliptic.sn(u, m) ≈ θs / θn atol=2.5e-6
+                @test FElliptic.cn(u, m) ≈ θc / θn atol=2.5e-6
+                @test FElliptic.dn(u, m) ≈ θd / θn atol=2.5e-6
 
-                @test FastElliptic.sd(u, m) ≈ θs / θd atol=2.5e-6
+                @test FElliptic.sd(u, m) ≈ θs / θd atol=2.5e-6
                 if ϵ != 90
                     # very sensitive around u = K,
                     # estimate of K(0) = pi/2 + 4e-9, so cosine causes errors
                     # also, errors build up in ϵ ≥75°, so lower tolerences for that
-                    @test FastElliptic.sc(u, m) ≈ θs / θc atol=1e-7
+                    @test FElliptic.sc(u, m) ≈ θs / θc atol=1e-7
                 end
             end
         end
     end
    #@testset "u = $u" for u in -1.:0.21:1.0
-   #    @test FastElliptic.sn(u,0) ≈ sin(u)
-   #    @test FastElliptic.cn(u,0) ≈ cos(u)
-   #    @test FastElliptic.dn(u,0) ≈ 1.
-   #    @test FastElliptic.sd(u,0) ≈ sin(u)
-   #    @test FastElliptic.sc(u,0) ≈ tan(u)
+   #    @test FElliptic.sn(u,0) ≈ sin(u)
+   #    @test FElliptic.cn(u,0) ≈ cos(u)
+   #    @test FElliptic.dn(u,0) ≈ 1.
+   #    @test FElliptic.sd(u,0) ≈ sin(u)
+   #    @test FElliptic.sc(u,0) ≈ tan(u)
 
-   #    @test FastElliptic.sn(u,1) ≈ tanh(u)
-   #    @test FastElliptic.cn(u,1) ≈ sech(u)
-   #    @test FastElliptic.dn(u,1) ≈ sech(u)
-   #    @test FastElliptic.sd(u,1) ≈ sinh(u)
-   #    @test FastElliptic.sc(u,1) ≈ sinh(u)
+   #    @test FElliptic.sn(u,1) ≈ tanh(u)
+   #    @test FElliptic.cn(u,1) ≈ sech(u)
+   #    @test FElliptic.dn(u,1) ≈ sech(u)
+   #    @test FElliptic.sd(u,1) ≈ sinh(u)
+   #    @test FElliptic.sc(u,1) ≈ sinh(u)
    #end
 
 end

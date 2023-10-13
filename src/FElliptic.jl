@@ -1,4 +1,4 @@
-module FastElliptic
+module FElliptic
 using StaticArrays, Setfield
 using DocStringExtensions
 export K, E, F, Pi, J

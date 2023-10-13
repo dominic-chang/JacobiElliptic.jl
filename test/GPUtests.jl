@@ -48,7 +48,7 @@ end
         mtlarr = MtlArray([typ(n) for n in range(1e-3,1e-3, length=10)])
         @testset "Standard m" begin
             @testset "m :$m)" for m in range(zero(typ), one(typ),length=10)
-                FastElliptic.Pi.(mtlarr, typ(m))
+                FElliptic.Pi.(mtlarr, typ(m))
             end
         end
     end
@@ -62,7 +62,7 @@ end
         @testset "n :$(round(φ*180/pi, digits=2))" for n in range(1e-3,1e-3, length=10)
             @testset "Standard m" begin
                 @testset "m :$m)" for m in range(zero(typ), one(typ),length=10)
-                    gpuvals = FastElliptic.Pi.(typ(n), mtlarr, typ(m))
+                    gpuvals = FElliptic.Pi.(typ(n), mtlarr, typ(m))
                 end
             end
         end
@@ -81,20 +81,20 @@ end
             mtlarr = MtlArray(arr)
             m = 0.1f0
 
-            @test typeof(FastElliptic.sn.(mtlarr, m)) == MtlVector{Float32}
-            @test typeof(FastElliptic.cn.(mtlarr, m)) == MtlVector{Float32}
-            @test typeof(FastElliptic.dn.(mtlarr, m)) == MtlVector{Float32}
-            @test typeof(FastElliptic.sd.(mtlarr, m)) == MtlVector{Float32}
-            @test typeof(FastElliptic.sc.(mtlarr, m)) == MtlVector{Float32}
+            @test typeof(FElliptic.sn.(mtlarr, m)) == MtlVector{Float32}
+            @test typeof(FElliptic.cn.(mtlarr, m)) == MtlVector{Float32}
+            @test typeof(FElliptic.dn.(mtlarr, m)) == MtlVector{Float32}
+            @test typeof(FElliptic.sd.(mtlarr, m)) == MtlVector{Float32}
+            @test typeof(FElliptic.sc.(mtlarr, m)) == MtlVector{Float32}
         else
             cuarr = CuArray(arr)
             m = 0.1f0
 
-            @test typeof(FastElliptic.sn.(cuarr, m)) == MtlVector{Float32}
-            @test typeof(FastElliptic.cn.(cuarr, m)) == MtlVector{Float32}
-            @test typeof(FastElliptic.dn.(cuarr, m)) == MtlVector{Float32}
-            @test typeof(FastElliptic.sd.(cuarr, m)) == MtlVector{Float32}
-            @test typeof(FastElliptic.sc.(cuarr, m)) == MtlVector{Float32}
+            @test typeof(FElliptic.sn.(cuarr, m)) == MtlVector{Float32}
+            @test typeof(FElliptic.cn.(cuarr, m)) == MtlVector{Float32}
+            @test typeof(FElliptic.dn.(cuarr, m)) == MtlVector{Float32}
+            @test typeof(FElliptic.sd.(cuarr, m)) == MtlVector{Float32}
+            @test typeof(FElliptic.sc.(cuarr, m)) == MtlVector{Float32}
 
         end
 
