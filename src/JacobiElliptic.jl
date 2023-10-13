@@ -1,4 +1,4 @@
-module FElliptic
+module JacobiElliptic
 using StaticArrays, Setfield
 using DocStringExtensions
 export K, E, F, Pi, J

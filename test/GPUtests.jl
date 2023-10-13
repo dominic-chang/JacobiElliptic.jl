@@ -48,7 +48,7 @@ end
         mtlarr = MtlArray([typ(n) for n in range(1e-3,1e-3, length=10)])
         @testset "Standard m" begin
             @testset "m :$m)" for m in range(zero(typ), one(typ),length=10)
-                FElliptic.Pi.(mtlarr, typ(m))
+                JacobiElliptic.Pi.(mtlarr, typ(m))
             end
         end
     end
@@ -62,7 +62,7 @@ end
         @testset "n :$(round(φ*180/pi, digits=2))" for n in range(1e-3,1e-3, length=10)
             @testset "Standard m" begin
                 @testset "m :$m)" for m in range(zero(typ), one(typ),length=10)
-                    gpuvals = FElliptic.Pi.(typ(n), mtlarr, typ(m))
+                    gpuvals = JacobiElliptic.Pi.(typ(n), mtlarr, typ(m))
                 end
             end
         end
@@ -71,7 +71,7 @@ end
 
 
 #Taken from Elliptic.jl
-#https://github.com/nolta/Elliptic.jl/blob/master/test/jacobi_tests.jl
+#https://github.com/nolta/Elliptic.jl/blob/main/test/jacobi_tests.jl
 @testset "Jacobi Elliptic Trig" begin
     @testset "GPU" begin
         arr = range(0.0f0, 3.14f0, length=10)
@@ -81,20 +81,20 @@ end
             mtlarr = MtlArray(arr)
             m = 0.1f0
 
-            @test typeof(FElliptic.sn.(mtlarr, m)) == MtlVector{Float32}
-            @test typeof(FElliptic.cn.(mtlarr, m)) == MtlVector{Float32}
-            @test typeof(FElliptic.dn.(mtlarr, m)) == MtlVector{Float32}
-            @test typeof(FElliptic.sd.(mtlarr, m)) == MtlVector{Float32}
-            @test typeof(FElliptic.sc.(mtlarr, m)) == MtlVector{Float32}
+            @test typeof(JacobiElliptic.sn.(mtlarr, m)) == MtlVector{Float32}
+            @test typeof(JacobiElliptic.cn.(mtlarr, m)) == MtlVector{Float32}
+            @test typeof(JacobiElliptic.dn.(mtlarr, m)) == MtlVector{Float32}
+            @test typeof(JacobiElliptic.sd.(mtlarr, m)) == MtlVector{Float32}
+            @test typeof(JacobiElliptic.sc.(mtlarr, m)) == MtlVector{Float32}
         else
             cuarr = CuArray(arr)
             m = 0.1f0
 
-            @test typeof(FElliptic.sn.(cuarr, m)) == MtlVector{Float32}
-            @test typeof(FElliptic.cn.(cuarr, m)) == MtlVector{Float32}
-            @test typeof(FElliptic.dn.(cuarr, m)) == MtlVector{Float32}
-            @test typeof(FElliptic.sd.(cuarr, m)) == MtlVector{Float32}
-            @test typeof(FElliptic.sc.(cuarr, m)) == MtlVector{Float32}
+            @test typeof(JacobiElliptic.sn.(cuarr, m)) == MtlVector{Float32}
+            @test typeof(JacobiElliptic.cn.(cuarr, m)) == MtlVector{Float32}
+            @test typeof(JacobiElliptic.dn.(cuarr, m)) == MtlVector{Float32}
+            @test typeof(JacobiElliptic.sd.(cuarr, m)) == MtlVector{Float32}
+            @test typeof(JacobiElliptic.sc.(cuarr, m)) == MtlVector{Float32}
 
         end
 

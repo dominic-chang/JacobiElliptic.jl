@@ -1,9 +1,9 @@
 ```@meta
-CurrentModule = FElliptic
+CurrentModule = JacobiElliptic
 ```
 
-# FElliptic
-FElliptic is an implementation of Toshio Fukushima's algorithms for calculating [Elliptic Integrals and Jacobi Elliptic Functions](https://ieeexplore.ieee.org/document/7203795). 
+# JacobiElliptic
+JacobiElliptic is an implementation of Toshio Fukushima's algorithms for calculating [Elliptic Integrals and Jacobi Elliptic Functions](https://ieeexplore.ieee.org/document/7203795). 
 
 ### Features
   - Type stable and preserving
