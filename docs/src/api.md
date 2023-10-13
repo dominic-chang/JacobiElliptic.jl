@@ -2,6 +2,7 @@
 
 ## Index
 ```@index
+api.md
 ```
 
 ### Elliptic Integrals

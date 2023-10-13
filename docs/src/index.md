@@ -3,8 +3,13 @@ CurrentModule = FastElliptic
 ```
 
 # FastElliptic
+FastElliptic is an implementation of Toshio Fukushima's algorithms for calculating [Elliptic Integrals and Jacobi Elliptic Functions](https://ieeexplore.ieee.org/document/7203795). 
 
-FastElliptic is an implementation of Toshio Fukushima's algorithms for calculating Elliptic Integrals and Jacobi Elliptic Functions.
+## Features
+  - Type stable and preserving
+  - [Metal.jl](https://github.com/JuliaGPU/Metal.jl) and [CUDA.jl](https://github.com/JuliaGPU/CUDA.jl) compatible
+
+## Contents
 
 ```@contents
 Pages = [

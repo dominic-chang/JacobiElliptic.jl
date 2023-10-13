@@ -1,25 +1,28 @@
 module FastElliptic
 using StaticArrays, Setfield
+using DocStringExtensions
 export K, E, F, Pi, J
 export sn, cn, dn, sc, sd, asn, acn
-
-#include("./FastElliptic32.jl")
+@template (FUNCTIONS, METHODS, MACROS) =
+    """
+    $(TYPEDSIGNATURES)
+    $(DOCSTRING)
+    """
 
 const HALF_PI = π/2
-const ONE_DIV_PI = 0.3183098861837907
+const ONE_DIV_PI = inv(π)
 
 ############################################################################
 # Complete Elliptic Integrals (https://doi.org/T(10).1007/s10569-009-9228-z)
 ############################################################################
 """
-    K(m)
-# Params
-
-`m` : Elliptic modulus
-    
 ``K(m) = \\int_0^{\\pi/2}\\frac{d\\theta}{\\sqrt{1-k^2\\sin(\\theta)^2}}.``
 
 Returns the complete elliptic integral of the first kind.
+    
+# Arguments
+
+- `m` : Elliptic modulus
 """
 function K(m::T) where T
     if m < one(T)
@@ -88,14 +91,13 @@ function K(m::T) where T
 end
 
 """
-    E(m)
-# Params
-
-`m` : Elliptic modulus
-    
 ``E(m) = \\int_0^{\\pi/2}\\sqrt{1-k^2\\sin(\\theta)^2}d\\theta.``
 
 Returns the complete elliptic integral of the second kind.
+
+# Arguments
+
+- `m` : Elliptic modulus
 """
 function E(m::T) where T
     m == zero(T) && return T(HALF_PI)
@@ -213,17 +215,14 @@ function serf(y::T, m::T) where T
 end
 
 """
-    asn(u, m)
-# Params
-
-`u` : Amplitude
-
-`m` : Elliptic modulus
-
-
 ``\\text{asn}(u,m)=\\text{sn}(u,m)^{-1}``.
 
 Returns the inverse Jacobi Elliptic sn.
+
+# Arguments
+
+- `u` : Amplitude
+- `m` : Elliptic modulus
 """
 function asn(s::T, m::T) where T
     yA = T(0.04094) - T(0.00652)*m
@@ -242,17 +241,14 @@ function asn(s::T, m::T) where T
 end
 
 """
-    acn(u, m)
-# Params
-
-`u` : Amplitude
-
-`m` : Elliptic modulus
-
-
 ``\\text{acn}(u,m)=\\text{cn}(u,m)^{-1}``.
 
 Returns the inverse Jacobi Elliptic cn.
+
+# Arguments
+
+- `u` : Amplitude
+- `m` : Elliptic modulus
 """
 function acn(c::T, m::T) where T
     mc = one(T) - m
@@ -309,16 +305,14 @@ function _F(φ::T, m::T) where T
 end
 
 """
-    F(φ, m)
-# Params
-
-`φ` : Amplitude
-
-`m` : Elliptic modulus
-
 ``F(\\varphi, m) = \\int_0^{\\varphi}\\frac{d\\theta}{\\sqrt{1-k^2\\sin(\\theta)^2}}.``
 
 Returns the incomplete elliptic integral of the first kind.
+
+# Arguments
+
+- `φ` : Amplitude
+- `m` : Elliptic modulus
 """
 function F(φ::T, m::T) where T
     if m > one(T)
@@ -485,16 +479,15 @@ end
 #----------------------------------------------------------------------------------------
 
 """
-    E(φ, m)
-# Params
-
-`φ` : Amplitude
-
-`m` : Elliptic modulus
-
 ``E(\\varphi, m) = \\int_0^{\\varphi}d\\theta \\sqrt{1-k^2\\sin(\\theta)^2}.``
 
 Returns the incomplete elliptic integral of the second kind.
+
+# Arguments
+
+- `φ` : Amplitude
+- `m` : Elliptic modulus
+
 """
 function E(φ::T, m::T) where T
 	return F(φ, m) - m * D(φ, m)
@@ -507,16 +500,14 @@ end
 Π(n, φ, m) = Pi(n, φ, m)
 #https://doi.org/T(10).1016/j.cam.2011.1107
 """
-    Pi(n, m)
-# Params
-
-`n` : Characteristic
-
-`m` : Elliptic modulus
-
 ``\\Pi(n;\\varphi \\,|\\,m)=\\int_{0}^{1 }{\\frac{1}{1-nt^{2}}}{\\frac{dt}{\\sqrt{\\left(1-mt^{2}\\right)\\left(1-t^{2}\\right)}}}.``
 
 Returns the complete elliptic integral of the third kind.
+
+# Arguments
+
+- `n` : Characteristic
+- `m` : Elliptic modulus
 """
 function Pi(n::T, m::T) where{T}
     n > one(T) && return K(m) - Pi(m/n, m)
@@ -528,19 +519,15 @@ function Pi(n::T, m::T) where{T}
 end
 
 """
-    Pi(n, φ, m)
-# Params
-
-`n` : Characteristic
-
-`φ` : Amplitude
-
-`m` : Elliptic modulus
-
-
 ``\\Pi (n;\\varphi \\,|\\,m)=\\int _{0}^{\\sin \\varphi }{\\frac {1}{1-nt^{2}}}{\\frac {dt}{\\sqrt {\\left(1-mt^{2}\\right)\\left(1-t^{2}\\right)}}}.``
 
 Returns the incomplete elliptic integral of the third kind.
+
+# Arguments
+
+- `n` : Characteristic
+- `φ` : Amplitude
+- `m` : Elliptic modulus
 """
 function Pi(n::T, φ::T, m::T) where T
     if m < zero(T) # Imaginary modulus transformation https://dlmf.nist.gov/19.7#iii
@@ -565,19 +552,15 @@ function Pi(n::T, φ::T, m::T) where T
 end
 
 """
-    J(n, φ, m)
-# Params
-
-`n` : Characteristic
-
-`φ` : Amplitude
-
-`m` : Elliptic modulus
-
-
 ``J (n;\\varphi \\,|\\,m)=\\frac{\\Pi(n;\\varphi|\\, m) - F(\\varphi|\\,m)}{n}.``
 
 Returns the associate incomplete elliptic integral of the third kind.
+
+# Arguments
+
+- `n` : Characteristic
+- `φ` : Amplitude
+- `m` : Elliptic modulus
 """
 function J(n::T, φ::T, m::T) where T #Appendix A
     # Reduction of Amplitude
@@ -672,16 +655,14 @@ function _rawJ(n::T, φ::T ,m::T) where {T}
 end
 
 """
-    J(n, m)
-# Params
-
-`n` : Characteristic
-
-`m` : Elliptic modulus
-
 ``J(n;\\varphi \\,|\\,m)=\\frac{\\Pi(n;\\pi/2|\\, m) - K(m)}{n}.``
 
 Returns the associate complete elliptic integral of the third kind.
+
+# Arguments
+
+- `n` : Characteristic
+- `m` : Elliptic modulus
 """
 function J(n::T, m::T) where T
     n > one(T) && return m/n*J(m/n, m)
@@ -1041,18 +1022,15 @@ function _SD(u::T, m::T) where T
 end
 
 """
-    sn(u, m)
-# Params
-
-`u` : Amplitude
-
-`m` : Elliptic modulus
-
-
 ``\\text{sn}(u,m)=\\sin\\,\\text{am}(u,m)``, where ``\\text{am}(u|\\,m)=F^{-1}(u|\\,m)`` 
 is the Jacobi amplitude.
 
 Returns the Jacobi Elliptic sn.
+
+# Arguments
+
+- `u` : Amplitude
+- `m` : Elliptic modulus
 """
 function sn(u::T, m::T) where T  
     signu = sign(u)
@@ -1063,18 +1041,15 @@ function sn(u::T, m::T) where T
 end
 
 """
-    cn(u, m)
-# Params
-
-`u` : Amplitude
-
-`m` : Elliptic modulus
-
-
 ``\\text{cn}(u,m)=\\cos\\,\\text{am}(u,m)``, where ``\\text{am}(u|\\,m)=F^{-1}(u|\\,m)`` 
 is the Jacobi amplitude.
 
 Returns the Jacobi Elliptic cn.
+
+# Arguments
+
+- `u` : Amplitude
+- `m` : Elliptic modulus
 """
 function cn(u::T, m::T) where T  
     u = abs(u)
@@ -1084,18 +1059,15 @@ function cn(u::T, m::T) where T
 end
 
 """
-    dn(u, m)
-# Params
-
-`u` : Amplitude
-
-`m` : Elliptic modulus
-
-
 ``\\text{dn}(u,m)=\\frac{d}{d u}\\,\\text{am}(u,m)``, where ``\\text{am}(u|\\,m)=F^{-1}(u|\\,m)`` 
 is the Jacobi amplitude.
 
 Returns the Jacobi Elliptic dn.
+
+# Arguments
+
+- `u` : Amplitude
+- `m` : Elliptic modulus
 """
 function dn(u::T, m::T) where T  
     u = abs(u)
