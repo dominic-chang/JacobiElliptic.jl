@@ -1,15 +1,15 @@
-using Documenter, FElliptic
+using Documenter, JacobiElliptic
 
-makedocs(sitename="FElliptic.jl")
+makedocs(sitename="JacobiElliptic.jl")
 
 makedocs(;
-    modules=[FElliptic],
+    modules=[JacobiElliptic],
     authors="Dominic <dchang3419@hotmail.com> and contributors",
-    repo="https://github.com/dchang10/FElliptic/blob/{commit}{path}#{line}",
-    sitename="FElliptic",
+    repo="https://github.com/dchang10/JacobiElliptic/blob/{commit}{path}#{line}",
+    sitename="JacobiElliptic",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://dchang10.github.io/FElliptic",
+        canonical="https://dchang10.github.io/JacobiElliptic",
         edit_link="main",
         assets=String[],
     ),
@@ -19,4 +19,4 @@ makedocs(;
     ],
 )
 
-deploydocs(repo = "github.com/dchang10/FElliptic.git",)
+deploydocs(repo = "github.com/dchang10/JacobiElliptic.git",)
