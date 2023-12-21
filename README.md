@@ -1,7 +1,7 @@
-Elliptic Special Functions for Julia
+Elliptic Special Functions for Julia (Differentiable)
 ====================================
 
-[![Build Status](https://travis-ci.org/nolta/Elliptic.jl.svg?branch=master)](https://travis-ci.org/nolta/Elliptic.jl)
+This package is a differentiable fork of [Elliptic.jl](https://github.com/nolta/Elliptic.jl)
 
 This julia package implements
 [elliptic integrals](https://dlmf.nist.gov/19.2) and
@@ -69,8 +69,6 @@ Matlab Compatibility
 | `ellipj(u, m)` | returns `(sn(u,m), cn(u,m), dn(u,m))` |
 | `ellipke(m)` | returns `(K(m), E(m))` |
 
-
-
 For convenience, the matlab compatible `ellipj` and `ellipke` routines are
 also provided. `ellipj(u,m)` is equivalent to `sn(u,m), cn(u,m), dn(u,m)`,
 but faster if you want all three. Likewise, `ellipke(m)` is equivalent to
@@ -90,5 +88,5 @@ Installation
 ------------
 
 ```jlcon
-julia> Pkg.add("Elliptic")
+julia> Pkg.add("https//github.com/archermarx/Elliptic2.jl.git")
 ```
