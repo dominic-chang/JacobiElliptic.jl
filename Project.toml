@@ -1,7 +1,7 @@
 name = "Elliptic2"
 uuid = "0b55928f-c416-41db-a823-c7dfe4e8fda4"
 authors = ["Thomas Marks <marksta@umich.edu>"]
-version = "0.1.0"
+version = "0.2.0"
 
 [deps]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
