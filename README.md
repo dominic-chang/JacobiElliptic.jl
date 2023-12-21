@@ -1,5 +1,7 @@
 Elliptic Special Functions for Julia (Differentiable)
 ====================================
+[![CI](https://github.com/archermarx/Elliptic2.jl/actions/workflows/ci.yml/badge.svg)](https://github.com/archermarx/Elliptic2.jl/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/archermarx/Elliptic2.jl/branch/master/graph/badge.svg)](https://codecov.io/gh/archermarx/Elliptic2.jl)
 
 This package is a differentiable fork of [Elliptic.jl](https://github.com/nolta/Elliptic.jl)
 
