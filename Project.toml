@@ -6,3 +6,6 @@ version = "0.2.0"
 [deps]
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 SpecialFunctions = "276daf66-3868-5448-9aa4-cd146d93841b"
+
+[compat]
+SpecialFunctions = "2"
