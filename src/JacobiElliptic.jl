@@ -13,7 +13,7 @@ const HALF_PI = π/2
 const ONE_DIV_PI = inv(π)
 
 ############################################################################
-# Complete Elliptic Integrals (https://doi.org/T(10).1007/s10569-009-9228-z)
+# Complete Elliptic Integrals (https://doi.org/10.1007/s10569-009-9228-z)
 ############################################################################
 """
 ``K(m) = \\int_0^{\\pi/2}\\frac{d\\theta}{\\sqrt{1-k^2\\sin(\\theta)^2}}.``
