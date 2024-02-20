@@ -33,4 +33,4 @@ JacobiElliptic is an implementation of Toshio Fukushima's algorithms for calcula
 | `sn(u, m)` | $\text{sn}(u \| m) = \sin(\text{am}(u \| m))$ |
 | `cn(u, m)` | $\text{cn}(u \| m) = \cos(\text{am}(u \| m))$ |
 | `asn(u, m)` | $\text{asn}(u \| m) = \text{sn}^{-1}(u \| m)$ |
-| `acn(u, m)` | $\text{cn}(u \| m) = \text{cn}^{-1}(\text{am}(u \| m))$ |
+| `acn(u, m)` | $\text{cn}(u \| m) = \text{cn}^{-1}(u \| m))$ |
