@@ -13,7 +13,6 @@ JacobiElliptic is an implementation of Toshio Fukushima's algorithms for calcula
 
 ```@contents
 Pages = [
-    "index.md",
     "api.md"
 ]
 ```
