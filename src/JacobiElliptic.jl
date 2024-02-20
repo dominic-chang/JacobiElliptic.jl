@@ -215,7 +215,7 @@ function serf(y::T, m::T) where T
 end
 
 """
-``\\text{asn}(u,m)=\\text{sn}(u,m)^{-1}``.
+``\\text{asn}(u\\|\\,m)=\\text{sn}^{-1}(u,m)``.
 
 Returns the inverse Jacobi Elliptic sn.
 
@@ -241,7 +241,7 @@ function asn(s::T, m::T) where T
 end
 
 """
-``\\text{acn}(u,m)=\\text{cn}(u,m)^{-1}``.
+``\\text{acn}(u\\|\\,m)=\\text{cn}^{-1}(u,m)``.
 
 Returns the inverse Jacobi Elliptic cn.
 
@@ -305,7 +305,7 @@ function _F(φ::T, m::T) where T
 end
 
 """
-``F(\\varphi, m) = \\int_0^{\\varphi}\\frac{d\\theta}{\\sqrt{1-k^2\\sin(\\theta)^2}}.``
+``F(\\varphi \\|\\, m) = \\int_0^{\\varphi}\\frac{d\\theta}{\\sqrt{1-m\\sin(\\theta)^2}}.``
 
 Returns the incomplete elliptic integral of the first kind.
 
@@ -479,7 +479,7 @@ end
 #----------------------------------------------------------------------------------------
 
 """
-``E(\\varphi, m) = \\int_0^{\\varphi}d\\theta \\sqrt{1-k^2\\sin(\\theta)^2}.``
+``E(\\varphi\\|\\, m) = \\int_0^{\\varphi}d\\theta \\sqrt{1-m\\sin(\\theta)^2}.``
 
 Returns the incomplete elliptic integral of the second kind.
 
@@ -500,7 +500,7 @@ end
 Π(n, φ, m) = Pi(n, φ, m)
 #https://doi.org/T(10).1016/j.cam.2011.1107
 """
-``\\Pi(n;\\varphi \\,|\\,m)=\\int_{0}^{1 }{\\frac{1}{1-nt^{2}}}{\\frac{dt}{\\sqrt{\\left(1-mt^{2}\\right)\\left(1-t^{2}\\right)}}}.``
+``\\Pi(n|\\,m)=\\int_{0}^{1 }{\\frac{1}{1-nt^{2}}}{\\frac{dt}{\\sqrt{\\left(1-mt^{2}\\right)\\left(1-t^{2}\\right)}}}.``
 
 Returns the complete elliptic integral of the third kind.
 
@@ -1022,7 +1022,7 @@ function _SD(u::T, m::T) where T
 end
 
 """
-``\\text{sn}(u,m)=\\sin\\,\\text{am}(u,m)``, where ``\\text{am}(u|\\,m)=F^{-1}(u|\\,m)`` 
+``\\text{sn}(u\\|\\,m)=\\sin\\,\\text{am}(u,m)``, where ``\\text{am}(u|\\,m)=F^{-1}(u|\\,m)`` 
 is the Jacobi amplitude.
 
 Returns the Jacobi Elliptic sn.
@@ -1041,7 +1041,7 @@ function sn(u::T, m::T) where T
 end
 
 """
-``\\text{cn}(u,m)=\\cos\\,\\text{am}(u,m)``, where ``\\text{am}(u|\\,m)=F^{-1}(u|\\,m)`` 
+``\\text{cn}(u\\|\\,m)=\\cos\\,\\text{am}(u,m)``, where ``\\text{am}(u|\\,m)=F^{-1}(u|\\,m)`` 
 is the Jacobi amplitude.
 
 Returns the Jacobi Elliptic cn.
@@ -1059,7 +1059,7 @@ function cn(u::T, m::T) where T
 end
 
 """
-``\\text{dn}(u,m)=\\frac{d}{d u}\\,\\text{am}(u,m)``, where ``\\text{am}(u|\\,m)=F^{-1}(u|\\,m)`` 
+``\\text{dn}(u\\|\\,m)=\\frac{d}{d u}\\,\\text{am}(u,m)``, where ``\\text{am}(u|\\,m)=F^{-1}(u|\\,m)`` 
 is the Jacobi amplitude.
 
 Returns the Jacobi Elliptic dn.
