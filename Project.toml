@@ -1,7 +1,7 @@
 name = "JacobiElliptic"
 uuid = "2a8b799e-c098-4961-872a-356c768d184c"
 authors = ["dominicchang <dchang3419@hotmail.com>"]
-version = "0.1.0"
+version = "0.1.1"
 
 [deps]
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
