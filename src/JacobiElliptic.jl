@@ -278,7 +278,7 @@ function _rawF(sinφ::T, m::T) where T
     c = √(one(T)-sinφ2)
     x = c * c
     d2 = mc + m*x
-    z = c/√(mc+m*c*c)
+    #z = c/√(mc+m*c*c)
     x <  yS*d2 && return*(K(m) - asn(c/√(d2), m))
 
     v = mc*(one(T)-x)
@@ -809,12 +809,8 @@ function FukushimaT(t::T, h::T) where {T}
 		return t
 	else
         arg = t * √(-h)
-        if T == Float32
-		    return custom_atanh(arg)/ √(-h)
-        else
-            ans = abs(arg) < one(T) ? atanh(arg) : custom_atanh(arg)
-            return ans / √(-h)
-        end
+        ans = abs(arg) < one(T) ? atanh(arg) : custom_atanh(arg)
+        return ans / √(-h)
 	end
 end
 
@@ -887,8 +883,8 @@ function _ΔXNloop(u::T, m::T, n::T) where T
         
         den = inv(one(T)-m*sn4)
         Δsn = T(2.0)*(Δsn*cn*dn + up*(Δcn*(one(T) - Δdn) + Δdn  - m*sn4))*den
-        Δcn = ((one(T)+cn)*Δcn + sn2-T(2)*m*sn4)*den
-        Δdn = ((one(T)+dn)*Δdn + m*(sn2-T(2)*sn4))*den
+        Δcn = ((one(T)+cn)*Δcn + sn2-2*m*sn4)*den
+        Δdn = ((one(T)+dn)*Δdn + m*(sn2-2*sn4))*den
 
         up += up
         sn = up - Δsn
@@ -903,7 +899,7 @@ end
 function fold_0_25(u1::T, m::T, kp::T) where T 
     u1 == zero(T) && return zero(T), one(T), one(T)
 
-    sn, cn, dn = _ΔXNloop(u1, m, u1 > zero(T) ? max(T(6.0)+(floor(log2(u1))), one(T)) : zero(T))
+    sn, cn, dn = _ΔXNloop(u1, m, u1 > zero(T) ? max(6+(floor(log2(u1))), one(T)) : zero(T))
     den = inv(one(T)+kp-m*sn*sn)
     return den*√(one(T)+kp)*(cn*dn-kp*sn), den*√(kp*(one(T)+kp))*(cn+sn*dn), den*√kp*((one(T)+kp)*dn+m*sn*cn)
 end
@@ -912,9 +908,9 @@ function fold_0_50(u1::T, m::T, Kscreen::T, Kactual::T, kp::T) where T
     u1 == zero(T) && return zero(T), one(T), one(T)
 
     if u1 > T(0.25)*Kscreen 
-        sn, cn, dn = fold_0_25(Kactual/T(2) - u1, m, kp)
+        sn, cn, dn = fold_0_25(Kactual/2 - u1, m, kp)
     else
-        sn, cn, dn = _ΔXNloop(u1, m, u1 > zero(T) ?  max(T(6.0)+(floor(log2(u1))), one(T)) : zero(T))
+        sn, cn, dn = _ΔXNloop(u1, m, u1 > zero(T) ?  max(6+(floor(log2(u1))), one(T)) : zero(T))
     end
     return cn/dn, kp*sn/dn, kp/dn
 end
@@ -922,12 +918,12 @@ end
 function fold_1_00(u1::T, m::T, Kscreen::T, Kactual::T, kp::T) where T
     u1 == zero(T) && return zero(T), one(T), one(T)
 
-    if u1 > T(0.5)*Kscreen
+    if u1 > Kscreen/2
         sn, cn, dn = fold_0_50(Kactual - u1, m, Kscreen, Kactual, kp)
-    elseif u1 > T(0.25)*Kscreen 
-        sn, cn, dn = fold_0_25(Kactual*T(0.5) - u1, m, kp)
+    elseif u1 > Kscreen/4
+        sn, cn, dn = fold_0_25(Kactual/2 - u1, m, kp)
     else
-        sn, cn, dn = _ΔXNloop(u1, m, u1 > zero(T) ?  max(T(6.0)+(floor(log2(u1))), one(T)) : zero(T))
+        sn, cn, dn = _ΔXNloop(u1, m, u1 > zero(T) ?  max(6+(floor(log2(u1))), one(T)) : zero(T))
     end
     return cn/dn, -kp*sn/dn, kp/dn
 end
@@ -941,15 +937,15 @@ function _SN(u::T, m::T) where T
 end
 
 function _rawSN(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
-    check = u ≥ T(2)*Kscreen 
+    check = u ≥ 2*Kscreen 
     sign = check ? -one(T) : one(T)
-    u = check ? u - T(2)*Kactual : u
+    u = check ? u - 2*Kactual : u
     u > Kscreen && return sign*fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[1]
     u == Kscreen && return one(T)
-    u > T(0.5)*Kscreen && return sign*fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[1]
-    u == Kscreen*T(0.5) && return inv(√(one(T)+kp))
-    u ≥ T(0.25)*Kscreen && return sign*fold_0_25(Kactual/T(2) - u, m, kp)[1]
-    return sign*_ΔXNloop(u, m, u > zero(T) ? max(T(6.0)+(floor(log2(u))), one(T)) : zero(T))[1]
+    u > Kscreen/2 && return sign*fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[1]
+    u == Kscreen/2 && return inv(√(one(T)+kp))
+    u ≥ Kscreen/4 && return sign*fold_0_25(Kactual/2 - u, m, kp)[1]
+    return sign*_ΔXNloop(u, m, u > zero(T) ? max(6+(floor(log2(u))), one(T)) : zero(T))[1]
 end
 
 function _CN(u::T, m::T) where T
@@ -960,15 +956,15 @@ function _CN(u::T, m::T) where T
     return _rawCN(u, m, tempK, tempK, √(one(T)-m))
 end
 function _rawCN(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
-    check = u ≥ T(2)*Kscreen 
+    check = u ≥ 2*Kscreen 
     sign = check ? -one(T) : one(T)
-    u = check ? u - T(2)*Kactual : u
+    u = check ? u - 2*Kactual : u
     u > Kscreen && return sign*fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[2]
     u == Kscreen && return zero(T)
-    u > T(0.5)*Kscreen && return sign*fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[2]
-    u == Kscreen*T(0.5) && return √(kp/(one(T)+kp))
-    u ≥ T(0.25)*Kscreen && return sign*fold_0_25(Kactual/T(2) - u, m, kp)[2]
-    return sign*_ΔXNloop(u, m, u > zero(T) ? max(T(6.0)+(floor(log2(u))), one(T)) : zero(T))[2]
+    u > Kscreen/2 && return sign*fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[2]
+    u == Kscreen/2 && return √(kp/(one(T)+kp))
+    u ≥ Kscreen/4 && return sign*fold_0_25(Kactual/2 - u, m, kp)[2]
+    return sign*_ΔXNloop(u, m, u > zero(T) ? max(6+(floor(log2(u))), one(T)) : zero(T))[2]
 end
 
 function _DN(u::T, m::T) where T
@@ -979,26 +975,26 @@ function _DN(u::T, m::T) where T
     return _rawDN(u, m, tempK, tempK, √(one(T)-m))
 end
 function _rawDN(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
-    check = u ≥ T(2)*Kscreen 
-    u = check ? u - T(2)*Kactual : u
+    check = u ≥ 2*Kscreen 
+    u = check ? u - 2*Kactual : u
     u > Kscreen && return fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[3]
     u == Kscreen && return kp
-    u > T(0.5)*Kscreen && return fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[3]
-    u == Kscreen/T(2) && return √(kp)
-    u ≥ T(0.25)*Kscreen && return fold_0_25(Kactual/T(2) - u, m, kp)[3]
-    return _ΔXNloop(u, m, u > zero(T) ? max(T(6.0)+(floor(log2(u))), one(T)) : zero(T))[3]
+    u > Kscreen/2 && return fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[3]
+    u == Kscreen/2 && return √(kp)
+    u ≥ Kscreen/4 && return fold_0_25(Kactual/2 - u, m, kp)[3]
+    return _ΔXNloop(u, m, u > zero(T) ? max(6+(floor(log2(u))), one(T)) : zero(T))[3]
 end
 
 _sc_helper(jacobituple) = jacobituple[1]/jacobituple[2]
 function _rawSC(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
-    u = u ≥ T(4)*Kscreen ?  u % T(4)*Kactual : u
-    u = u ≥ T(2)*Kscreen ? u - T(2)*Kactual : u
+    u = u ≥ 4*Kscreen ?  u % 4*Kactual : u
+    u = u ≥ 2*Kscreen ? u - 2*Kactual : u
     u > Kscreen && return _sc_helper(fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
     u == Kscreen && return T(Inf)
-    u > T(0.5)*Kscreen && return _sc_helper(fold_0_50(Kactual - u, m, Kscreen, Kactual, kp))
-    u == Kscreen/T(2) && return inv(√(kp))
-    u ≥ T(0.25)*Kscreen && return _sc_helper(fold_0_25(Kactual/T(2) - u, m, kp))
-    return _sc_helper(_ΔXNloop(u, m, u > zero(T) ? max(T(6.0)+(floor(log2(u))), one(T)) : zero(T)))
+    u > Kscreen/2 && return _sc_helper(fold_0_50(Kactual - u, m, Kscreen, Kactual, kp))
+    u == Kscreen/2 && return inv(√(kp))
+    u ≥ Kscreen/4 && return _sc_helper(fold_0_25(Kactual/2 - u, m, kp))
+    return _sc_helper(_ΔXNloop(u, m, u > zero(T) ? max(6+(floor(log2(u))), one(T)) : zero(T)))
 end
 
 function _SC(u::T, m::T) where T 
@@ -1007,14 +1003,14 @@ end
 
 _sd_helper(jacobituple) = jacobituple[1]/jacobituple[3]
 function _rawSD(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
-    u = u ≥ T(4)*Kscreen ?  u % T(4)*Kactual : u
-    u = u ≥ T(2)*Kscreen ? u - T(2)*Kactual : u
+    u = u ≥ 4*Kscreen ?  u % 4*Kactual : u
+    u = u ≥ 2*Kscreen ? u - 2*Kactual : u
     u > Kscreen && return _sd_helper(fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
     u == Kscreen && return inv(kp)
-    u > T(0.5)*Kscreen && return _sd_helper(fold_0_50(Kactual - u, m, Kscreen, Kactual, kp))
-    u == Kscreen/T(2) && return inv(√((1+kp)*kp))
-    u ≥ T(0.25)*Kscreen && return _sd_helper(fold_0_25(Kactual/T(2) - u, m, kp))
-    return _sd_helper(_ΔXNloop(u, m, u > zero(T) ? max(T(6.0)+(floor(log2(u))), one(T)) : zero(T)))
+    u > Kscreen/2 && return _sd_helper(fold_0_50(Kactual - u, m, Kscreen, Kactual, kp))
+    u == Kscreen/2 && return inv(√((1+kp)*kp))
+    u ≥ Kscreen/4 && return _sd_helper(fold_0_25(Kactual/2 - u, m, kp))
+    return _sd_helper(_ΔXNloop(u, m, u > zero(T) ? max(6+(floor(log2(u))), one(T)) : zero(T)))
 end
 
 function _SD(u::T, m::T) where T
