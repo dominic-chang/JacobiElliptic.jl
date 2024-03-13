@@ -20,8 +20,7 @@ function _one(::Type{ForwardDiff.Dual{T,V,N}}) where {T,V,N}  one(V) end
 function E(phi::A, m::B) where {A,B}
     T = promote_type(A,B)
     (isnan(phi) || isnan(m)) && return T(NaN)
-
-    #if !(0 ≤ m ≤ 1) throw(DomainError(m, "argument m not in [0,1]")) end
+    if !(0 ≤ m ≤ 1) throw(DomainError(m, "argument m not in [0,1]")) end
     if 2abs(phi) > T(π)
         phi2 = phi + T(π/2)
         return 2fld(phi2,T(π))*E(m) - _E(cos(mod(phi2,T(π))), m)
@@ -62,8 +61,7 @@ function ellipke(m::T) where T
     elseif isnan(m)
         return (T(NaN), T(NaN))
     else
-        return (T(NaN), T(NaN))
-        #throw(DomainError(m, "argument m not <= 1"))
+        throw(DomainError(m, "argument m not <= 1"))
     end
 end
 
@@ -102,9 +100,7 @@ function K(m::T) where {T}
     elseif isnan(m)
         return T(NaN)
     else
-        #throw(DomainError(m, "argument m not <= 1"))
-    #end
-        return T(NaN)
+        throw(DomainError(m, "argument m not <= 1"))
     end
 end
 
