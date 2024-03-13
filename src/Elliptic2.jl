@@ -108,35 +108,41 @@ function K(m::T) where {T}
     end
 end
 
-function Pi(n, phi, m)
-    if isnan(n) || isnan(phi) || isnan(m) return NaN end
-    if m < 0. || m > 1. throw(DomainError(m, "argument m not in [0,1]")) end
+function Pi(n::A, phi::B, m::C) where {A, B, C}
+    T = promote_type(A,B,C)
+    (isnan(n) || isnan(phi) || isnan(m)) && return T(NaN)
+    !(0 ≤ m ≤ 1) && throw(DomainError(m, "argument m not in [0,1]"))
     sinphi = sin(phi)
     sinphi2 = sinphi^2
-    cosphi2 = 1. - sinphi2
-    y = 1. - m*sinphi2
-    drf,ierr1 = SLATEC.DRF(cosphi2, y, 1.)
-    drj,ierr2 = SLATEC.DRJ(cosphi2, y, 1., 1. - n*sinphi2)
+    cosphi2 = 1 - sinphi2
+    y = 1 - m*sinphi2
+    drf,ierr1 = SLATEC.DRF(cosphi2, y, _one(T))
+    drj,ierr2 = SLATEC.DRJ(cosphi2, y, _one(T), 1 - n*sinphi2)
     if ierr1 == 0 && ierr2 == 0
         return sinphi*(drf + n*sinphi2*drj/3)
     elseif ierr1 == 2 && ierr2 == 2
         # 2 - (1+m)*sinphi2 < tol
-        return Inf
+        return T(Inf)
     elseif ierr1 == 0 && ierr2 == 2
         # 1 - n*sinphi2 < tol
-        return Inf
+        return T(Inf)
     end
-    NaN
+    return T(NaN)
 end
 Π = Pi
 
-function ellipj(u, m, tol)
+function ellipj(u::A, m::B, tol::C) where {A, B, C}
+
     phi = Jacobi.am(u, m, tol)
     s = sin(phi)
     c = cos(phi)
-    d = sqrt(1. - m*s^2)
-    s, c, d
+    d = sqrt(1 - m*s^2)
+    return (s, c, d)
 end
-ellipj(u, m) = ellipj(u, m, eps(Float64))
+
+function ellipj(u::A, m::B) where{A,B} 
+    T = promote_type(A,B)
+    ellipj(u, m, eps(T))
+end
 
 end # module
