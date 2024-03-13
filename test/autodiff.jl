@@ -13,7 +13,7 @@ using SpecialFunctions
 
     # Test several known derivative identities across a wide range of values of ϕ and m
     # in order to verify that derivatives work correctly
-    for (k, ϕ, n) in zip(ks, ϕs, ns)
+    @testset for (k, ϕ, n) in zip(ks, ϕs, ns)
         m = k^2
         dk_dm = 0.5 / k
 
