@@ -3,31 +3,38 @@ using SpecialFunctions: gamma
 using Elliptic2
 using DelimitedFiles: readdlm
 
-include("autodiff.jl")
 
 @testset "NaNs" begin
-    @test E(NaN) === NaN
-    @test K(NaN) === NaN
+    @testset "Complete" begin
+        @test isnan(E(NaN))
+        @test isnan(K(NaN))
+    end
 
-    @test E(0,NaN) === NaN
-    @test E(NaN,0) === NaN
-    @test E(NaN,NaN) === NaN
+    @testset "Incomplete second kind" begin
+        @test isnan(E(0.0,NaN))
+        @test isnan(E(NaN,0.0))
+        @test isnan(E(NaN,NaN))
+    end
 
-    @test F(0,NaN) === NaN
-    @test F(NaN,0) === NaN
-    @test F(NaN,NaN) === NaN
 
-    @test Pi(0,0,NaN) === NaN
-    @test Pi(0,NaN,0) === NaN
-    @test Pi(NaN,0,0) === NaN
-    @test Pi(NaN,NaN,NaN) === NaN
+    @testset "Incomplete first kind" begin
+        @test isnan(F(0.0,NaN))
+        @test isnan(F(NaN,0.0))
+        @test isnan(F(NaN,NaN))
+    end     
 
+    @testset "Incomplete first kind" begin
+        @test Pi(0,0,NaN) === NaN
+        @test Pi(0,NaN,0.0) === NaN
+        @test Pi(NaN,0.0,0.0) === NaN
+        @test Pi(NaN,NaN,NaN) === NaN
+    end
     @test ellipke(NaN) === (NaN,NaN)
 end
 
 # test negative arguments
 @testset "Negative arguments" begin
-    for m in 1:10
+    for m in 1.0:10.0
         e = E(m/(m + 1))*sqrt(m + 1)
         k = K(m/(m + 1))/sqrt(m + 1)
         @test E(-m) ≈ e
@@ -133,12 +140,12 @@ end
         @test b ≈ e atol=etol
     end
 
-    @test K(0) ≈ pi/2
+    @test K(0.) ≈ pi/2
     @test K(0.5) ≈ (0.25/sqrt(pi))*gamma(0.25)^2
-    @test K(1) == Inf
+    @test K(1.) == Inf
 
-    @test E(0) ≈ pi/2
-    @test E(1) ≈ 1
+    @test E(0.0) ≈ pi/2
+    @test E(1.0) ≈ 1
 end
 
 @testset "Table 17.2: K(α) and E(α)" begin
@@ -720,3 +727,5 @@ end
 end
 
 include("jacobi_tests.jl")
+
+include("autodiff.jl")
