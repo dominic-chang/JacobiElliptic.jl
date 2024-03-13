@@ -1,5 +1,6 @@
 using Zygote
 using ForwardDiff
+using Enzyme
 using SpecialFunctions
 
 @testset "Zygote and ForwardDiff" begin
@@ -21,15 +22,18 @@ using SpecialFunctions
         # 1. K'(m) == K'(k) * dk/dm == E(k) / (k * (1 - k^2)) - K(k)/k
         @test Zygote.gradient(K, m)[1] ≈ (E(m) / (k * (1 - k^2)) - K(m) / k) * dk_dm
         @test ForwardDiff.derivative(K, m) ≈ (E(m) / (k * (1 - k^2)) - K(m) / k) * dk_dm
+        @test Enzyme.autodiff(Reverse, K, Active, Active(m))[1][1] ≈ (E(m) / (k * (1 - k^2)) - K(m) / k) * dk_dm
 
         # 2. E'(m) == E'(k) * dk/dm == (E(k) - K(k))/k
         @test Zygote.gradient(E, m)[1] ≈ (E(m) - K(m))/k * dk_dm
         @test ForwardDiff.derivative(E, m) ≈ (E(m) - K(m))/k * dk_dm
+        @test Enzyme.autodiff(Reverse, E, Active, Active(m))[1][1] ≈ (E(m) - K(m))/k * dk_dm
 
         # II. Tests for incomplete integrals, from https://functions.wolfram.com/EllipticIntegrals/EllipticF/introductions/IncompleteEllipticIntegrals/ShowAll.html
         # 3. ∂ϕ(F(ϕ, m)) == 1 / √(1 - m*sin(ϕ)^2)
         @test Zygote.gradient(ϕ -> F(ϕ, m), ϕ)[1] ≈ 1 / √(1 - m*sin(ϕ)^2)
         @test ForwardDiff.derivative(ϕ -> F(ϕ, m), ϕ) ≈ 1 / √(1 - m*sin(ϕ)^2)
+        @test Enzyme.autodiff(Reverse, ϕ -> F(ϕ, m), Active, Active(ϕ))[1][1] ≈ 1 / √(1 - m*sin(ϕ)^2)
 
         # 4. ∂m(F(ϕ, m)) == E(ϕ, m) / (2 * m * (1 - m)) - F(ϕ, m) / 2m - sin(2ϕ) / (4 * (1-m) * √(1 - m * sin(ϕ)^2))
         @test Zygote.gradient(m -> F(ϕ, m), m)[1] ≈
@@ -40,14 +44,20 @@ using SpecialFunctions
             E(ϕ, m) / (2 * m * (1 - m)) -
             F(ϕ, m) / 2 / m -
             sin(2*ϕ) / (4 * (1 - m) * √(1 - m * sin(ϕ)^2))
+        @test Enzyme.autodiff(Reverse, m -> F(ϕ, m), Active, Active(m))[1][1] ≈
+            E(ϕ, m) / (2 * m * (1 - m)) -
+            F(ϕ, m) / 2 / m -
+            sin(2*ϕ) / (4 * (1 - m) * √(1 - m * sin(ϕ)^2))
 
         # 5. ∂ϕ(E(ϕ, m)) == √(1 - m * sin(ϕ)^2)
         @test Zygote.gradient(ϕ -> E(ϕ, m), ϕ)[1] ≈ √(1 - m * sin(ϕ)^2)
         @test ForwardDiff.derivative(ϕ -> E(ϕ, m), ϕ) ≈ √(1 - m * sin(ϕ)^2)
+        @test Enzyme.autodiff(Reverse, ϕ -> E(ϕ, m), Active, Active(ϕ))[1][1] ≈ √(1 - m * sin(ϕ)^2)
 
         # 6. ∂m(E(ϕ, m)) == (E(ϕ, m) - F(ϕ, m)) / 2m
         @test Zygote.gradient(m -> E(ϕ, m), m)[1] ≈ (E(ϕ, m) - F(ϕ, m)) / 2m
         @test ForwardDiff.derivative(m -> E(ϕ, m), m) ≈ (E(ϕ, m) - F(ϕ, m)) / 2m
+        @test Enzyme.autodiff(Reverse, m -> E(ϕ, m), Active, Active(m))[1][1] ≈ (E(ϕ, m) - F(ϕ, m)) / 2m
 
     end
 end
