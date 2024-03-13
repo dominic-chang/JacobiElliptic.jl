@@ -45,10 +45,10 @@ function DRF(X::A, Y::B, Z::C) where {A,B,C}
     XN = X
     YN = Y
     ZN = Z
-    MU = zero(T)
-    XNDEV = zero(T)
-    YNDEV = zero(T)
-    ZNDEV = zero(T)
+    MU = 0
+    XNDEV = 0
+    YNDEV = 0
+    ZNDEV = 0
 
     while true
         MU = (XN+YN+ZN)/3
@@ -113,7 +113,7 @@ function DRD(X::A, Y::B, Z::C) where {A, B, C}
     C4 = T(3/26)
 
     ans = zero(T)
-    min(X,Y) < zero(T) && return (ans, 1)
+    min(X,Y) < 0 && return (ans, 1)
     max(X,Y,Z) > UPLIM && return (ans, 3)
     min(X+Y,Z) < LOLIM && return (ans, 2)
 
