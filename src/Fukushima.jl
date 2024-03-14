@@ -171,7 +171,8 @@ end
 # First Incomplete Elliptic egral and Inverse Jacobi Functions 
 # (https://doi.org/T(10).1007/s00211-010-0321-8)
 ############################################################################
-function serf(y::T, m::T) where T
+function serf(y::A, m::B) where {A,B}
+    T = promote_type(A,B)
     return one(T) + y*(T(0.166667) + T(0.166667)*m + 
     y*(T(0.075) + (T(0.05) + T(0.075)*m)*m + 
        y*(T(0.0446429) + m*(T(0.0267857) + (T(0.0267857) + T(0.0446429)*m)*m) + 
@@ -219,7 +220,8 @@ Returns the inverse Jacobi Elliptic sn.
 - `u` : Amplitude
 - `m` : Elliptic modulus
 """
-function asn(s::T, m::T) where T
+function asn(s::A, m::B) where {A,B}
+    T = promote_type(A,B)
     yA = T(0.04094) - T(0.00652)*m
     y = s * s
     if y < yA
@@ -245,38 +247,40 @@ Returns the inverse Jacobi Elliptic cn.
 - `u` : Amplitude
 - `m` : Elliptic modulus
 """
-function acn(c::T, m::T) where T
-    mc = one(T) - m
+function acn(c::A, m::B) where {A,B}
+    T = promote_type(A,B)
+    mc = 1 - m
     x = c*c
     p = one(T)
     for _ in 1:10
-        if (x > T(0.5)) 
-            return p*asn(√(one(T)-x), m)
+        if (2x > 1) 
+            return p*asn(√(1-x), m)
         end
         d = √(mc + m * x)
-        x = (√x + d)/(one(T)+d)
+        x = (√x + d)/(1+d)
         p += p
     end
     return T(NaN)
 end
 
-function _rawF(sinφ::T, m::T) where T
+function _rawF(sinφ::A, m::B) where {A,B}
+    T = promote_type(A,B)
     yS = T(0.9000308778823196)
-    m == zero(T) && return asin(sinφ)
-    m == one(T) && return atanh(sinφ)
+    m == 0 && return asin(sinφ)
+    m == 1 && return atanh(sinφ)
     
     sinφ2 = sinφ*sinφ
     sinφ2 ≤ yS && return asn(sinφ, m)
 
-    mc = one(T) - m
+    mc = 1 - m
 
-    c = √(one(T)-sinφ2)
+    c = √(1-sinφ2)
     x = c * c
     d2 = mc + m*x
     #z = c/√(mc+m*c*c)
     x <  yS*d2 && return*(K(m) - asn(c/√(d2), m))
 
-    v = mc*(one(T)-x)
+    v = mc*(1-x)
     v < x*d2 && return acn(c, m)
     return*(K(m) - acn(√(v/d2), m))
 
@@ -285,8 +289,9 @@ end
 #----------------------------------------------------------------------------------------
 # Elliptic F
 #----------------------------------------------------------------------------------------
-function _F(φ::T, m::T) where T
-    abs(φ)  < T(HALF_PI) && return sign(φ)*_rawF(sin(φ), m)
+function _F(φ::A, m::B) where {A,B}
+    T = promote_type(A,B)
+    abs(φ)  ≤ T(HALF_PI) && return sign(φ)*_rawF(sin(φ), m)
     j = floor(φ/T(π))
     newφ = φ - j*T(π)
     signφ = sign(newφ)
@@ -296,7 +301,7 @@ function _F(φ::T, m::T) where T
     end
     signφ = sign(newφ)
 
-    return 2*j*K(m) + signφ*_rawF(sin(abs(newφ)), m)
+    return 2j*K(m) + signφ*_rawF(sin(abs(newφ)), m)
 end
 
 """
@@ -309,19 +314,20 @@ Returns the incomplete elliptic integral of the first kind.
 - `φ` : Amplitude
 - `m` : Elliptic modulus
 """
-function F(φ::T, m::T) where T
-    if m > one(T)
+function F(φ::A, m::B) where {A,B}
+    T = promote_type(A,B)
+    if m > 1
         ## Abramowitz & Stegum*(17.4.15)
         m12 = sqrt(m)
         theta = asin(m12*sin(φ))
         signθ = sign(theta)
         absθ = abs(theta)
-        return signθ/m12*_F(absθ, one(T)/m)
-    elseif m < zero(T)
+        return signθ/m12*_F(absθ, inv(m))
+    elseif m < 0
         # Abramowitz & Stegum*(17.4.17)
         n = -m
-        m12 = one(T)/sqrt(one(T)+n)
-        m1m = n/(one(T)+n)
+        m12 = inv(sqrt(1+n))
+        m1m = n/(1+n)
         newφ = T(HALF_PI)-φ
         signφ = sign(newφ)
         absφ = abs(newφ)
@@ -339,7 +345,8 @@ function D(m::T) where T
 	return cel2(√(one(T) - m), zero(T), one(T))
 end
 
-function Dsi(s::T, m::T) where T
+function Dsi(s::A, m::B) where {A,B}
+    T = promote_type(A,B)
 	s2 = s^2
 	return s * s2 *
 		   (
@@ -376,7 +383,8 @@ function Dsi(s::T, m::T) where T
 		   )
 end
 
-function Ds(s::T, m::T) where T
+function Ds(s::A, m::B) where {A,B}
+    T = promote_type(A,B)
 	_ybuf = @SVector [zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T)]#
 
 	y0 = s^2
@@ -409,7 +417,8 @@ function Ds(s::T, m::T) where T
 	return Di
 end
 
-function _rawD(φ::T, m::T) where T
+function _rawD(φ::A, m::B) where {A,B}
+    T = promote_type(A,B)
 	ys = T == Float32 ? T(0.95) : T(0.9) # T(0.95) for single
 	φs = T == Float32 ? T(1.345) : T(1.249) # T(1.345) for single
 	s = sin(φ)
@@ -434,7 +443,8 @@ function _rawD(φ::T, m::T) where T
 end
 
 # https://www.sciencedirect.com/science/article/pii/S0377042711001270?ref=pdf_download&fr=RR-2&rr=80442ff79ecc4cef
-function D(φ::T, m::T) where T
+function D(φ::A, m::B) where {A,B}
+    T = promote_type(A,B)
 
 	# Reduction of Amplitude
 	if abs(φ) > T(π / 2) && m < one(T)
@@ -484,7 +494,8 @@ Returns the incomplete elliptic integral of the second kind.
 - `m` : Elliptic modulus
 
 """
-function E(φ::T, m::T) where T
+function E(φ::A, m::B) where {A,B}
+    T = promote_type(A,B)
 	return F(φ, m) - m * D(φ, m)
 end
 
@@ -504,7 +515,8 @@ Returns the complete elliptic integral of the third kind.
 - `n` : Characteristic
 - `m` : Elliptic modulus
 """
-function Pi(n::T, m::T) where{T}
+function Pi(n::A, m::B) where {A,B}
+    T = promote_type(A,B)
     n > one(T) && return K(m) - Pi(m/n, m)
     n == zero(T) && return K(m)
     m == zero(T) || m == one(T) && return T(Inf) #atanh(√(-1 + n)*tan(θ))/√(-1 + n)
@@ -524,7 +536,8 @@ Returns the incomplete elliptic integral of the third kind.
 - `φ` : Amplitude
 - `m` : Elliptic modulus
 """
-function Pi(n::T, φ::T, m::T) where T
+function Pi(n::A, φ::B, m::C) where {A,B,C}
+    T = promote_type(A,B,C)
     if m < zero(T) # Imaginary modulus transformation https://dlmf.nist.gov/19.7#iii
         mc = one(T) - m
         imc = inv(mc) 
@@ -557,7 +570,8 @@ Returns the associate incomplete elliptic integral of the third kind.
 - `φ` : Amplitude
 - `m` : Elliptic modulus
 """
-function J(n::T, φ::T, m::T) where T #Appendix A
+function J(n::A, φ::B, m::C) where {A, B, C} #Appendix A
+    T = promote_type(A,B,C)
     # Reduction of Amplitude
     φ == zero(T) && return zero(T)
     φ == T(π/2) && return J(n,m)
@@ -626,7 +640,8 @@ function J(n::T, φ::T, m::T) where T #Appendix A
     return T(NaN)
 end
 
-function _rawJ(n::T, φ::T ,m::T) where {T}
+function _rawJ(n::A, φ::B ,m::C) where {A,B,C}
+    T = promote_type(A,B,C)
     mc = one(T) - m
     nc = one(T) - n
     ys = T == Float32 ? T(0.95) : T(0.9) # T(0.95) for single
@@ -659,7 +674,8 @@ Returns the associate complete elliptic integral of the third kind.
 - `n` : Characteristic
 - `m` : Elliptic modulus
 """
-function J(n::T, m::T) where T
+function J(n::A, m::B) where {A,B}
+    T = promote_type(A,B)
     n > one(T) && return m/n*J(m/n, m)
     kc = √(one(T)-m)
     nc = one(T)-n
@@ -723,7 +739,8 @@ end
 #
 #end
 
-function Js(n::T, s::T, m::T) where T
+function Js(n::A, s::B, m::C) where {A,B,C}
+    T = promote_type(A,B,C)
     _ybuf = @SVector [zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T)]#
 
     nc = one(T) - n
@@ -765,7 +782,8 @@ function Js(n::T, s::T, m::T) where T
 
 end
 
-function JsI(n::T, y::T, m::T) where {T}
+function JsI(n::A, y::B, m::C) where {A,B,C}
+    T = promote_type(A,B,C)
     #Series[(EllipticPi[n, ArcSin[s], m] − EllipticF[ArcSin[s], m])/n, {s, zero(T), 19}]
     return sqrt(y)*y*(
         T(0.3333333333333333) + y*(
@@ -797,7 +815,8 @@ function custom_atanh(a::T) where T
 	return ans
 end
 
-function FukushimaT(t::T, h::T) where {T}
+function FukushimaT(t::A, h::B) where {A,B}
+    T = promote_type(A,B)
 	if h > zero(T)
 		return atan(t * √h) / √(h)
 	elseif h == zero(T)
@@ -810,8 +829,10 @@ function FukushimaT(t::T, h::T) where {T}
 end
 
 #https://link-springer-com.ezp-prod1.hul.harvard.edu/article/T(10).1007/BF02165405
-function cel(kc::T, p::T, a::T, b::T) where T
-    ca = T(1e-6)
+function cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
+    T = promote_type(A,B,C,D)
+    #ca = T(1e-6)
+    ca = eps(T)
     kc = abs(kc)
     e = kc
     m = one(T)
@@ -852,7 +873,8 @@ end
 #https://doi-org.ezp-prod1.hul.harvard.edu/T(10).031007/s10569-008-9177-y
 #https://link.springer.com/article/T(10).1007/s10569-008-9177-y
 
-function cel2(kc::T, a::T, b::T) where T
+function cel2(kc::A, a::B, b::C) where {A,B,C}
+    T = promote_type(A,B,C)
 	return cel(kc, one(T), a, b)
 end
 
@@ -860,9 +882,9 @@ function _Kscreen(m::T) where T
     return T(HALF_PI)*(one(T) + m*(T(0.25) + m*(T(0.36) + m*(T(0.09765625) + m*T(0.07476806640625)))))
 end
 
-function _ΔXNloop(u::T, m::T, n::T) where T
-
-    up = u * inv(T(2.0)^n)
+function _ΔXNloop(u::A, m::B, n::C) where {A,B,C}
+    T = promote_type(A,B,C)
+    up = u * inv(T(2)^n)
     up2 = up*up
     sn = up*(up2*(up2*((m*((-(m/T(5040))-T(3/112))*m-T(3/112))-T(1/5040))*up2+(m/T(120)+T(7/60))*m+T(1/120))-m/T(6)-T(1/6))+one(T))
     cn = one(T)+up2*(-(T(1/2))+up2*(T(1/24)+m/T(6)+up2*(-(T(1/720))+(-(T(11/180))-m/T(45))*m+(-(T(1/40320))+m*(-(T(17/1680))+(-(T(19/840))-m/T(630))*m))*up2)))
@@ -1083,6 +1105,29 @@ function sd(u::T, m::T) where T
     m < one(T) && return signu*_SD(u, m)
     sqrtm = √m
     return signu*_SC(u*sqrtm, inv(m))*inv(sqrtm)
+end
+
+xn = ((:s,:(sn(u,m))), (:c,:(cn(u,m))), (:d,:(dn(u,m))), (:n,:(1.)))
+for (p,num) in xn, (q,den) in xn
+    f = Symbol(p, q)
+    #@eval begin
+    #    """
+    #        $($f)(u::Real, m::Real)
+
+    #    Compute the Jacobi elliptic function $($f)(u | m)
+    #    """
+    #    ($f)(u::Real, m::Real) = ($f)(Float64(u), Float64(m))
+    #end
+
+    if (p == q)
+        @eval ($f)(::A, ::B) where {A,B} = begin one(promote_type(A,B)) end
+    elseif (q != :n)
+        @eval ($f)(u::A, m::B) where {A,B} = begin ($num)/($den) end
+    end
+end
+
+function am(u::T, m::T) where T
+    asin(sn(u,m))
 end
 
 end
