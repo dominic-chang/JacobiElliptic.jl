@@ -3,7 +3,6 @@ using JacobiElliptic
 using ArbNumerics
 using DelimitedFiles: readdlm
 
-
 # Testing Algorithm uality by comparing Carlson Elliptic Integral Algorithm implementation in Arbnumerics
 function ArbNumerics.elliptic_k(m::T) where T 
     return ArbNumerics.elliptic_k(ArbNumerics.ArbFloat(m))
@@ -170,7 +169,7 @@ end
         end
     end
 end
-
+ 
 #Test EllipticPI
 @testset "Complete Elliptic Pi" begin
     @testset "$typ" for typ in [Float32, Float64]
@@ -181,7 +180,7 @@ end
         end
     end
 end
-
+ 
 #Taken from Elliptic.jl
 #https://github.com/nolta/Elliptic.jl/blob/main/test/jacobi_tests.jl
 @testset "Jacobi Elliptic Trig" begin
@@ -191,34 +190,34 @@ end
         t161, _ = readdlm(joinpath(dataloc, "table_16_1.csv"), ',', header=true)
         # table 17.2
         t172, _ = readdlm(joinpath(dataloc, "table_17_2.csv"), ',', header=true)
-
+ 
         K_lut = Dict(zip(t172[:, 1], t172[:, 2]))
-
+ 
         # data vary first by ϵ ∈ 0:5:90 then α ∈ 0:5:85
         αs = 0:5:85
         ϵs = 0:5:90
         θss = reshape(t161[:, 3], length(ϵs), length(αs))
         θns = reshape(t161[:, 4], length(ϵs), length(αs))
-
+ 
         @testset "α = $α" for (i, α) in enumerate(αs)
             K = K_lut[α]
             m = sind(α)^2
             denom = sqrt(secd(α))
-
+ 
             @testset "ϵ = $ϵ" for (j, ϵ) in enumerate(ϵs)
                 j₁ = length(ϵs) - j + 1
                 ϵ₁ = ϵs[j₁]
                 u = ϵ * K / 90
-
+ 
                 θs = θss[j, i]
                 θn = θns[j, i]
                 θc = θss[j₁, i]/denom
                 θd = θns[j₁, i]/denom
-
+ 
                 @test JacobiElliptic.sn(u, m) ≈ θs / θn atol=2.5e-6
                 @test JacobiElliptic.cn(u, m) ≈ θc / θn atol=2.5e-6
                 @test JacobiElliptic.dn(u, m) ≈ θd / θn atol=2.5e-6
-
+ 
                 @test JacobiElliptic.sd(u, m) ≈ θs / θd atol=2.5e-6
                 if ϵ != 90
                     # very sensitive around u = K,
@@ -229,20 +228,18 @@ end
             end
         end
     end
-   #@testset "u = $u" for u in -1.:0.21:1.0
-   #    @test JacobiElliptic.sn(u,0) ≈ sin(u)
-   #    @test JacobiElliptic.cn(u,0) ≈ cos(u)
-   #    @test JacobiElliptic.dn(u,0) ≈ 1.
-   #    @test JacobiElliptic.sd(u,0) ≈ sin(u)
-   #    @test JacobiElliptic.sc(u,0) ≈ tan(u)
-
-   #    @test JacobiElliptic.sn(u,1) ≈ tanh(u)
-   #    @test JacobiElliptic.cn(u,1) ≈ sech(u)
-   #    @test JacobiElliptic.dn(u,1) ≈ sech(u)
-   #    @test JacobiElliptic.sd(u,1) ≈ sinh(u)
-   #    @test JacobiElliptic.sc(u,1) ≈ sinh(u)
-   #end
-
+   @testset "u = $u" for u in -1.:0.21:1.0
+       @test JacobiElliptic.sn(u,0.) ≈ sin(u)
+       @test JacobiElliptic.cn(u,0.) ≈ cos(u)
+       @test JacobiElliptic.dn(u,0.) ≈ 1.
+       @test JacobiElliptic.sd(u,0.) ≈ sin(u)
+       @test JacobiElliptic.sc(u,0.) ≈ tan(u)
+ 
+       @test JacobiElliptic.sn(u,1.) ≈ tanh(u)
+       @test JacobiElliptic.cn(u,1.) ≈ sech(u)
+       @test JacobiElliptic.dn(u,1.) ≈ sech(u)
+       @test JacobiElliptic.sd(u,1.) ≈ sinh(u)
+       @test JacobiElliptic.sc(u,1.) ≈ sinh(u)
+   end
+ 
 end
-
-#include("./GPUtests.jl")
