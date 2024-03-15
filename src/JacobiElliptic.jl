@@ -21,7 +21,7 @@ abstract type AbstractAlgorithm end
 struct Fukushima <: AbstractAlgorithm end
 struct Carlson <: AbstractAlgorithm end
 
-alg = Fukushima()
+alg = Carlson()
 
 func_syms = [:E, :F, :K, :Pi, :J, :sn, :cn, :dn, :nn, :sd, :dd, :nd, :sc, :cc, :dc, :nc, :ss, :cs, :ds, :ns, :am, :cd]
 sym_list = []
@@ -39,7 +39,7 @@ end
 default_sym_list = []
 for func in func_syms
     sub_sym = Expr(:., Meta.parse(string(alg)*"Alg"), Meta.parse(":($func)"))
-    sym = Expr(:(=), Expr(:call, func, :(args...)), Expr(:call, func, :(Fukushima()), :(args...)))
+    sym = Expr(:(=), Expr(:call, func, :(args...)), Expr(:call, func, :(Carlson()), :(args...)))
     push!(default_sym_list, sym)
 end
 
