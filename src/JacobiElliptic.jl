@@ -47,4 +47,7 @@ end
     $(default_sym_list...)
 end
 
+asn = FukushimaAlg.asn
+acn = FukushimaAlg.asn
+
 end

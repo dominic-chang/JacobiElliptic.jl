@@ -674,8 +674,8 @@ Returns the associate complete elliptic integral of the third kind.
 function J(n::A, m::B) where {A,B}
     T = promote_type(A,B)
     n > one(T) && return m/n*J(m/n, m)
-    kc = √(one(T)-m)
-    nc = one(T)-n
+    kc = √(1-m)
+    nc = 1-n
     return cel(kc, nc, zero(T), one(T))
 end
 
@@ -738,7 +738,7 @@ end
 
 function Js(n::A, s::B, m::C) where {A,B,C}
     T = promote_type(A,B,C)
-    _ybuf = @SVector [zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T)]#
+    _ybuf = @MArray [zero(T) for _ in 1:10]#
 
     nc = one(T) - n
     h = n*nc*(n-m)
@@ -752,7 +752,7 @@ function Js(n::A, s::B, m::C) where {A,B,C}
     for _ in 1:10
         yi < yB && break
         I += 1
-        @set! _ybuf[I] = yi
+        _ybuf[I] = yi
 
         ci = √(one(T)-yi)
         di = √(one(T)-m*yi)
