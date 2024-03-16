@@ -167,7 +167,7 @@ function E(m::T) where T
 end
 
 ############################################################################
-# First Incomplete Elliptic egral and Inverse Jacobi Functions 
+# First Incomplete Elliptic integral and Inverse Jacobi Functions 
 # (https://doi.org/T(10).1007/s00211-010-0321-8)
 ############################################################################
 function serf(y::A, m::B) where {A,B}
@@ -227,7 +227,7 @@ function asn(s::A, m::B) where {A,B}
 
     p = one(T)
     for _ in 1:10
-        y = y / ((one(T)+√(one(T)-y))*(one(T)+√(one(T)-m*y)))
+        y = y * inv((1+√(1-y))*(1+√(1-m*y)))
         p += p
         y < yA && return p*√y*serf(y, m)
     end
@@ -250,9 +250,8 @@ function acn(c::A, m::B) where {A,B}
     x = c*c
     p = one(T)
     for _ in 1:10
-        if (2x > 1) 
-            return p*asn(√(1-x), m)
-        end
+        (2x > 1) && return p*asn(√(1-x), m)
+        
         d = √(mc + m * x)
         x = (√x + d)/(1+d)
         p += p
@@ -260,8 +259,9 @@ function acn(c::A, m::B) where {A,B}
     return T(NaN)
 end
 
-@inline function _rawF(sinφ::A, m::B) where {A,B}
+@inline function rawF(sinφ::A, m::B) where {A,B}
     T = promote_type(A,B)
+
     yS = T(0.9000308778823196)
     m == 0 && return asin(sinφ)
     m == 1 && return atanh(sinφ)
@@ -288,7 +288,7 @@ end
 #----------------------------------------------------------------------------------------
 function _F(φ::A, m::B) where {A,B}
     T = promote_type(A,B)
-    abs(φ)  ≤ T(π/2) && return sign(φ)*_rawF(sin(φ), m)
+    abs(φ) ≤ T(π/2) && return sign(φ)*rawF(sin(φ), m)
     j = floor(φ/T(π))
     newφ = φ - j*T(π)
     signφ = sign(newφ)
@@ -298,7 +298,7 @@ function _F(φ::A, m::B) where {A,B}
     end
     signφ = sign(newφ)
 
-    return 2j*K(m) + signφ*_rawF(sin(abs(newφ)), m)
+    return 2j*K(m) + signφ*rawF(sin(abs(newφ)), m)
 end
 
 """
@@ -382,7 +382,7 @@ end
 
 function Ds(s::A, m::B) where {A,B}
     T = promote_type(A,B)
-	_ybuf = @SVector [zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T), zero(T)]#
+	_ybuf = @MArray [zero(T) for _ in 1:10]#
 
 	y0 = s^2
 	yi = y0
@@ -392,7 +392,7 @@ function Ds(s::A, m::B) where {A,B}
 	for _ in 1:10
 		yi < yA(m) && break
 		I += 1
-		@set! _ybuf[I] = yi
+		_ybuf[I] = yi
 
 		ci = √(one(T) - yi)
 		di = √(one(T) - m * yi)
@@ -414,7 +414,7 @@ function Ds(s::A, m::B) where {A,B}
 	return Di
 end
 
-function _rawD(φ::A, m::B) where {A,B}
+function rawD(φ::A, m::B) where {A,B}
     T = promote_type(A,B)
 	ys = T == Float32 ? T(0.95) : T(0.9) # T(0.95) for single
 	φs = T == Float32 ? T(1.345) : T(1.249) # T(1.345) for single
@@ -473,7 +473,7 @@ function D(φ::A, m::B) where {A,B}
 	#end
 
 
-	return _rawD(φ, m)
+	return rawD(φ, m)
 end
 
 #----------------------------------------------------------------------------------------
@@ -633,11 +633,11 @@ function J(n::A, φ::B, m::C) where {A, B, C} #Appendix A
         end
     end
     
-    zero(T) < φ < T(π/2) && zero(T) < m < one(T) && zero(T) < n < one(T) && return _rawJ(n, φ, m)
+    zero(T) < φ < T(π/2) && zero(T) < m < one(T) && zero(T) < n < one(T) && return rawJ(n, φ, m)
     return T(NaN)
 end
 
-function _rawJ(n::A, φ::B ,m::C) where {A,B,C}
+function rawJ(n::A, φ::B ,m::C) where {A,B,C}
     T = promote_type(A,B,C)
     mc = one(T) - m
     nc = one(T) - n
@@ -945,12 +945,12 @@ end
 function _SN(u::T, m::T) where T
     tempK = K(m)
     if u > (4tempK)
-        return _rawSN(u % (4tempK), m, tempK, tempK, √(one(T)-m))
+        return rawSN(u % (4tempK), m, tempK, tempK, √(one(T)-m))
     end
-    return _rawSN(u, m, tempK, tempK, √(one(T)-m))
+    return rawSN(u, m, tempK, tempK, √(one(T)-m))
 end
 
-function _rawSN(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
+function rawSN(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
     check = u ≥ 2*Kscreen 
     sign = check ? -one(T) : one(T)
     u = check ? u - 2*Kactual : u
@@ -965,11 +965,11 @@ end
 function _CN(u::T, m::T) where T
     tempK = K(m)
     if u > (4tempK)
-        return _rawCN(u % (4tempK), m, tempK, tempK, √(one(T)-m))
+        return rawCN(u % (4tempK), m, tempK, tempK, √(one(T)-m))
     end
-    return _rawCN(u, m, tempK, tempK, √(one(T)-m))
+    return rawCN(u, m, tempK, tempK, √(one(T)-m))
 end
-function _rawCN(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
+function rawCN(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
     check = u ≥ 2*Kscreen 
     sign = check ? -one(T) : one(T)
     u = check ? u - 2*Kactual : u
@@ -984,11 +984,11 @@ end
 function _DN(u::T, m::T) where T
     tempK = K(m)
     if u > 4tempK
-        return _rawDN(u % (4tempK), m, tempK, tempK, √(one(T)-m))
+        return rawDN(u % (4tempK), m, tempK, tempK, √(one(T)-m))
     end
-    return _rawDN(u, m, tempK, tempK, √(one(T)-m))
+    return rawDN(u, m, tempK, tempK, √(one(T)-m))
 end
-function _rawDN(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
+function rawDN(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
     check = u ≥ 2*Kscreen 
     u = check ? u - 2*Kactual : u
     u > Kscreen && return fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[3]
@@ -1000,7 +1000,7 @@ function _rawDN(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T
 end
 
 _sc_helper(jacobituple) = jacobituple[1]/jacobituple[2]
-function _rawSC(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
+function rawSC(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
     u = u ≥ 4*Kscreen ?  u % 4*Kactual : u
     u = u ≥ 2*Kscreen ? u - 2*Kactual : u
     u > Kscreen && return _sc_helper(fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
@@ -1012,11 +1012,11 @@ function _rawSC(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T
 end
 
 function _SC(u::T, m::T) where T 
-    return _rawSC(u, m, K(m), K(m), √(one(T)-m))
+    return rawSC(u, m, K(m), K(m), √(one(T)-m))
 end
 
 _sd_helper(jacobituple) = jacobituple[1]/jacobituple[3]
-function _rawSD(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
+function rawSD(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T 
     u = u ≥ 4*Kscreen ?  u % 4*Kactual : u
     u = u ≥ 2*Kscreen ? u - 2*Kactual : u
     u > Kscreen && return _sd_helper(fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
@@ -1028,7 +1028,7 @@ function _rawSD(u::T, m::T, Kscreen::T, Kactual::T, kp::T) where T
 end
 
 function _SD(u::T, m::T) where T
-    return _rawSD(u, m, K(m), K(m), √(one(T)-m))
+    return rawSD(u, m, K(m), K(m), √(one(T)-m))
 end
 
 """

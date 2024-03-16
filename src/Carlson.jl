@@ -21,6 +21,67 @@ function _one(::Type{ForwardDiff.Dual{T,V,N}}) where {T,V,N}
     one(V)
 end
 
+# assumes 0 ≤ m ≤ 1
+function rawF(sinphi::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    (abs(sinphi) == one(T) && m == one(T)) && return sign(sinphi) * T(Inf)
+    sinphi2 = sinphi^2
+    drf, ierr = DRF(_one(T) - sinphi2, _one(T) - m * sinphi2, _one(T))
+    @assert ierr == 0
+    sinphi * drf
+end
+
+function _F(phi::A, m::B) where {A,B}
+    T = promote_type(A, B)
+
+    (isnan(phi) || isnan(m)) && return T(NaN)
+    #(m < 0 || m > 1) && throw(DomainError(m, "argument m not in [0,1]"))
+    if abs(phi) > T(π / 2)
+        # Abramowitz & Stegun (17.4.3)
+        phi2 = phi + T(π / 2)
+        return 2 * fld(phi2, T(π)) * K(m) - rawF(cos(mod(phi2, T(π))), m)
+    end
+    return rawF(sin(phi), m)
+end
+
+function F(φ::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    if m > 1
+        ## Abramowitz & Stegum*(17.4.15)
+        m12 = sqrt(m)
+        theta = asin(m12 * sin(φ))
+        signθ = sign(theta)
+        absθ = abs(theta)
+        return signθ / m12 * _F(absθ, inv(m))
+    elseif m < 0
+        # Abramowitz & Stegum*(17.4.17)
+        n = -m
+        m12 = inv(sqrt(1 + n))
+        m1m = n / (1 + n)
+        newφ = T(π / 2) - φ
+        signφ = sign(newφ)
+        absφ = abs(newφ)
+        return (m12 * K(m1m) - signφ * m12 * _F(absφ, m1m))
+    end
+    absφ = abs(φ)
+    signφ = sign(φ)
+    return signφ * _F(absφ, m)
+end
+
+function K(m::T) where {T}
+    if m < 1
+        drf, ierr = DRF(_zero(T), 1 - m, _one(T))
+        @assert ierr == 0
+        return drf
+    elseif m == 1
+        return T(Inf)
+    elseif isnan(m)
+        return T(NaN)
+    else
+        throw(DomainError(m, "argument m not <= 1"))
+    end
+end
+
 function E(phi::A, m::B) where {A,B}
     T = promote_type(A, B)
     (isnan(phi) || isnan(m)) && return T(NaN)
@@ -93,66 +154,7 @@ end
 
 E(m) = ellipke(m)[2]
 
-# assumes 0 ≤ m ≤ 1
-function rawF(sinphi::A, m::B) where {A,B}
-    T = promote_type(A, B)
-    (abs(sinphi) == one(T) && m == one(T)) && return sign(sinphi) * T(Inf)
-    sinphi2 = sinphi^2
-    drf, ierr = DRF(_one(T) - sinphi2, _one(T) - m * sinphi2, _one(T))
-    @assert ierr == 0
-    sinphi * drf
-end
 
-function _F(phi::A, m::B) where {A,B}
-    T = promote_type(A, B)
-
-    (isnan(phi) || isnan(m)) && return T(NaN)
-    (m < 0 || m > 1) && throw(DomainError(m, "argument m not in [0,1]"))
-    if abs(phi) > T(π / 2)
-        # Abramowitz & Stegun (17.4.3)
-        phi2 = phi + T(π / 2)
-        return 2 * fld(phi2, T(π)) * K(m) - rawF(cos(mod(phi2, T(π))), m)
-    end
-    return rawF(sin(phi), m)
-end
-
-function F(φ::A, m::B) where {A,B}
-    T = promote_type(A, B)
-    if m > 1
-        ## Abramowitz & Stegum*(17.4.15)
-        m12 = sqrt(m)
-        theta = asin(m12 * sin(φ))
-        signθ = sign(theta)
-        absθ = abs(theta)
-        return signθ / m12 * _F(absθ, inv(m))
-    elseif m < 0
-        # Abramowitz & Stegum*(17.4.17)
-        n = -m
-        m12 = inv(sqrt(1 + n))
-        m1m = n / (1 + n)
-        newφ = T(π / 2) - φ
-        signφ = sign(newφ)
-        absφ = abs(newφ)
-        return (m12 * K(m1m) - signφ * m12 * _F(absφ, m1m))
-    end
-    absφ = abs(φ)
-    signφ = sign(φ)
-    return signφ * _F(absφ, m)
-end
-
-function K(m::T) where {T}
-    if m < 1
-        drf, ierr = DRF(_zero(T), 1 - m, _one(T))
-        @assert ierr == 0
-        return drf
-    elseif m == 1
-        return T(Inf)
-    elseif isnan(m)
-        return T(NaN)
-    else
-        throw(DomainError(m, "argument m not <= 1"))
-    end
-end
 
 function _Pi(n::A, sinphi::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
