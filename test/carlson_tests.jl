@@ -5,44 +5,44 @@ using DelimitedFiles: readdlm
 
 @testset "NaNs" begin
     @testset "Complete" begin
-        @test isnan(E(NaN))
-        @test isnan(K(NaN))
+        @test isnan(JacobiElliptic.CarlsonAlg.E(NaN))
+        @test isnan(JacobiElliptic.CarlsonAlg.K(NaN))
     end
     @testset "Incomplete second kind" begin
-        @test isnan(E(0.0,NaN))
-        @test isnan(E(NaN,0.0))
-        @test isnan(E(NaN,NaN))
+        @test isnan(JacobiElliptic.CarlsonAlg.E(0.0,NaN))
+        @test isnan(JacobiElliptic.CarlsonAlg.E(NaN,0.0))
+        @test isnan(JacobiElliptic.CarlsonAlg.E(NaN,NaN))
     end
     @testset "Incomplete first kind" begin
-        @test isnan(F(0.0,NaN))
-        @test isnan(F(NaN,0.0))
-        @test isnan(F(NaN,NaN))
+        @test isnan(JacobiElliptic.CarlsonAlg.F(0.0,NaN))
+        @test isnan(JacobiElliptic.CarlsonAlg.F(NaN,0.0))
+        @test isnan(JacobiElliptic.CarlsonAlg.F(NaN,NaN))
     end     
     @testset "Incomplete first kind" begin
-        @test Pi(0,0,NaN) === NaN
-        @test Pi(0,NaN,0.0) === NaN
-        @test Pi(NaN,0.0,0.0) === NaN
-        @test Pi(NaN,NaN,NaN) === NaN
+        @test JacobiElliptic.CarlsonAlg.Pi(0,0,NaN) === NaN
+        @test JacobiElliptic.CarlsonAlg.Pi(0,NaN,0.0) === NaN
+        @test JacobiElliptic.CarlsonAlg.Pi(NaN,0.0,0.0) === NaN
+        @test JacobiElliptic.CarlsonAlg.Pi(NaN,NaN,NaN) === NaN
     end
-    @test ellipke(NaN) === (NaN,NaN)
+    @test JacobiElliptic.CarlsonAlg.ellipke(NaN) === (NaN,NaN)
 end
 
 # test negative arguments
 @testset "Negative arguments" begin
     for m in 1.0:10.0
-        e = E(m/(m + 1))*sqrt(m + 1)
-        k = K(m/(m + 1))/sqrt(m + 1)
-        @test E(-m) ≈ e
-        @test K(-m) ≈ k
-        k2,e2 = ellipke(-m)
+        e = JacobiElliptic.CarlsonAlg.E(m/(m + 1))*sqrt(m + 1)
+        k = JacobiElliptic.CarlsonAlg.K(m/(m + 1))/sqrt(m + 1)
+        @test JacobiElliptic.CarlsonAlg.E(-m) ≈ e
+        @test JacobiElliptic.CarlsonAlg.K(-m) ≈ k
+        k2,e2 = JacobiElliptic.CarlsonAlg.ellipke(-m)
         @test e2 ≈ e
         @test k2 ≈ k
     end
 end
 
-# K(m), E(m), ellipke(m), F(pi/2,m), E(pi/2,m)
+# K(m), E(m), (m), F(pi/2,m), E(pi/2,m)
 
-@testset "Table 17.1: K(m) and E(m)" begin
+@testset "Table 17.1: JacobiElliptic.CarlsonAlg.K(m) and JacobiElliptic.CarlsonAlg.E(m)" begin
     # values from Abramowitz & Stegun, Table 17.1 (p608-609)
     #    m            K(m)                K(1-m)            E(m)         E(1-m)
     table17p1 = [
@@ -105,11 +105,11 @@ end
         m = table17p1[i,1]
         k = table17p1[i,2]
         e = table17p1[i,4]
-        @test K(m) ≈ k atol=ktol
-        @test E(m) ≈ e atol=etol
-        @test F(pi/2,m) ≈ k atol=ktol
-        @test E(pi/2,m) ≈ e atol=etol
-        a,b = ellipke(m)
+        @test JacobiElliptic.CarlsonAlg.K(m) ≈ k atol=ktol
+        @test JacobiElliptic.CarlsonAlg.E(m) ≈ e atol=etol
+        @test JacobiElliptic.CarlsonAlg.F(pi/2,m) ≈ k atol=ktol
+        @test JacobiElliptic.CarlsonAlg.E(pi/2,m) ≈ e atol=etol
+        a,b = JacobiElliptic.CarlsonAlg.ellipke(m)
         @test a ≈ k atol=ktol
         @test b ≈ e atol=etol
     end
@@ -118,30 +118,30 @@ end
         m = 1. - table17p1[i,1]
         k = table17p1[i,3]
         e = table17p1[i,5]
-        a,b = ellipke(m)
+        a,b = JacobiElliptic.CarlsonAlg.ellipke(m)
         if k == Inf
-            @test K(m) == k
-            @test F(pi/2,m) == k
+            @test JacobiElliptic.CarlsonAlg.K(m) == k
+            @test JacobiElliptic.CarlsonAlg.F(pi/2,m) == k
             #@test a == k
         else
-            @test K(m) ≈ k atol=ktol
-            @test F(pi/2,m) ≈ k atol=ktol
+            @test JacobiElliptic.CarlsonAlg.K(m) ≈ k atol=ktol
+            @test JacobiElliptic.CarlsonAlg.F(pi/2,m) ≈ k atol=ktol
             #@test a ≈ k atol=ktol
         end
-        @test E(m) ≈ e atol=etol
-        @test E(pi/2,m) ≈ e atol=etol
+        @test JacobiElliptic.CarlsonAlg.E(m) ≈ e atol=etol
+        @test JacobiElliptic.CarlsonAlg.E(pi/2,m) ≈ e atol=etol
         #@test b ≈ e atol=etol
     end
 
-    @test K(0.) ≈ pi/2
-    @test K(0.5) ≈ (0.25/sqrt(pi))*gamma(0.25)^2
-    @test K(1.) == Inf
+    @test JacobiElliptic.CarlsonAlg.K(0.) ≈ pi/2
+    @test JacobiElliptic.CarlsonAlg.K(0.5) ≈ (0.25/sqrt(pi))*gamma(0.25)^2
+    @test JacobiElliptic.CarlsonAlg.K(1.) == Inf
 
-    @test E(0.0) ≈ pi/2
-    @test E(1.0) ≈ 1
+    @test JacobiElliptic.CarlsonAlg.E(0.0) ≈ pi/2
+    @test JacobiElliptic.CarlsonAlg.E(1.0) ≈ 1
 end
 
-@testset "Table 17.2: K(α) and E(α)" begin
+@testset "Table 17.2: JacobiElliptic.CarlsonAlg.K(α) and JacobiElliptic.CarlsonAlg.E(α)" begin
     #                       Abramowitz & Stegun, Table 17.2, p610-11
     #    α          K(α)                K(90-α)               E(α)                E(90-α)
     table17p2 = [
@@ -199,11 +199,11 @@ end
         k  = table17p2[i,2]
         e  = table17p2[i,4]
         m  = sind(alpha)^2
-        @test K(m) ≈ k atol=tol
-        @test E(m) ≈ e atol=tol
-        @test F(pi/2,m) ≈ k atol=tol
-        @test E(pi/2,m) ≈ e atol=tol
-        #a,b = ellipke(m)
+        @test JacobiElliptic.CarlsonAlg.K(m) ≈ k atol=tol
+        @test JacobiElliptic.CarlsonAlg.E(m) ≈ e atol=tol
+        @test JacobiElliptic.CarlsonAlg.F(pi/2,m) ≈ k atol=tol
+        @test JacobiElliptic.CarlsonAlg.E(pi/2,m) ≈ e atol=tol
+        #a,b = JacobiElliptic.CarlsonAlg.ellipke(m)
         #@test a ≈ k atol=tol
         #@test b ≈ e atol=tol
     end
@@ -215,26 +215,26 @@ end
         k = table17p2[i,3]
         e = table17p2[i,5]
         m  = sind(alpha)^2
-        #a,b = ellipke(m)
+        #a,b = JacobiElliptic.CarlsonAlg.ellipke(m)
         if k == Inf
-            @test K(m) == k
-            @test F(pi/2,m) == k
+            @test JacobiElliptic.CarlsonAlg.K(m) == k
+            @test JacobiElliptic.CarlsonAlg.F(pi/2,m) == k
             #@test a == k
         else
-            @test K(m) ≈ k atol=tol
-            @test F(pi/2,m) ≈ k atol=tol
+            @test JacobiElliptic.CarlsonAlg.K(m) ≈ k atol=tol
+            @test JacobiElliptic.CarlsonAlg.F(pi/2,m) ≈ k atol=tol
             #@test a ≈ k atol=tol
         end
 #
-        @test E(m) ≈ e atol=tol
-        @test E(pi/2,m) ≈ e atol=tol
+        @test JacobiElliptic.CarlsonAlg.E(m) ≈ e atol=tol
+        @test JacobiElliptic.CarlsonAlg.E(pi/2,m) ≈ e atol=tol
         #@test b ≈ e atol=tol
     end
 end
 
-@testset "Table 17.5: F(φ, m)" begin
+@testset "Table 17.5: JacobiElliptic.CarlsonAlg.F(φ, m)" begin
     #                       Abramowitz & Stegun, Table 17.5, p613
-    #                                    F(phi\alpha)
+    #                                    JacobiElliptic.CarlsonAlg.F(phi\alpha)
     #  α\φ  0       5            10           15           20           25           30
     table17p5_p613 = [
         0. 0  0.08726_646  0.17453_293  0.26179_939  0.34906_585  0.43633_231  0.52359_878;
@@ -286,7 +286,7 @@ end
     ]
 
     #                       Abramowitz & Stegun, Table 17.5, p614
-    #                                    F(phi\alpha)
+    #                                    JacobiElliptic.CarlsonAlg.F(phi\alpha)
     #  α\φ       35           40           45           50           55           60
     table17p5_p614 = [
         0. 0.61086_524  0.69813_170  0.78539_816  0.87266_463  0.95993_109  1.04719_755;
@@ -338,7 +338,7 @@ end
     ]
 
     #                       Abramowitz & Stegun, Table 17.5, p615
-    #                                    F(phi\alpha)
+    #                                    JacobiElliptic.CarlsonAlg.F(phi\alpha)
     #  α\φ       65           70           75           80           85           90
     table17p5_p615 = [
         0. 1.13446_401  1.22173_048  1.30899_694  1.39626_340  1.48352_986  1.57079_633;
@@ -399,25 +399,25 @@ end
             phi = deg2rad(phid)
             f = table17p5[i,j]
             if f == Inf
-                @test F(phi,m) == f
-                @test F(-phi,m) == -f
+                @test JacobiElliptic.CarlsonAlg.F(phi,m) == f
+                @test JacobiElliptic.CarlsonAlg.F(-phi,m) == -f
                 if phid == 90
-                    @test K(m) == f
-                    #@test ellipke(m)[1] == f
+                    @test JacobiElliptic.CarlsonAlg.K(m) == f
+                    #@test JacobiElliptic.CarlsonAlg.ellipke(m)[1] == f
                 end
             else
-                @test F(phi,m) ≈ f atol=1e-8
-                @test F(-phi,m) ≈ -f atol=1e-8
+                @test JacobiElliptic.CarlsonAlg.F(phi,m) ≈ f atol=1e-8
+                @test JacobiElliptic.CarlsonAlg.F(-phi,m) ≈ -f atol=1e-8
                 if phid == 90
-                    @test K(m) ≈ f atol=1e-8
-                    #@test ellipke(m)[1] ≈ f atol=1e-8
+                    @test JacobiElliptic.CarlsonAlg.K(m) ≈ f atol=1e-8
+                    #@test JacobiElliptic.CarlsonAlg.ellipke(m)[1] ≈ f atol=1e-8
                 end
             end
         end
     end
 end
 
-@testset "Table 17.6: E(φ, m)" begin
+@testset "Table 17.6: JacobiElliptic.CarlsonAlg.E(φ, m)" begin
     #                       Abramowitz & Stegun, Table 17.6, p616
     #                                    E(phi\alpha)
     #  α\φ  0       5            10           15           20           25           30
@@ -523,7 +523,7 @@ end
     ]
 
     #                       Abramowitz & Stegun, Table 17.6, p618
-    #                                    E(phi\alpha)
+    #                                    JacobiElliptic.CarlsonAlg.E(phi\alpha)
     #            65           70           75           80           85           90
     table17p6_p618 = [
             1.13446_401  1.22173_048  1.30899_694  1.39626_340  1.48352_986  1.57079_633;
@@ -583,37 +583,37 @@ end
             phid = 5*(j-2)
             phi = deg2rad(phid)
             e = table17p6[i,j]
-            @test E(phi,m) ≈ e atol=1e-8
-            @test E(-phi,m) ≈ -e atol=1e-8
+            @test JacobiElliptic.CarlsonAlg.E(phi,m) ≈ e atol=1e-8
+            @test JacobiElliptic.CarlsonAlg.E(-phi,m) ≈ -e atol=1e-8
             if phid == 90
-                @test E(m) ≈ e atol=1e-8
-                @test ellipke(m)[2] ≈ e atol=1e-8
+                @test JacobiElliptic.CarlsonAlg.E(m) ≈ e atol=1e-8
+                @test JacobiElliptic.CarlsonAlg.ellipke(m)[2] ≈ e atol=1e-8
             end
         end
     end
 
-    @test E(0,0.5) ≈ 0
-    @test E(0.5,0) ≈ 0.5
-    @test E(0.5,1) ≈ sin(0.5)
+    @test JacobiElliptic.CarlsonAlg.E(0,0.5) ≈ 0
+    @test JacobiElliptic.CarlsonAlg.E(0.5,0) ≈ 0.5
+    @test JacobiElliptic.CarlsonAlg.E(0.5,1) ≈ sin(0.5)
 
-    @test F(0,0.5) ≈ 0
-    @test F(0.5,0) ≈ 0.5
-    @test F(0.5,1) ≈ log(sec(0.5) + tan(0.5))
+    @test JacobiElliptic.CarlsonAlg.F(0,0.5) ≈ 0
+    @test JacobiElliptic.CarlsonAlg.F(0.5,0) ≈ 0.5
+    @test JacobiElliptic.CarlsonAlg.F(0.5,1) ≈ log(sec(0.5) + tan(0.5))
 
     # values from Abramowitz & Stegun, Table 17.2 (p610-611)
     m20 = sind(20)^2
     K20 = 1.62002_58991_24204
     E20 = 1.52379_92052_59774
-    @test K(m20) ≈ K20 atol=1e-15
-    @test E(m20) ≈ E20 atol=1e-15
+    @test JacobiElliptic.CarlsonAlg.K(m20) ≈ K20 atol=1e-15
+    @test JacobiElliptic.CarlsonAlg.E(m20) ≈ E20 atol=1e-15
 
     # values from Abramowitz & Stegun, Table 17.5 (p613-615)
     # values from Abramowitz & Stegun, Table 17.6 (p616-618)
     E2020 = 0.34825_492
     F2020 = 0.34988_016
     for i = -2:2
-        @test E(deg2rad(20+180i), m20) ≈ E2020 + 2i*E20 atol=1e-8
-        @test F(deg2rad(20+180i), m20) ≈ F2020 + 2i*K20 atol=1e-8
+        @test JacobiElliptic.CarlsonAlg.E(deg2rad(20+180i), m20) ≈ E2020 + 2i*E20 atol=1e-8
+        @test JacobiElliptic.CarlsonAlg.F(deg2rad(20+180i), m20) ≈ F2020 + 2i*K20 atol=1e-8
     end
 end
 
@@ -709,7 +709,7 @@ end
         for j = 3:size(table17p9,2)
             phi = 15.0*(j-3)
             x = table17p9[i,j]
-            y = Pi(n, deg2rad(phi), m)
+            y = JacobiElliptic.CarlsonAlg.Pi(n, deg2rad(phi), m)
             if x == Inf
                 @test x == y
             else

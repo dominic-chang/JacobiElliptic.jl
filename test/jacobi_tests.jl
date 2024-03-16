@@ -59,7 +59,7 @@
                 @test JacobiElliptic.ns(u, m) ≈ θn / θs atol=5.5e-8
 
                 # ellipj
-                s, c, d = ellipj(u, m)
+                s, c, d = JacobiElliptic.CarlsonAlg.ellipj(u, m)
                 @test s ≈ θs / θn atol=1e-9
                 @test c ≈ θc / θn atol=1e-9
                 @test d ≈ θd / θn atol=1e-9
