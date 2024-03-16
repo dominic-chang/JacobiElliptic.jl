@@ -4,7 +4,6 @@ using StaticArrays, Setfield
 export K, E, F, Pi, J
 export sn, cn, dn, sc, sd, asn, acn
 
-const HALF_PI = π/2
 const ONE_DIV_PI = inv(π)
 
 ############################################################################
@@ -46,7 +45,7 @@ function K(m::T) where T
             x = m / ( m - one(T) );
             flag = true;
         end
-        x == zero(T) && return T(HALF_PI)
+        x == zero(T) && return T(π/2)
         x == one(T) && return T(Inf)
         x > one(T) && return T(NaN)
         
@@ -95,7 +94,7 @@ Returns the complete elliptic integral of the second kind.
 - `m` : Elliptic modulus
 """
 function E(m::T) where T
-    m == zero(T) && return T(HALF_PI)
+    m == zero(T) && return T(π/2)
     if m < one(T)
         # I didn't really see any speedup from evalpoly, so I left the evaluation in this form
         poly1(x::T) =  T(1.5509733517804722) + (x * (T(-0.40030102010319850) + (x * (T(-0.07849861944294194) + (x * (T(-0.034318853117591995) + (x * (T(-0.019718043317365500) + (x * (T(-0.013059507731993310) + (x * (T(-0.009442372874146548) + (x * (T(-0.007246728512402157) + (x * (T(-0.005807424012956090) + (x * (T(-0.004809187786009338)))))))))))))))))))
@@ -124,7 +123,7 @@ function E(m::T) where T
             x = m / ( m - one(T) );
             flag = true;
         end
-        x === zero(T) && return T(HALF_PI)
+        x === zero(T) && return T(π/2)
         x === one(T) && return one(T)
         x > one(T) && return T(NaN)
 
@@ -155,7 +154,7 @@ function E(m::T) where T
             km = K( x );
 
             #// To avoid precision loss near 1, we use Eq. 33 from Fukushima (2009):
-            t = ( T(HALF_PI) + ( km * (kdm - edm) ) ) / kdm;
+            t = ( T(π/2) + ( km * (kdm - edm) ) ) / kdm;
         end
 
         #// Complete the transformation mentioned above for m < 0:
@@ -173,7 +172,7 @@ end
 ############################################################################
 function serf(y::A, m::B) where {A,B}
     T = promote_type(A,B)
-    return one(T) + y*(T(0.166667) + T(0.166667)*m + 
+    return 1 + y*(T(0.166667) + T(0.166667)*m + 
     y*(T(0.075) + (T(0.05) + T(0.075)*m)*m + 
        y*(T(0.0446429) + m*(T(0.0267857) + (T(0.0267857) + T(0.0446429)*m)*m) + 
           y*(T(0.0303819) + 
@@ -224,9 +223,7 @@ function asn(s::A, m::B) where {A,B}
     T = promote_type(A,B)
     yA = T(0.04094) - T(0.00652)*m
     y = s * s
-    if y < yA
-        return s*serf(y, m)
-    end
+    y < yA && return s*serf(y, m)
 
     p = one(T)
     for _ in 1:10
@@ -263,7 +260,7 @@ function acn(c::A, m::B) where {A,B}
     return T(NaN)
 end
 
-function _rawF(sinφ::A, m::B) where {A,B}
+@inline function _rawF(sinφ::A, m::B) where {A,B}
     T = promote_type(A,B)
     yS = T(0.9000308778823196)
     m == 0 && return asin(sinφ)
@@ -291,7 +288,7 @@ end
 #----------------------------------------------------------------------------------------
 function _F(φ::A, m::B) where {A,B}
     T = promote_type(A,B)
-    abs(φ)  ≤ T(HALF_PI) && return sign(φ)*_rawF(sin(φ), m)
+    abs(φ)  ≤ T(π/2) && return sign(φ)*_rawF(sin(φ), m)
     j = floor(φ/T(π))
     newφ = φ - j*T(π)
     signφ = sign(newφ)
@@ -328,7 +325,7 @@ function F(φ::A, m::B) where {A,B}
         n = -m
         m12 = inv(sqrt(1+n))
         m1m = n/(1+n)
-        newφ = T(HALF_PI)-φ
+        newφ = T(π/2)-φ
         signφ = sign(newφ)
         absφ = abs(newφ)
         return (m12*K(m1m) - signφ*m12*_F(absφ, m1m)) 
@@ -390,7 +387,7 @@ function Ds(s::A, m::B) where {A,B}
 	y0 = s^2
 	yi = y0
 
-	yA(m) = T == Float32 ? (T(0.1888) - 0.0378 * m) : (T(0.04094) - 0.00652 * m)
+	yA(m::T) where T = T == Float32 ? (T(0.1888) - T(0.0378) * m) : (T(0.04094) - T(0.00652) * m)
 	I = 0
 	for _ in 1:10
 		yi < yA(m) && break
@@ -879,7 +876,7 @@ function cel2(kc::A, a::B, b::C) where {A,B,C}
 end
 
 function _Kscreen(m::T) where T
-    return T(HALF_PI)*(one(T) + m*(T(0.25) + m*(T(0.36) + m*(T(0.09765625) + m*T(0.07476806640625)))))
+    return T(π/2)*(one(T) + m*(T(0.25) + m*(T(0.36) + m*(T(0.09765625) + m*T(0.07476806640625)))))
 end
 
 function _ΔXNloop(u::A, m::B, n::C) where {A,B,C}
