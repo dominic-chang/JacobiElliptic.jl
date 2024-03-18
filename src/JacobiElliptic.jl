@@ -10,7 +10,7 @@ using DocStringExtensions
 
 
 export Fukushima, Carlson
-export am, sn, cn, dn, nn, sd, cd, dd, nd, sc, cc, dc, nc, ss, cs, ds, ns
+export am, sn, cn, dn, nn, sd, dd, nd, sc, cc, dc, nc, ss, cs, ds, ns
 export ellipj, ellipke
 export E, F, K, Pi, J
 include(joinpath(@__DIR__, "Fukushima.jl"))
@@ -21,30 +21,27 @@ abstract type AbstractAlgorithm end
 struct Fukushima <: AbstractAlgorithm end
 struct Carlson <: AbstractAlgorithm end
 
-alg = Carlson()
 
 func_syms = [:E, :F, :K, :Pi, :J, :sn, :cn, :dn, :nn, :sd, :dd, :nd, :sc, :cc, :dc, :nc, :ss, :cs, :ds, :ns, :am, :cd]
 sym_list = []
+
+
+# Creates function func(::alg, args...) = algAlg.sym(args...)
 for alg in [:Fukushima, :Carlson]
     for func in func_syms
-        sub_sym = Expr(:., Meta.parse(string(alg)*"Alg"), Meta.parse(":($func)"))
-        sym = Expr(:(=), Expr(:call, func, Expr(:(::), alg), :(args...)), Expr(:call, sub_sym, :(args...)))
-        push!(sym_list, sym)
+        f = Symbol(alg, :Alg)
+        @eval $func(::$alg, args...) = $f.$func(args...)
     end
-end
-@eval begin
-    $(sym_list...)
 end
 
 default_sym_list = []
-for func in func_syms
-    sub_sym = Expr(:., Meta.parse(string(alg)*"Alg"), Meta.parse(":($func)"))
-    sym = Expr(:(=), Expr(:call, func, :(args...)), Expr(:call, func, :(Carlson()), :(args...)))
-    push!(default_sym_list, sym)
-end
 
-@eval begin
-    $(default_sym_list...)
+# Sets default functions to Carlson Alg
+# func(::args...) = CarlsonAlg.func(args...)
+alg = :Carlson
+for func in func_syms
+    f = Symbol(alg, :Alg)
+    @eval $func(args...) = $f.$func(args...)
 end
 
 asn = FukushimaAlg.asn
