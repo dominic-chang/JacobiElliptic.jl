@@ -78,7 +78,7 @@ function K(m::T) where {T}
     elseif isnan(m)
         return T(NaN)
     else
-        throw(DomainError(m, "argument m not <= 1"))
+        throw(DomainError("argument m not <= 1"))
     end
 end
 
@@ -143,12 +143,12 @@ function ellipke(m::T) where {T}
         drd, ierr2 = DRD(_zero(T), y, _one(T))
         @assert ierr1 == 0 && ierr2 == 0
         return (drf, drf - m * drd / 3)
-    elseif m == 1.0
+    elseif m == 1
         return (T(Inf), one(T))
     elseif isnan(m)
         return (T(NaN), T(NaN))
     else
-        throw(DomainError(m, "argument m not <= 1"))
+        throw(DomainError("argument m not <= 1"))
     end
 end
 
