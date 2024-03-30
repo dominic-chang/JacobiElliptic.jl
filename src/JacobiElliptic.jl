@@ -10,7 +10,7 @@ using DocStringExtensions
 
 
 export Fukushima, Carlson
-export am, sn, cn, dn, nn, sd, dd, nd, sc, cc, dc, nc, ss, cs, ds, ns
+export am, sn, cn, dn, nn, sd, dd, nd, sc, cc, dc, nc, ss, cs, ds, ns # Do not export cd to avoid name clash with Base.cd
 export ellipj, ellipke
 export E, F, K, Pi, J
 include(joinpath(@__DIR__, "Fukushima.jl"))
