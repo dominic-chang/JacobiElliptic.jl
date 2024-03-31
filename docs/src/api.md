@@ -5,20 +5,22 @@
 api.md
 ```
 
-### Elliptic Integrals
+## Elliptic Integrals
 ```@docs
-JacobiElliptic.K
-JacobiElliptic.E
-JacobiElliptic.F
-JacobiElliptic.Pi
-JacobiElliptic.J
+JacobiElliptic.FukushimaAlg.K
+JacobiElliptic.FukushimaAlg.E
+JacobiElliptic.FukushimaAlg.F
+JacobiElliptic.FukushimaAlg.Pi
+JacobiElliptic.FukushimaAlg.J
 ```
 
-### Jacobi Elliptic Functions
+## Jacobi Elliptic Functions
 ```@docs
-JacobiElliptic.sn
-JacobiElliptic.cn
-JacobiElliptic.dn
-JacobiElliptic.asn
-JacobiElliptic.acn
+JacobiElliptic.FukushimaAlg.sn
+JacobiElliptic.FukushimaAlg.cn
+JacobiElliptic.FukushimaAlg.dn
+JacobiElliptic.FukushimaAlg.asn
+JacobiElliptic.FukushimaAlg.acn
+JacobiElliptic.CarlsonAlg.am
+JacobiElliptic.CarlsonAlg.ellipke
 ```
