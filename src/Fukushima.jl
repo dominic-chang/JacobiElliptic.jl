@@ -19,7 +19,6 @@ Returns the complete elliptic integral of the first kind.
 - `m` : Elliptic modulus
 """
 function K(m::T) where T
-    !(-1 ≤ m ≤ 1) && throw(DomainError("argument m not in [0,1]"))
     m == one(T) && return T(Inf)
 
     # I didn't really see any speedup from evalpoly, so I left the evaluation in this form
@@ -50,7 +49,7 @@ function K(m::T) where T
     x == zero(T) && return T(π/2)
     x == one(T) && return T(Inf)
     x > one(T) && return T(NaN)
-    
+        
     if x < T(0.1)
         t = poly1( x - T(0.05));
     elseif ( x < T(0.2)) 
@@ -79,7 +78,7 @@ function K(m::T) where T
     end
     # Complete the transformation mentioned above for m < 0:
     flag && return t / sqrt( one(T) - m );
-    
+        
     return t
 end
 
@@ -93,7 +92,6 @@ Returns the complete elliptic integral of the second kind.
 - `m` : Elliptic modulus
 """
 function E(m::T) where T
-    !(-1 ≤ m ≤ 1) && throw(DomainError("argument m not in [0,1]"))
     m == zero(T) && return T(π/2)
     m == one(T) && return one(T)
 
@@ -224,13 +222,14 @@ function asn(s::A, m::B) where {A,B}
     yA = T(0.04094) - T(0.00652)*m
     y = s * s
     y < yA && return s*serf(y, m)
-
+    
     p = one(T)
     for _ in 1:10
         y = y * inv((1+√(1-y))*(1+√(1-m*y)))
         p += p
         y < yA && return p*√y*serf(y, m)
     end
+    return T(NaN)
 end
 
 """
@@ -257,6 +256,7 @@ function acn(c::A, m::B) where {A,B}
         x = (√x + d)/(1+d)
         p += p
     end
+    return T(NaN)
 end
 
 @inline function rawF(sinφ::A, m::B) where {A,B}
@@ -552,7 +552,7 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
         return (FukushimaT(t1, h1) - n1*J(n1, φ, m))
     end
     return n*J(n, φ, m) + F(φ, m)
-end
+    end
 
 """
 ``J (n;\\varphi \\,|\\,m)=\\frac{\\Pi(n;\\varphi|\\, m) - F(\\varphi|\\,m)}{n}.``
@@ -566,7 +566,7 @@ Returns the associate incomplete elliptic integral of the third kind.
 - `m` : Elliptic modulus
 """
 function J(n::A, φ::B, m::C) where {A, B, C} #Appendix A
-    T = promote_type(A,B,C)
+T = promote_type(A,B,C)
     # Reduction of Amplitude
     φ == zero(T) && return zero(T)
     φ == T(π/2) && return J(n,m)
@@ -818,16 +818,16 @@ function FukushimaT(t::A, h::B) where {A,B}
 		return t
 	else
         arg = t * √(-h)
-        ans = abs(arg) < one(T) ? atanh(arg) : custom_atanh(arg)
-        return ans / √(-h)
-	end
+                    ans = abs(arg) < one(T) ? atanh(arg) : custom_atanh(arg)
+            return ans / √(-h)
+        	end
 end
 
 #https://link-springer-com.ezp-prod1.hul.harvard.edu/article/T(10).1007/BF02165405
 function cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
     T = promote_type(A,B,C,D)
     #ca = T(1e-6)
-    ca = eps(T)
+ca = eps(T)
     kc = abs(kc)
     e = kc
     m = one(T)
@@ -932,7 +932,7 @@ function fold_1_00(u1::T, m::T, Kscreen::T, Kactual::T, kp::T) where T
 
     if u1 > Kscreen/2
         sn, cn, dn = fold_0_50(Kactual - u1, m, Kscreen, Kactual, kp)
-    elseif u1 > Kscreen/4
+    elseif u1 > Kscreen/4 
         sn, cn, dn = fold_0_25(Kactual/2 - u1, m, kp)
     else
         sn, cn, dn = _ΔXNloop(u1, m, u1 > zero(T) ?  max(6+(floor(log2(u1))), one(T)) : zero(T))

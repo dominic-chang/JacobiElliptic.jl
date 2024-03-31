@@ -22,7 +22,7 @@ struct Fukushima <: AbstractAlgorithm end
 struct Carlson <: AbstractAlgorithm end
 
 
-func_syms = [:E, :F, :K, :Pi, :J, :sn, :cn, :dn, :nn, :sd, :dd, :nd, :sc, :cc, :dc, :nc, :ss, :cs, :ds, :ns, :am, :cd]
+func_syms = [:E, :F, :K, :Pi, :J, :sn, :cn, :dn, :nn, :sd, :dd, :nd, :sc, :cc, :dc, :nc, :ss, :cs, :ds, :ns, :cd]
 sym_list = []
 
 
@@ -46,5 +46,6 @@ end
 
 asn = FukushimaAlg.asn
 acn = FukushimaAlg.asn
+am = CarlsonAlg.am
 
 end

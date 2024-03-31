@@ -18,72 +18,61 @@ function ∂F_∂ϕ(ϕ, m)
 end
 
 function forward(
-    ::Const{typeof(JacobiElliptic.F)},
-    ::Type,
+    func::Const{typeof(JacobiElliptic.F)},
+    ::Type{<:Duplicated},
     ϕ::Const,
     m::Duplicated
 ) 
-    println("In custom forward rule.")
-
-    return ∂F_∂m(ϕ.val, m.val)*m.dval
+    return Duplicated(func.val(ϕ.val, m.val), ∂F_∂m(ϕ.val, m.val)*m.dval)
 end
 
 function forward(
-    ::Const{typeof(JacobiElliptic.F)},
-    ::Type,
+    func::Const{typeof(JacobiElliptic.F)},
+    ::Type{<:Duplicated},
     ϕ::Duplicated,
     m::Const
 ) 
-    println("In custom forward rule.")
-
-    return ∂F_∂ϕ(ϕ.val, m.val)*ϕ.dval
+    return Duplicated(func.val(ϕ.val, m.val), ∂F_∂ϕ(ϕ.val, m.val)*ϕ.dval)
 end
 
 function forward(
-    ::Const{typeof(JacobiElliptic.F)},
-    ::Type,
+    func::Const{typeof(JacobiElliptic.F)},
+    ::Type{<:Duplicated},
     ϕ::Duplicated,
     m::Duplicated
 ) 
-    println("In custom forward rule.")
-
-    return ∂F_∂m(ϕ.val, m.val)*m.dval + ∂F_∂ϕ(ϕ.val, m.val)*ϕ.dval
+    return Duplicated(func.val(ϕ.val, m.val), ∂F_∂m(ϕ.val, m.val)*m.dval + ∂F_∂ϕ(ϕ.val, m.val)*ϕ.dval)
 end
 
 function augmented_primal(
-    config,
+    config::ConfigWidth{N},
     func::Const{typeof(JacobiElliptic.F)},
     ::Type{<:Active},
-    tape,
-    ϕ,
-    m
- ) 
-    println("In custom augmented primal rule.")
+    ϕ::Union{Const,Active},
+    m::Union{Const,Active}
+ ) where {N}
+    #println("In custom augmented primal rule.")
     # Save x in tape if x will be overwritten
-    primal = EnzymeRules.needs_primal(config) ? func(ϕ.val, m.val) : nothing
+    primal = EnzymeRules.needs_primal(config) ? func.val(ϕ.val, m.val) : nothing
 
-    return EnzymeRules.AugmentedReturn(primal, nothing, tape)
+    return EnzymeRules.AugmentedReturn(primal, nothing, nothing)
 end
 
-
-function reverse(config::ConfigWidth{N}, ::Const{JacobiElliptic.F}, dret::Active, tape, ϕ::Const, m::Active) where {N}  
-    println("In custom reverse rule.")
+function reverse(config::ConfigWidth{1}, ::Const{typeof(JacobiElliptic.F)}, dret::Active, tape, ϕ::Const, m::Active) 
     # retrieve x value, either from original x or from tape if x may have been overwritten.
     mval = m.val
     dm = ∂F_∂m(ϕ.val, mval) * dret.val
-    return (dm, )
+    return (nothing, dm)
 end
 
-function reverse(config::ConfigWidth{N}, ::Const{JacobiElliptic.F}, dret::Active, tape, ϕ::Active, m::Const) where {N}  
-    println("In custom reverse rule.")
+function reverse(config::ConfigWidth{1}, ::Const{typeof(JacobiElliptic.F)}, dret::Active, tape, ϕ::Active, m::Const) 
     # retrieve x value, either from original x or from tape if x may have been overwritten.
-    ϕval = EnzymeRules.overwritten(config)[2] ? tape : ϕ.val
+    ϕval = ϕ.val
     dϕ = ∂F_∂ϕ(ϕval, m.val) * dret.val
-    return (dϕ, )
+    return (dϕ, nothing)
 end
 
-function reverse(config::ConfigWidth{N}, ::Const{JacobiElliptic.F}, dret::Active, tape, ϕ::Active, m::Active) where {N}  
-    println("In custom reverse rule.")
+function reverse(config, ::Const{typeof(JacobiElliptic.F)}, dret::Active, tape, ϕ::Union{Active, Duplicated}, m::Union{Active, Duplicated})
     # retrieve x value, either from original x or from tape if x may have been overwritten.
     ϕval = ϕ.val
     mval = m.val
@@ -91,6 +80,5 @@ function reverse(config::ConfigWidth{N}, ::Const{JacobiElliptic.F}, dret::Active
     dϕ = ∂F_∂ϕ(ϕval, mval) * dret.val
     return (dϕ, dm)
 end
-
 
 end # module
