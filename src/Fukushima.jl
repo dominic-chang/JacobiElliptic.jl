@@ -818,9 +818,9 @@ function FukushimaT(t::A, h::B) where {A,B}
 		return t
 	else
         arg = t * √(-h)
-                    ans = abs(arg) < one(T) ? atanh(arg) : custom_atanh(arg)
-            return ans / √(-h)
-        	end
+        ans = abs(arg) < one(T) ? atanh(arg) : custom_atanh(arg)
+        return ans / √(-h)
+    end
 end
 
 #https://link-springer-com.ezp-prod1.hul.harvard.edu/article/T(10).1007/BF02165405

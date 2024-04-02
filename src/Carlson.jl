@@ -177,9 +177,48 @@ function _Pi(n::A, sinphi::B, m::C) where {A,B,C}
     end
     return T(NaN)
 end
+function custom_atanh(a::T) where T
+
+	arg1 = abs(one(T) + a)
+	arg2 = abs(one(T) - a)
+
+	ans = (log(arg1 / arg2)) / 2
+	return ans
+end
+
+function FukushimaT(t::A, h::B) where {A,B}
+    T = promote_type(A,B)
+	if h > zero(T)
+		return atan(t * √h) / √(h)
+	elseif h == zero(T)
+		return t
+	else
+        arg = t * √(-h)
+        ans = abs(arg) < one(T) ? atanh(arg) : custom_atanh(arg)
+        return ans / √(-h)
+    end
+end
 
 function Pi(n::A, φ::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
+    
+    if m < zero(T) # Imaginary modulus transformation https://dlmf.nist.gov/19.7#iii
+        mc = one(T) - m
+        imc = inv(mc)
+        mN = -m * imc
+        φN = asin(sqrt(mc / (one(T) − m * sin(φ)^2)) * sin(φ))
+
+        nN = (n - m) * imc
+
+        return sqrt(imc) / nN * (mN * F(φN, mN) + imc * n * Pi(nN, φN, mN))
+    end # https://link.springer.com/book/10.1007/978-3-642-65138-0 117.01
+    if n > one(T)
+        nc = one(T) - n
+        t1 = tan(φ)/sqrt(one(T) − m*sin(φ)^2) 
+        h1 = nc*(n−m)/n 
+        n1 = m/n
+        return (FukushimaT(t1, h1) - Pi(n1, φ, m) + F(φ, m))
+    end
     if 2abs(φ) > T(π)
         #j = floor(φ/T(π))
         #phi2= φ - j*T(π)
@@ -194,16 +233,6 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
         #return 2j * Pi(n, m) - signφ*Pi(n, abs(phi2), m)
     end
 
-    if m < zero(T) # Imaginary modulus transformation https://dlmf.nist.gov/19.7#iii
-        mc = one(T) - m
-        imc = inv(mc)
-        mN = -m * imc
-        φN = asin(sqrt(mc / (one(T) − m * sin(φ)^2)) * sin(φ))
-
-        nN = (n - m) * imc
-
-        return sqrt(imc) / nN * (mN * F(φN, mN) + imc * n * Pi(nN, φN, mN))
-    end # https://link.springer.com/book/10.1007/978-3-642-65138-0 117.01
     return _Pi(n, sin(φ), m)
 end
 
