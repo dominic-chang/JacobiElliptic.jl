@@ -9,6 +9,7 @@ export Jacobi
 export ellipj, ellipke
 
 import ForwardDiff
+import Setfield
 include("jacobi.jl")
 include("slatec.jl")
 

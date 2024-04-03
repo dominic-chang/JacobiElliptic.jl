@@ -13,7 +13,8 @@ function _am(u::A, m::B, tol::C) where {A,B,C}
 
     T = promote_type(A, B, C)
 
-    _ambuf = StaticArrays.@MArray[zero(T) for _ in 1:10]
+    #Pre-allocate with SVector to avoid GPU allocations
+    _ambuf = StaticArrays.@SVector[zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T)]
     u == 0 && return zero(T)
 
     sqrt_tol = sqrt(tol)
@@ -32,7 +33,7 @@ function _am(u::A, m::B, tol::C) where {A,B,C}
     while abs(c) > tol
         @assert n < 10
         a,b,c,n = ((a+b)/2, sqrt(a*b), (a-b)/2, n+1)
-        _ambuf[n] = c/a
+        Setfield.@set! _ambuf[n] = c/a
     end
 
     #phi = ldexp(a*u, n) # Doesn't work with Enzyme
@@ -69,6 +70,7 @@ for (f,a,b,c) in ((:sn, :(sin(phi)),                :(sqrtmu1*s), :(sqrt(mu)*sin
                   (:dn, :(sqrt(1 - m*sin(phi)^2)), :(1),        :(cos(phi))))
     @eval begin
         function ($f)(u::A, m::B) where {A, B}
+            T = promote_type(A, B)
             # Abramowitz & Stegun, section 16.10, p573
             lt0 = m < 0
             gt1 = m > 1
@@ -89,11 +91,12 @@ for (f,a,b,c) in ((:sn, :(sin(phi)),                :(sqrtmu1*s), :(sqrt(mu)*sin
                 phi = _am(v,mu)
                 return $c
             end
+            return T(NaN)
         end
     end
 end
 
-xn = ((:s,:(sn(u,m))), (:c,:(cn(u,m))), (:d,:(dn(u,m))), (:n,:(1.)))
+xn = ((:s,:(sn(u,m))), (:c,:(cn(u,m))), (:d,:(dn(u,m))), (:n,:(1)))
 for (p,num) in xn, (q,den) in xn
     f = Symbol(p, q)
     #@eval begin

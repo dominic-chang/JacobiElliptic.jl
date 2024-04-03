@@ -382,7 +382,8 @@ end
 
 function Ds(s::A, m::B) where {A,B}
     T = promote_type(A,B)
-	_ybuf = @MArray [zero(T) for _ in 1:10]#
+    #Pre-allocate with SVector to avoid GPU allocations
+	_ybuf = StaticArrays.@SVector[zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T)]
 
 	y0 = s^2
 	yi = y0
@@ -392,7 +393,7 @@ function Ds(s::A, m::B) where {A,B}
 	for _ in 1:10
 		yi < yA(m) && break
 		I += 1
-		_ybuf[I] = yi
+		Setfield.@set! _ybuf[I] = yi
 
 		ci = √(one(T) - yi)
 		di = √(one(T) - m * yi)
@@ -736,7 +737,8 @@ end
 
 function Js(n::A, s::B, m::C) where {A,B,C}
     T = promote_type(A,B,C)
-    _ybuf = @MArray [zero(T) for _ in 1:10]#
+    #Pre-allocate with SVector to avoid GPU allocations
+    _ybuf = StaticArrays.@SVector[zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T)]
 
     nc = one(T) - n
     h = n*nc*(n-m)
@@ -750,7 +752,7 @@ function Js(n::A, s::B, m::C) where {A,B,C}
     for _ in 1:10
         yi < yB && break
         I += 1
-        _ybuf[I] = yi
+        Setfield.@set! _ybuf[I] = yi
 
         ci = √(one(T)-yi)
         di = √(one(T)-m*yi)
