@@ -1,5 +1,6 @@
 # JacobiElliptic
 JacobiElliptic is an implementation of Toshio Fukushima's & Billie C. Carlson's for calculating [Elliptic Integrals and Jacobi Elliptic Functions](https://ieeexplore.ieee.org/document/7203795). 
+The defaul algorithms are set to the Carlson algorithms.
 
 ## Features
   - Type stable and preserving
