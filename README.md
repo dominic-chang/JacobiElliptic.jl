@@ -5,6 +5,7 @@ The defaul algorithms are set to the Carlson algorithms.
 ## Features
   - Type stable and preserving
   - [Metal.jl](https://github.com/JuliaGPU/Metal.jl) and [CUDA.jl](https://github.com/JuliaGPU/CUDA.jl) compatible
+  - Automatic Differentiable. Compatible with [Zygote.jl](https://fluxml.ai/Zygote.jl/stable/), [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) and [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl)
 ## Documentation
 [![Dev](https://img.shields.io/badge/docs-stable-blue.svg)](https://dchang10.github.io/JacobiElliptic.jl/dev/)
 
