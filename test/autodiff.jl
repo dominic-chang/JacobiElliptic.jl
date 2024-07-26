@@ -65,4 +65,12 @@ using SpecialFunctions
         end
     end
 
+    @testset "SpecialCases" begin
+        _E = alg.E
+        @test ForwardDiff.gradient(x -> _E(x[1], x[2]), [π/2.0, 0.0]) |> collect ≈  [1.0, -π/8]
+        @test Enzyme.autodiff(Reverse, _E, Active, Active(π/2.0), Active(0.0))[1] |> collect ≈  [1.0, -π/8]
+        @test Zygote.gradient(x -> _E(x[1], x[2]), [π/2.0, 0.0])[1] ≈  [1.0, -π/8]
+
+    end
+
 end

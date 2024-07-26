@@ -8,19 +8,12 @@ export Jacobi
 # matlab compatible
 export ellipj, ellipke
 
-import ForwardDiff
 import Setfield
 include("jacobi.jl")
 include("slatec.jl")
 
 _zero(T) = zero(T)
 _one(T) = one(T)
-function _zero(::Type{ForwardDiff.Dual{T,V,N}}) where {T,V,N}
-    zero(V)
-end
-function _one(::Type{ForwardDiff.Dual{T,V,N}}) where {T,V,N}
-    one(V)
-end
 
 # assumes 0 ≤ m ≤ 1
 function rawF(sinphi::A, m::B) where {A,B}
