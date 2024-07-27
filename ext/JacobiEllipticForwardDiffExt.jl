@@ -23,12 +23,12 @@ function JacobiElliptic.CarlsonAlg.E(x::U, y::ForwardDiff.Dual{T}) where {T, U}
     ForwardDiff.Dual{T}(JacobiElliptic.CarlsonAlg.E(x, yval), (JacobiElliptic.CarlsonAlg.E(x, yval)-JacobiElliptic.CarlsonAlg.F(x,yval))/(2yval))
 end
 
-function JacobiElliptic.CarlsonAlg.E(x::ForwardDiff.Dual{T1}, y::ForwardDiff.Dual{T2}) where {T1, T2}
+function JacobiElliptic.CarlsonAlg.E(x::ForwardDiff.Dual{T}, y::ForwardDiff.Dual{T}) where T
     xval = x.value
     yval = y.value
 
     ∂yE = iszero(yval) ? -π/8 : (JacobiElliptic.CarlsonAlg.E(xval, yval)-JacobiElliptic.CarlsonAlg.F(xval, yval))/(2yval)
-    ForwardDiff.Dual{ForwardDiff.tagcount(T1) < ForwardDiff.tagcount(T2) ? T1 : T2}(JacobiElliptic.CarlsonAlg.E(xval, yval), ForwardDiff.Partials(((sqrt(1-yval*sin(xval)^2)), ∂yE)))
+    ForwardDiff.Dual{T}(JacobiElliptic.CarlsonAlg.E(xval, yval), ForwardDiff.Partials(((sqrt(1-yval*sin(xval)^2)), ∂yE)))
 end
 
 
