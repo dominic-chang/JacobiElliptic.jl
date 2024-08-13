@@ -752,7 +752,7 @@ function Js(n::A, s::B, m::C) where {A,B,C}
     for _ in 1:10
         yi < yB && break
         I += 1
-        _ybuf[I] = yi
+        @inbounds _ybuf[I] = yi
 
         ci = √(one(T)-yi)
         di = √(one(T)-m*yi)
