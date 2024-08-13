@@ -8,7 +8,6 @@ export Jacobi
 # matlab compatible
 export ellipj, ellipke
 
-import Setfield
 include("jacobi.jl")
 include("slatec.jl")
 
