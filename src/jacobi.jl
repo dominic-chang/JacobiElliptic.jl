@@ -14,7 +14,7 @@ function _am(u::A, m::B, tol::C) where {A,B,C}
     T = promote_type(A, B, C)
 
     #Pre-allocate with SVector to avoid GPU allocations
-    _ambuf = StaticArrays.@SVector[zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T)]
+    _ambuf = StaticArrays.@MVector[zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T)]
     u == 0 && return zero(T)
 
     sqrt_tol = sqrt(tol)
@@ -33,13 +33,13 @@ function _am(u::A, m::B, tol::C) where {A,B,C}
     while abs(c) > tol
         @assert n < 10
         a,b,c,n = ((a+b)/2, sqrt(a*b), (a-b)/2, n+1)
-        Setfield.@set! _ambuf[n] = c/a
+        @inbounds _ambuf[n] = c/a
     end
 
     #phi = ldexp(a*u, n) # Doesn't work with Enzyme
     phi = a*u*(2^n)
     for i = n:-1:1
-        phi = (phi + asin(_ambuf[i]*sin(phi)))/2
+        @inbounds phi = (phi + asin(_ambuf[i]*sin(phi)))/2
     end
     phi
 end

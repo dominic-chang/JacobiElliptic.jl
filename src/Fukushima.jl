@@ -1,5 +1,5 @@
 module FukushimaAlg
-using StaticArrays, Setfield
+using StaticArrays
 
 export K, E, F, Pi, J
 export sn, cn, dn, sc, sd, asn, acn
@@ -383,7 +383,7 @@ end
 function Ds(s::A, m::B) where {A,B}
     T = promote_type(A,B)
     #Pre-allocate with SVector to avoid GPU allocations
-	_ybuf = StaticArrays.@SVector[zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T)]
+	_ybuf = StaticArrays.@MVector[zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T)]
 
 	y0 = s^2
 	yi = y0
@@ -393,7 +393,7 @@ function Ds(s::A, m::B) where {A,B}
 	for _ in 1:10
 		yi < yA(m) && break
 		I += 1
-		Setfield.@set! _ybuf[I] = yi
+		@inbounds _ybuf[I] = yi
 
 		ci = √(one(T) - yi)
 		di = √(one(T) - m * yi)
@@ -405,7 +405,7 @@ function Ds(s::A, m::B) where {A,B}
 	Di = D0
 
 	for i in I:-1:1
-		yim1 = _ybuf[i]
+		@inbounds yim1 = _ybuf[i]
 		sim1 = √yim1
 
 		Di = 2Di + sim1 * yi
@@ -738,7 +738,7 @@ end
 function Js(n::A, s::B, m::C) where {A,B,C}
     T = promote_type(A,B,C)
     #Pre-allocate with SVector to avoid GPU allocations
-    _ybuf = StaticArrays.@SVector[zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T)]
+    _ybuf = StaticArrays.@MVector[zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T),zero(T)]
 
     nc = one(T) - n
     h = n*nc*(n-m)
@@ -752,7 +752,7 @@ function Js(n::A, s::B, m::C) where {A,B,C}
     for _ in 1:10
         yi < yB && break
         I += 1
-        Setfield.@set! _ybuf[I] = yi
+        _ybuf[I] = yi
 
         ci = √(one(T)-yi)
         di = √(one(T)-m*yi)
@@ -765,7 +765,7 @@ function Js(n::A, s::B, m::C) where {A,B,C}
     ti = zero(T)
     
     for i in I:-1:1
-        yim1 = _ybuf[i]
+        @inbounds yim1 = _ybuf[i]
         sim1 = √yim1
         cim1 = √(one(T)-yim1)
         dim1 = √(one(T)-m*yim1)

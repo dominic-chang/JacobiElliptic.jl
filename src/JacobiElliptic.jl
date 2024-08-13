@@ -1,5 +1,5 @@
 module JacobiElliptic
-using StaticArrays, Setfield
+using StaticArrays
 using DocStringExtensions
 
 @template (FUNCTIONS, METHODS, MACROS) =
