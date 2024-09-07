@@ -40,27 +40,22 @@ function augmented_primal(
     ϕ,
     m
  ) where {N}
-    #println("In custom augmented primal rule.")
-    # Save x in tape if x will be overwritten
     primal = EnzymeRules.needs_primal(config) ? func.val(ϕ.val, m.val) : nothing
 
     return EnzymeRules.AugmentedReturn(primal, nothing, nothing)
 end
 
 function reverse(::ConfigWidth{1}, func::Const{typeof(JacobiElliptic.CarlsonAlg.F)}, dret::Active, tape, ϕ::Const, m::Active) 
-    # retrieve x value, either from original x or from tape if x may have been overwritten.
     dm = ∂F_∂m(ϕ.val, m.val) * dret.val
     return (nothing, dm)
 end
 
 function reverse(::ConfigWidth{1}, ::Const{typeof(JacobiElliptic.CarlsonAlg.F)}, dret::Active, tape, ϕ::Active, m::Const) 
-    # retrieve x value, either from original x or from tape if x may have been overwritten.
     dϕ = ∂F_∂ϕ(ϕ.val, m.val) * dret.val
     return (dϕ, nothing)
 end
 
 function reverse(::ConfigWidth{N}, ::Const{typeof(JacobiElliptic.CarlsonAlg.F)}, dret::Active, tape, ϕ::Active, m::Active) where N
-    # retrieve x value, either from original x or from tape if x may have been overwritten.
     ϕval = ϕ.val
     mval = m.val
     dm = ∂F_∂m(ϕval, mval) * dret.val
@@ -114,27 +109,22 @@ function augmented_primal(
     ϕ,
     m
  ) where {N}
-    #println("In custom augmented primal rule.")
-    # Save x in tape if x will be overwritten
     primal = EnzymeRules.needs_primal(config) ? func.val(ϕ.val, m.val) : nothing
 
     return EnzymeRules.AugmentedReturn(primal, nothing, nothing)
 end
 
 function reverse(::ConfigWidth{1}, func::Const{typeof(JacobiElliptic.CarlsonAlg.E)}, dret::Active, tape, ϕ::Const, m::Active) 
-    # retrieve x value, either from original x or from tape if x may have been overwritten.
     dm = ∂E_∂m(ϕ.val, m.val) * dret.val
     return (nothing, dm)
 end
 
 function reverse(::ConfigWidth{1}, ::Const{typeof(JacobiElliptic.CarlsonAlg.E)}, dret::Active, tape, ϕ::Active, m::Const) 
-    # retrieve x value, either from original x or from tape if x may have been overwritten.
     dϕ = ∂E_∂ϕ(ϕ.val, m.val) * dret.val
     return (dϕ, nothing)
 end
 
 function reverse(::ConfigWidth{N}, ::Const{typeof(JacobiElliptic.CarlsonAlg.E)}, dret::Active, tape, ϕ::Active, m::Active) where N
-    # retrieve x value, either from original x or from tape if x may have been overwritten.
     ϕval = ϕ.val
     mval = m.val
     dm = ∂E_∂m(ϕval, mval) * dret.val
