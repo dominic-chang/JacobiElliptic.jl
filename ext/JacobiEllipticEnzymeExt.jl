@@ -30,7 +30,7 @@ function forward(func::Const{typeof(JacobiElliptic.CarlsonAlg.F)}, ::Type{<:Dupl
 end
 
 function forward(func::Const{typeof(JacobiElliptic.CarlsonAlg.F)}, ::Type{<:Const}, ϕ, m) 
-    return zero(promote_type(ϕ.val, m_val))#    func.val(ϕ.val, m.val)
+    return zero(promote_type(typeof(ϕ.val), typeof(m.val)))#    func.val(ϕ.val, m.val)
 end
 
 function augmented_primal(
@@ -99,7 +99,7 @@ function forward(func::Const{typeof(JacobiElliptic.CarlsonAlg.E)}, ::Type{<:Dupl
 end
 
 function forward(func::Const{typeof(JacobiElliptic.CarlsonAlg.E)}, ::Type{<:Const}, ϕ, m) 
-    return zero(promote_type(ϕ.val, m_val))#    func.val(ϕ.val, m.val)
+    return zero(promote_type(typeof(ϕ.val), typeof(m.val)))#    func.val(ϕ.val, m.val)
 end
 
 function augmented_primal(
