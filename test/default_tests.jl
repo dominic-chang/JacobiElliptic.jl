@@ -1,34 +1,21 @@
 
 # Testing Algorithm uality by comparing Carlson Elliptic Integral Algorithm implementation in Arbnumerics
-function ArbNumerics.elliptic_k(m::T) where T 
+function _elliptic_k(m::T) where T <: Union{Float32, Float64}
     return ArbNumerics.elliptic_k(ArbNumerics.ArbFloat(m))
 end
-function ArbNumerics.elliptic_k(m::Float64) 
-    return ArbNumerics.elliptic_k(ArbNumerics.ArbFloat(m))
-end
-function ArbNumerics.elliptic_e(m::T) where T 
+function _elliptic_e(m::T) where T <: Union{Float32, Float64}
     return ArbNumerics.elliptic_e(ArbNumerics.ArbFloat(m))
 end
-function ArbNumerics.elliptic_e(m::Float64) 
-    return ArbNumerics.elliptic_e(ArbNumerics.ArbFloat(m))
-end
-function ArbNumerics.elliptic_f(φ::T, m::T) where T 
+function _elliptic_f(φ::T, m::T) where T <: Union{Float32, Float64}
     return ArbNumerics.elliptic_f(ArbNumerics.ArbFloat(φ), ArbNumerics.ArbFloat(m))
 end
-function ArbNumerics.elliptic_f(φ::Float64, m::Float64)
-    return ArbNumerics.elliptic_f(ArbNumerics.ArbFloat(φ), ArbNumerics.ArbFloat(m))
-end
-function ArbNumerics.elliptic_e(φ::T, m::T) where T 
+function _elliptic_e(φ::T, m::T) where T <: Union{Float32, Float64}
     return ArbNumerics.elliptic_e(ArbNumerics.ArbFloat(φ), ArbNumerics.ArbFloat(m))
 end
-function ArbNumerics.elliptic_e(φ::Float64, m::Float64)
-    return ArbNumerics.elliptic_e(ArbNumerics.ArbFloat(φ), ArbNumerics.ArbFloat(m))
+function _elliptic_pi(n::T, φ::T, m::T) where T <: Union{Float32, Float64}
+    return ArbNumerics.elliptic_pi(ArbNumerics.ArbFloat(n), ArbNumerics.ArbFloat(φ), ArbNumerics.ArbFloat(m))
 end
-ArbNumerics.elliptic_pi(n::AbstractFloat, φ::AbstractFloat, m::AbstractFloat) = ArbNumerics.elliptic_pi(ArbNumerics.ArbFloat(n), ArbNumerics.ArbFloat(φ), ArbNumerics.ArbFloat(m))
-function ArbNumerics.elliptic_pi(n::Float64, m::Float64)
-    return ArbNumerics.elliptic_pi(ArbNumerics.ArbFloat(n), ArbNumerics.ArbFloat(m))
-end
-function ArbNumerics.elliptic_pi(n::Float32, m::Float32)
+function _elliptic_pi(n::T, m::T) where T <: Union{Float32, Float64}
     return ArbNumerics.elliptic_pi(ArbNumerics.ArbFloat(n), ArbNumerics.ArbFloat(m))
 end
 
@@ -36,7 +23,7 @@ end
     @testset "Elliptic K"  begin
         @testset for typ in [Float32, Float64]
             @testset "$typ $m" for m in [0.001, 0.01, 0.1, 0.2, 0.3, 0.5, 0.5, 0.8, 0.9, 0.99, 0.999]
-                @test alg.K(typ(m)) ≈ typ(ArbNumerics.elliptic_k(typ(m)))
+                @test alg.K(typ(m)) ≈ typ(_elliptic_k(typ(m)))
             end
         end
     end
@@ -44,7 +31,7 @@ end
     @testset "Complete Elliptic E"  begin
         @testset "Type: $typ" for typ in [Float32, Float64]
             @testset  "$(typ(m))" for m in [0.001, 0.01, 0.1, 0.19, 0.29, 0.39, 0.49, 0.59, 0.69, 0.79, 0.89, 0.99, 0.999]
-                @test alg.E(typ(m)) ≈ ArbNumerics.elliptic_e(typ(m)) 
+                @test alg.E(typ(m)) ≈ _elliptic_e(typ(m)) 
             end
         end
     end
@@ -54,13 +41,13 @@ end
         @testset "$typ" for typ in [Float32, Float64]
             @testset "Standard Domain, φ:$(typ(φ))" for φ in range(-π/2, π/2, length=100)
                 @testset "m=$(typ(m))" for m in [0.001, 0.01, 0.1, 0.2, 0.3, 0.5, 0.5, 0.8, 0.9, 0.99, 0.999]
-                    @test alg.F(typ(φ), typ(m)) / typ(ArbNumerics.elliptic_f(typ(φ), typ(m))) ≈ one(typ) atol=1e-4
+                    @test alg.F(typ(φ), typ(m)) / typ(_elliptic_f(typ(φ), typ(m))) ≈ one(typ) atol=1e-4
                 end
             end
             @testset "abs(φ) > π/2:" begin
                 @testset "φ = $(typ(φ))" for φ in range(-4π/2, 4π/2, length=100)
                     @testset "m=$(typ(m))" for m in range(1e-3, 1-1e-3,length=10)
-                        @test alg.F(typ(φ), typ(m)) / ArbNumerics.elliptic_f(typ(φ), typ(m)) ≈ one(typ) atol=1e-4
+                        @test alg.F(typ(φ), typ(m)) / typ(_elliptic_f(typ(φ), typ(m))) ≈ one(typ) atol=1e-4
                     end
                 end
             end
@@ -70,7 +57,7 @@ end
                     @testset "φ = $(i*mmax)" for i in -1:0.1:1.0
                         φ = i*(mmax*(1-1e-3))
                         if φ != zero(typ)
-                            @test alg.F(typ(φ), typ(m)) / ArbNumerics.elliptic_f(typ(φ), typ(m)) ≈ one(typ) atol=1e-4
+                            @test alg.F(typ(φ), typ(m)) / typ(_elliptic_f(typ(φ), typ(m))) ≈ one(typ) atol=1e-4
                         end
                     end
                 end
@@ -83,13 +70,13 @@ end
         @testset "$typ" for typ in [Float32, Float64]
             @testset "Standard Domain, φ:$(typ(φ))" for φ in range(-π/2, π/2, length=100)
                 @testset "m=$(typ(m))" for m in [0.001, 0.01, 0.1, 0.2, 0.3, 0.5, 0.5, 0.8, 0.9, 0.99, 0.999]
-                    @test alg.E(typ(φ), typ(m)) / typ(ArbNumerics.elliptic_e(typ(φ), typ(m))) ≈ one(typ) atol=1e-4
+                    @test alg.E(typ(φ), typ(m)) / typ(_elliptic_e(typ(φ), typ(m))) ≈ one(typ) atol=1e-4
                 end
             end
             @testset "abs(φ) > π/2:" begin
                 @testset "φ = $(typ(φ))" for φ in range(-4π/2, 4π/2, length=100)
                     @testset "m=$(typ(m))" for m in range(1e-3, 1-1e-3,length=10)
-                        @test alg.E(typ(φ), typ(m)) / ArbNumerics.elliptic_e(typ(φ), typ(m)) ≈ one(typ) atol=1e-4
+                        @test alg.E(typ(φ), typ(m)) / typ(_elliptic_e(typ(φ), typ(m))) ≈ one(typ) atol=1e-4
                     end
                 end
             end
@@ -99,7 +86,7 @@ end
                     @testset "φ = $(i*mmax)" for i in -1:0.1:1.0
                         φ = i*(mmax*(0.999))
                         if φ != zero(typ)
-                            @test alg.E(typ(φ), typ(m)) / ArbNumerics.elliptic_e(typ(φ), typ(m)) ≈ one(typ) atol=1e-4
+                            @test alg.E(typ(φ), typ(m)) / typ(_elliptic_e(typ(φ), typ(m))) ≈ one(typ) atol=1e-4
                         end
                     end
                 end
@@ -114,22 +101,22 @@ end
                     @testset "n : $n" for n in range(1e-3,typ == Float32 ? 0.99 : 0.999, length=10)
                         @testset "Standard m" begin
                             @testset "m : $m" for m in range(0.1, typ == Float32 ? 0.99 : 0.999,length=20)
-                                @test alg.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-4
+                                @test alg.Pi(typ(n), typ(φ), typ(m))/typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol=1e-4
                             end
                         end
                         @testset "small m" begin
                             @testset "m :$m" for m in [3.874e-4, 4.25e-3, 6.83e-2]
-                                @test alg.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-4
+                                @test alg.Pi(typ(n), typ(φ), typ(m))/typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol=1e-4
                             end
                         end
                         @testset "large m" begin
                             @testset "m :$m" for m in [1-3.874e-4, 1-4.25e-3, 1-6.83e-2]
-                                @test alg.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-4
+                                @test alg.Pi(typ(n), typ(φ), typ(m))/typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol=1e-4
                             end
                         end
                         @testset "negative m" begin
                             @testset "m :$m" for m in [-3.874e-4, -4.25e-3, -6.83e-2]
-                                @test alg.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-4
+                                @test alg.Pi(typ(n), typ(φ), typ(m))/typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol=1e-4
                             end
                         end
                     end
@@ -142,7 +129,7 @@ end
                         @testset "φ = $(i*mmax)" for i in -1:0.1:1.0
                             φ = i*(mmax*(1-1e-3))
                             if φ != zero(typ)
-                                @test alg.Pi(typ(n), typ(φ), typ(m)) / ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ one(typ) atol=1e-4
+                                @test alg.Pi(typ(n), typ(φ), typ(m)) / typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ one(typ) atol=1e-4
                             end
                         end
                     end
@@ -152,11 +139,11 @@ end
                 @testset "φ : $φ" for φ in range(π/2, 3π, length=10)
                     @testset "n : $n" for n in range(1e-3,typ == Float32 ? 0.99 : 0.999, length=10)
                         @testset "m : $m" for m in range(1e-3, typ == Float32 ? 0.99 : 0.999,length=20)
-                            @test alg.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-5
+                            @test alg.Pi(typ(n), typ(φ), typ(m))/typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol=1e-5
                         end
                         @testset "large m" begin
                             @testset "m :$m)" for m in [1-1e-5, 1-3.874e-4, 1-4.25e-3, 1-6.83e-2, 1-1.32e-1]
-                                @test alg.Pi(typ(n), typ(φ), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol=1e-5
+                                @test alg.Pi(typ(n), typ(φ), typ(m))/typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol=1e-5
                             end
                         end
                     end
@@ -170,7 +157,7 @@ end
         @testset "$typ" for typ in [Float32, Float64]
             @testset "n : $n" for n in range(1e-3,10, length=10)
                 @testset "m : $m" for m in range(0.1, 0.999,length=20)
-                    @test alg.Pi(typ(n), typ(m))/ArbNumerics.elliptic_pi(typ(n), typ(m)) ≈ typ(1.0) atol=1e-4
+                    @test alg.Pi(typ(n), typ(m))/typ(_elliptic_pi(typ(n), typ(m))) ≈ typ(1.0) atol=1e-4
                 end
             end
         end
