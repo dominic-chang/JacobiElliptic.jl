@@ -7,7 +7,7 @@ The default algorithms are set to the Carlson algorithms.
   - [Metal.jl](https://github.com/JuliaGPU/Metal.jl) and [CUDA.jl](https://github.com/JuliaGPU/CUDA.jl) compatible
   - Automatic Differentiable. Compatible with [Zygote.jl](https://fluxml.ai/Zygote.jl/stable/), [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) and [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl)
 ## Documentation
-[![Dev](https://img.shields.io/badge/docs-stable-blue.svg)](https://dominic-chang.github.io/JacobiElliptic.jl/dev/)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://dominic-chang.github.io/JacobiElliptic.jl/dev/)
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://dominic-chang.github.io/JacobiElliptic.jl/stable/)
 
 ## Repo Status
