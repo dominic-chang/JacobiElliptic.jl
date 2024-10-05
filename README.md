@@ -8,6 +8,7 @@ The default algorithms are set to the Carlson algorithms.
   - Automatic Differentiable. Compatible with [Zygote.jl](https://fluxml.ai/Zygote.jl/stable/), [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) and [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl)
 ## Documentation
 [![Dev](https://img.shields.io/badge/docs-stable-blue.svg)](https://dominic-chang.github.io/JacobiElliptic.jl/dev/)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://dominic-chang.github.io/JacobiElliptic.jl/stable/)
 
 ## Repo Status
 [![Build Status](https://github.com/dominic-chang/JacobiElliptic.jl/workflows/CI/badge.svg)](https://github.com/dominic-chang/JacobiElliptic.jl/actions)
