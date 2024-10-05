@@ -5,11 +5,11 @@ makedocs(sitename="JacobiElliptic.jl")
 makedocs(;
     modules=[JacobiElliptic],
     authors="Dominic <dchang3419@hotmail.com> and contributors",
-    repo="https://github.com/dchang10/JacobiElliptic.jl/blob/{commit}{path}#{line}",
+    repo="https://github.com/dominic-chang/JacobiElliptic.jl/blob/{commit}{path}#{line}",
     sitename="JacobiElliptic.jl",
     format=Documenter.HTML(;
         prettyurls=get(ENV, "CI", "false") == "true",
-        canonical="https://dchang10.github.io/JacobiElliptic.jl",
+        canonical="https://dominic-chang.github.io/JacobiElliptic.jl",
         edit_link="main",
         assets=String[],
     ),
@@ -20,6 +20,6 @@ makedocs(;
 )
 
 deploydocs(
-    repo = "github.com/dchang10/JacobiElliptic.jl",
+    repo = "github.com/dominic-chang/JacobiElliptic.jl",
     devbranch = "main",
     )

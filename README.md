@@ -7,11 +7,11 @@ The default algorithms are set to the Carlson algorithms.
   - [Metal.jl](https://github.com/JuliaGPU/Metal.jl) and [CUDA.jl](https://github.com/JuliaGPU/CUDA.jl) compatible
   - Automatic Differentiable. Compatible with [Zygote.jl](https://fluxml.ai/Zygote.jl/stable/), [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) and [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl)
 ## Documentation
-[![Dev](https://img.shields.io/badge/docs-stable-blue.svg)](https://dchang10.github.io/JacobiElliptic.jl/dev/)
+[![Dev](https://img.shields.io/badge/docs-stable-blue.svg)](https://dominic-chang.github.io/JacobiElliptic.jl/dev/)
 
 ## Repo Status
-[![Build Status](https://github.com/dchang10/JacobiElliptic.jl/workflows/CI/badge.svg)](https://github.com/dchang10/JacobiElliptic.jl/actions)
-[![Coverage](https://codecov.io/gh/dchang10/JacobiElliptic.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/dchang10/JacobiElliptic.jl)
+[![Build Status](https://github.com/dominic-chang/JacobiElliptic.jl/workflows/CI/badge.svg)](https://github.com/dominic-chang/JacobiElliptic.jl/actions)
+[![Coverage](https://codecov.io/gh/dominic-chang/JacobiElliptic.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/dominic-chang/JacobiElliptic.jl)
 
 ## Incomplete Elliptic Integrals
 |Function | Definition |
