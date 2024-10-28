@@ -17,7 +17,10 @@ function ∂F_∂ϕ(ϕ, m)
     return 1 / √(1 - m*sin(ϕ)^2)
 end
 
+
 function forward(
+    # https://enzymead.github.io/Enzyme.jl/stable/#Forward-mode
+    # Of note, when we seed both arguments at once the tangent return is the sum of both.
     config::EnzymeRules.FwdConfig,
     func::Const{typeof(JacobiElliptic.CarlsonAlg.F)}, 
     RT, 
@@ -28,31 +31,23 @@ function forward(
         if EnzymeRules.width(config) == 1
             return Duplicated(
                 func.val(ϕ.val, m.val), 
-                ϕ isa Const ? zero(ϕ.val) : ∂F_∂ϕ(ϕ.val, m.val)*ϕ.dval, 
-                m isa Const ? zero(m.val) : ∂F_∂m(ϕ.val, m.val)*m.dval
+                (ϕ isa Const ? zero(ϕ.val) : ∂F_∂ϕ(ϕ.val, m.val)*ϕ.dval) + (m isa Const ? zero(m.val) : ∂F_∂m(ϕ.val, m.val)*m.dval)
             )
         else
             return BatchDuplicated(
                 func.val(ϕ.val, m.val), 
                 ntuple(
-                    i -> ϕ isa Const ? zero(ϕ.val) : ∂F_∂ϕ(ϕ.val, m.val)*ϕ.dval[i], Val(EnzymeRules.width(config))
-                ),
-                ntuple(
-                    i -> m isa Const ? zero(m.val) : ∂F_∂m(ϕ.val, m.val)*m.dval[i], Val(EnzymeRules.width(config))
-                ),
+                    i -> (ϕ isa Const ? zero(ϕ.val) : ∂F_∂ϕ(ϕ.val, m.val)*ϕ.dval[i]) + (m isa Const ? zero(m.val) : ∂F_∂m(ϕ.val, m.val)*m.dval[i]), Val(EnzymeRules.width(config))
+                )
             )
 d        end
     elseif EnzymeRules.needs_shadow(config)
         if EnzymeRules.width(config) == 1
-            return DuplicatedNoNeed(
-                ϕ isa Const ? zero(ϕ.val) : ∂F_∂ϕ(ϕ.val, m.val)*ϕ.dval, 
-                m isa Const ? zero(m.val) : ∂F_∂m(ϕ.val, m.val)*m.dval
-            )
+            return (ϕ isa Const ? zero(ϕ.val) : ∂F_∂ϕ(ϕ.val, m.val)*ϕ.dval) +(m isa Const ? zero(m.val) : ∂F_∂m(ϕ.val, m.val)*m.dval)
+        
         else
-            return BatchDuplicatedNoNeed(
-                ntuple(i -> ϕ isa Const ? zero(ϕ.val) : ∂F_∂ϕ(ϕ.val, m.val)*ϕ.dval[i], Val(EnzymeRules.width(config))),
-                ntuple(i -> m isa Const ? zero(m.val) : ∂F_∂m(ϕ.val, m.val)*m.dval[i], Val(EnzymeRules.width(config)))
-            )
+            return ntuple(i -> (ϕ isa Const ? zero(ϕ.val) : ∂F_∂ϕ(ϕ.val, m.val)*ϕ.dval[i]) + (m isa Const ? zero(m.val) : ∂F_∂m(ϕ.val, m.val)*m.dval[i]), Val(EnzymeRules.width(config)))
+            
         end
     elseif EnzymeRules.needs_primal(config)
         return func.val(ϕ.val, m.val)
@@ -112,6 +107,8 @@ function ∂E_∂ϕ(ϕ, m)
 end
 
 function forward(
+    # https://enzymead.github.io/Enzyme.jl/stable/#Forward-mode
+    # Of note, when we seed both arguments at once the tangent return is the sum of both.
     config::EnzymeRules.FwdConfig,
     func::Const{typeof(JacobiElliptic.CarlsonAlg.E)}, 
     RT, 
@@ -122,31 +119,23 @@ function forward(
         if EnzymeRules.width(config) == 1
             return Duplicated(
                 func.val(ϕ.val, m.val), 
-                ϕ isa Const ? zero(ϕ.val) : ∂E_∂ϕ(ϕ.val, m.val)*ϕ.dval, 
-                m isa Const ? zero(m.val) : ∂E_∂m(ϕ.val, m.val)*m.dval
+                (ϕ isa Const ? zero(ϕ.val) : ∂E_∂ϕ(ϕ.val, m.val)*ϕ.dval) + (m isa Const ? zero(m.val) : ∂E_∂m(ϕ.val, m.val)*m.dval)
             )
         else
             return BatchDuplicated(
                 func.val(ϕ.val, m.val), 
                 ntuple(
-                    i -> ϕ isa Const ? zero(ϕ.val) : ∂E_∂ϕ(ϕ.val, m.val)*ϕ.dval[i], Val(EnzymeRules.width(config))
-                ),
-                ntuple(
-                    i -> m isa Const ? zero(m.val) : ∂E_∂m(ϕ.val, m.val)*m.dval[i], Val(EnzymeRules.width(config))
-                ),
+                    i -> (ϕ isa Const ? zero(ϕ.val) : ∂E_∂ϕ(ϕ.val, m.val)*ϕ.dval[i]) + (m isa Const ? zero(m.val) : ∂E_∂m(ϕ.val, m.val)*m.dval[i]), Val(EnzymeRules.width(config))
+                )
             )
         end
     elseif EnzymeRules.needs_shadow(config)
         if EnzymeRules.width(config) == 1
-            return DuplicatedNoNeed(
-                ϕ isa Const ? zero(ϕ.val) : ∂E_∂ϕ(ϕ.val, m.val)*ϕ.dval, 
-                m isa Const ? zero(m.val) : ∂E_∂m(ϕ.val, m.val)*m.dval
-            )
+            return (ϕ isa Const ? zero(ϕ.val) : ∂E_∂ϕ(ϕ.val, m.val)*ϕ.dval) +(m isa Const ? zero(m.val) : ∂E_∂m(ϕ.val, m.val)*m.dval)
+        
         else
-            return BatchDuplicatedNoNeed(
-                ntuple(i -> ϕ isa Const ? zero(ϕ.val) : ∂E_∂ϕ(ϕ.val, m.val)*ϕ.dval[i], Val(EnzymeRules.width(config))),
-                ntuple(i -> m isa Const ? zero(m.val) : ∂E_∂m(ϕ.val, m.val)*m.dval[i], Val(EnzymeRules.width(config)))
-            )
+            return ntuple(i -> (ϕ isa Const ? zero(ϕ.val) : ∂E_∂ϕ(ϕ.val, m.val)*ϕ.dval[i]) + (m isa Const ? zero(m.val) : ∂E_∂m(ϕ.val, m.val)*m.dval[i]), Val(EnzymeRules.width(config)))
+            
         end
     elseif EnzymeRules.needs_primal(config)
         return func.val(ϕ.val, m.val)
