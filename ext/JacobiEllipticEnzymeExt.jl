@@ -24,7 +24,7 @@ function forward(
     ϕ::Annotation{<:Real}, 
     m::Annotation{<:Real}
 ) 
-    if EnzymeRuples.needs_primal(config) && EnzymeRules.needs_shadow(config)
+    if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
         if EnzymeRules.width(config) == 1
             return Duplicated(
                 func.val(ϕ.val, m.val), 
@@ -118,7 +118,7 @@ function forward(
     ϕ::Annotation{<:Real}, 
     m::Annotation{<:Real}
 ) 
-    if EnzymeRuples.needs_primal(config) && EnzymeRules.needs_shadow(config)
+    if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
         if EnzymeRules.width(config) == 1
             return Duplicated(
                 func.val(ϕ.val, m.val), 
