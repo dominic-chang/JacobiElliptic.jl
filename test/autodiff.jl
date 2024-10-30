@@ -35,8 +35,8 @@ using SpecialFunctions
             _F = alg.F
             @test Zygote.gradient(ϕ -> _F(ϕ, m), ϕ)[1] ≈ 1 / √(1 - m*sin(ϕ)^2) atol=1e-5
             @test ForwardDiff.derivative(ϕ -> _F(ϕ, m), ϕ) ≈ 1 / √(1 - m*sin(ϕ)^2) atol=1e-5
-            @test Enzyme.autodiff(Reverse, ϕ -> _F(ϕ, m), Active, Active(ϕ))[1][1] ≈ 1 / √(1 - m*sin(ϕ)^2) atol=1e-5
-            @test Enzyme.autodiff(Forward, ϕ -> _F(ϕ, m), Duplicated, Duplicated(ϕ, 1.0))[1][1] ≈ 1 / √(1 - m*sin(ϕ)^2) atol=1e-5
+            @test Enzyme.autodiff(Reverse, _F, Active, Active(ϕ), Const(m))[1][1] ≈ 1 / √(1 - m*sin(ϕ)^2) atol=1e-5
+            @test Enzyme.autodiff(Forward, _F, Duplicated, Duplicated(ϕ, 1.0), Const(m))[1][1] ≈ 1 / √(1 - m*sin(ϕ)^2) atol=1e-5
 
             # 4. ∂m(F(ϕ, m)) == E(ϕ, m) / (2 * m * (1 - m)) - F(ϕ, m) / 2m - sin(2ϕ) / (4 * (1-m) * √(1 - m * sin(ϕ)^2))
             @test Zygote.gradient(m -> _F(ϕ, m), m)[1] ≈
@@ -47,7 +47,7 @@ using SpecialFunctions
                 alg.E(ϕ, m) / (2 * m * (1 - m)) -
                 alg.F(ϕ, m) / 2 / m -
                 sin(2*ϕ) / (4 * (1 - m) * √(1 - m * sin(ϕ)^2)) atol=1e-5
-            @test Enzyme.autodiff(Reverse, m -> _F(ϕ, m), Active, Active(m))[1][1] ≈
+            @test Enzyme.autodiff(Reverse, _F, Active, Const(ϕ), Active(m))[1][2] ≈
                 alg.E(ϕ, m) / (2 * m * (1 - m)) -
                 alg.F(ϕ, m) / 2 / m -
                 sin(2*ϕ) / (4 * (1 - m) * √(1 - m * sin(ϕ)^2))  atol=1e-5
@@ -56,13 +56,13 @@ using SpecialFunctions
             # 5. ∂ϕ(E(ϕ, m)) == √(1 - m * sin(ϕ)^2)
             @test Zygote.gradient(ϕ -> _E(ϕ, m), ϕ)[1] ≈ √(1 - m * sin(ϕ)^2) atol=1e-5
             @test ForwardDiff.derivative(ϕ -> _E(ϕ, m), ϕ) ≈ √(1 - m * sin(ϕ)^2) atol=1e-5
-            @test Enzyme.autodiff(Reverse, ϕ -> _E(ϕ, m), Active, Active(ϕ))[1][1] ≈ √(1 - m * sin(ϕ)^2) atol=1e-5
-            @test Enzyme.autodiff(Forward, ϕ -> _E(ϕ, m), Duplicated, Duplicated(ϕ, 1.0))[1][1] ≈ √(1 - m*sin(ϕ)^2) atol=1e-5
+            @test Enzyme.autodiff(Reverse, _E, Active, Active(ϕ), Const(m))[1][1] ≈ √(1 - m * sin(ϕ)^2) atol=1e-5
+            @test Enzyme.autodiff(Forward, _E, Duplicated, Duplicated(ϕ, 1.0), Const(m))[1][1] ≈ √(1 - m*sin(ϕ)^2) atol=1e-5
 
             # 6. ∂m(E(ϕ, m)) == (E(ϕ, m) - F(ϕ, m)) / 2m
             @test Zygote.gradient(m -> _E(ϕ, m), m)[1] ≈ (alg.E(ϕ, m) - alg.F(ϕ, m)) / 2m
             @test ForwardDiff.derivative(m -> _E(ϕ, m), m) ≈ (alg.E(ϕ, m) - alg.F(ϕ, m)) / 2m
-            @test Enzyme.autodiff(Reverse, m -> _E(ϕ, m), Active, Active(m))[1][1] ≈ (alg.E(ϕ, m) - alg.F(ϕ, m)) / 2m atol=1e-5
+            @test Enzyme.autodiff(Reverse, _E, Active, Const(ϕ), Active(m))[1][2] ≈ (alg.E(ϕ, m) - alg.F(ϕ, m)) / 2m atol=1e-5
 
         end
     end

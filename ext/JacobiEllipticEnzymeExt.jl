@@ -44,10 +44,8 @@ d        end
     elseif EnzymeRules.needs_shadow(config)
         if EnzymeRules.width(config) == 1
             return (ϕ isa Const ? zero(ϕ.val) : ∂F_∂ϕ(ϕ.val, m.val)*ϕ.dval) +(m isa Const ? zero(m.val) : ∂F_∂m(ϕ.val, m.val)*m.dval)
-        
         else
             return ntuple(i -> (ϕ isa Const ? zero(ϕ.val) : ∂F_∂ϕ(ϕ.val, m.val)*ϕ.dval[i]) + (m isa Const ? zero(m.val) : ∂F_∂m(ϕ.val, m.val)*m.dval[i]), Val(EnzymeRules.width(config)))
-            
         end
     elseif EnzymeRules.needs_primal(config)
         return func.val(ϕ.val, m.val)
@@ -79,17 +77,33 @@ function reverse(
     dϕ = if ϕ isa Const
         nothing
     elseif EnzymeRules.width(config) == 1
-        ∂F_∂ϕ(ϕ.val, m.val) * dret.val
+        if dret isa Type{<:Const}
+            zero(ϕ.val)
+        else
+            ∂F_∂ϕ(ϕ.val, m.val) * dret.val
+        end
     else
-        ntuple(i -> ∂F_∂ϕ(ϕ.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+        if dret isa Type{<:Const}
+            ntuple(i -> zero(ϕ.val), Val(EnzymeRules.width(config)))
+        else
+            ntuple(i -> ∂F_∂ϕ(ϕ.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+        end
     end
 
     dm = if m isa Const
         nothing
     elseif EnzymeRules.width(config) == 1
-        ∂F_∂m(ϕ.val, m.val) * dret.val
+        if dret isa Type{<:Const}
+            zero(ϕ.val)
+        else
+            ∂F_∂m(ϕ.val, m.val) * dret.val
+        end
     else
-        ntuple(i -> ∂F_∂m(ϕ.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+        if dret isa Type{<:Const}
+            ntuple(i -> zero(ϕ.val), Val(EnzymeRules.width(config)))
+        else
+            ntuple(i -> ∂F_∂m(ϕ.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+        end
     end
     return (dϕ, dm)
 end
@@ -167,17 +181,33 @@ function reverse(
     dϕ = if ϕ isa Const
         nothing
     elseif EnzymeRules.width(config) == 1
-        ∂E_∂ϕ(ϕ.val, m.val) * dret.val
+        if dret isa Type{<:Const}
+            zero(ϕ.val)
+        else
+            ∂E_∂ϕ(ϕ.val, m.val) * dret.val
+        end
     else
-        ntuple(i -> ∂E_∂ϕ(ϕ.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+        if dret isa Type{<:Const}
+            ntuple(i -> zero(ϕ.val), Val(EnzymeRules.width(config)))
+        else
+            ntuple(i -> ∂E_∂ϕ(ϕ.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+        end
     end
 
     dm = if m isa Const
         nothing
     elseif EnzymeRules.width(config) == 1
-        ∂E_∂m(ϕ.val, m.val) * dret.val
+        if dret isa Type{<:Const}
+            zero(ϕ.val)
+        else
+            ∂E_∂m(ϕ.val, m.val) * dret.val
+        end
     else
-        ntuple(i -> ∂E_∂m(ϕ.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+        if dret isa Type{<:Const}
+            ntuple(i -> zero(ϕ.val), Val(EnzymeRules.width(config)))
+        else
+            ntuple(i -> ∂E_∂m(ϕ.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+        end
     end
     return (dϕ, dm)
 end
