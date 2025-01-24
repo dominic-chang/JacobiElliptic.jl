@@ -4,7 +4,7 @@ using Enzyme
 using SpecialFunctions
 
 @testset "alg:$alg" for alg in [JacobiElliptic.CarlsonAlg, ]# JacobiElliptic.FukushimaAlg]
-    @testset "Zygote and ForwardDiff" begin
+    @testset "Zygote, ForwardDiff and Enzyme" begin
 
         num_trials = 1
         ms = rand(num_trials)
@@ -109,7 +109,44 @@ using SpecialFunctions
                 @test Enzyme.autodiff(Forward, _Pi, Duplicated, Const(n), Const(ϕ), Duplicated(m, 1.0))[1][1] ≈ grad atol=1e-5
             end
 
+            @testset "CN" begin
+                _cn = JacobiElliptic.cn
+
+                # 10. ∂ϕ(cn(ϕ, m)) == -dn(ϕ, m)*sn(ϕ, m)
+                grad = -dn(ϕ, m) * sn(ϕ, m)
+                @test Zygote.gradient(ϕ -> _cn(ϕ, m), ϕ)[1] ≈ grad atol=1e-5
+                @test ForwardDiff.derivative(ϕ -> _cn(ϕ, m), ϕ) ≈ grad atol=1e-5
+                @test Enzyme.autodiff(Reverse, _cn, Active, Active(ϕ), Const(m))[1][1] ≈ grad atol=1e-5
+                @test Enzyme.autodiff(Forward, _cn, Duplicated, Duplicated(ϕ, 1.0), Const(m))[1][1] ≈ grad atol=1e-5
+
+                # 11. ∂m(cn(ϕ, m)) == 1/(2m*(1-m))*dn(ϕ, m)*sn(ϕ, m)*((m-1)*ϕ+ϵ(ϕ,m)-m*cd(ϕ, m)*sn(ϕ, m))
+                grad = 1/(2m*(1-m)) * dn(ϕ, m) * sn(ϕ, m) * ((m-1)*ϕ + alg.E(am(ϕ, m), m) - m*JacobiElliptic.cd(ϕ, m)*sn(ϕ, m))
+                @test Zygote.gradient(m -> _cn(ϕ, m), m)[1] ≈  grad atol=1e-5
+                @test ForwardDiff.derivative(m -> _cn(ϕ, m), m) ≈ grad atol=1e-5
+                @test Enzyme.autodiff(Reverse, _cn, Active, Const(ϕ), Active(m))[1][2] ≈ grad atol=1e-5
+                @test Enzyme.autodiff(Forward, _cn, Duplicated, Const(ϕ), Duplicated(m, 1.0))[1][1] ≈ grad atol=1e-5
+            end
+
+            @testset "SN" begin
+                _sn = JacobiElliptic.sn
+
+                # 12. ∂ϕ(sn(ϕ, m)) == dn(ϕ, m)*cn(ϕ, m)
+                grad = dn(ϕ, m) * cn(ϕ, m)
+                @test Zygote.gradient(ϕ -> _sn(ϕ, m), ϕ)[1] ≈ grad atol=1e-5
+                @test ForwardDiff.derivative(ϕ -> _sn(ϕ, m), ϕ) ≈ grad atol=1e-5
+                @test Enzyme.autodiff(Reverse, _sn, Active, Active(ϕ), Const(m))[1][1] ≈ grad atol=1e-5
+                @test Enzyme.autodiff(Forward, _sn, Duplicated, Duplicated(ϕ, 1.0), Const(m))[1][1] ≈ grad atol=1e-5
+
+                # 13. ∂m(sn(ϕ, m)) == 1/(2m*(1-m))*dn(ϕ, m)*cn(ϕ, m)*((1-m)*ϕ-ϵ(ϕ,m)+m*cd(ϕ, m)*sn(ϕ, m))
+                grad = 1/(2m*(1-m)) * dn(ϕ, m) * cn(ϕ, m) * ((1-m)*ϕ - alg.E(am(ϕ, m), m) + m*JacobiElliptic.cd(ϕ, m)*sn(ϕ, m))
+                @test Zygote.gradient(m -> _sn(ϕ, m), m)[1] ≈  grad atol=1e-5
+                @test ForwardDiff.derivative(m -> _sn(ϕ, m), m) ≈ grad atol=1e-5
+                @test Enzyme.autodiff(Reverse, _sn, Active, Const(ϕ), Active(m))[1][2] ≈ grad atol=1e-5
+                @test Enzyme.autodiff(Forward, _sn, Duplicated, Const(ϕ), Duplicated(m, 1.0))[1][1] ≈ grad atol=1e-5
+            end
+
         end
+
     end
 
     @testset "SpecialCases" begin

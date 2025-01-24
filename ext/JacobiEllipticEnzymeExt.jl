@@ -347,6 +347,225 @@ function reverse(
     return (dn, dϕ, dm)
 end
 
+#----------------------------------------------------------------------------------------
+# Jacobi CN(ϕ, m)
+#----------------------------------------------------------------------------------------
 
+function ∂cn_∂m(ϕ, m)
+    s = JacobiElliptic.sn(ϕ, m)
+    a = JacobiElliptic.CarlsonAlg.am(ϕ, m)
+    d = JacobiElliptic.dn(ϕ, m)
+    c = JacobiElliptic.cn(ϕ, m)
+    e = JacobiElliptic.CarlsonAlg.E(a, m)
+    return inv(2m*(1-m)) * d * s * ((m-1)*ϕ - m*(c/d)*s + e )
+
+end
+
+function ∂cn_∂ϕ(ϕ, m)
+    return -JacobiElliptic.dn(ϕ, m) * JacobiElliptic.sn(ϕ, m)
+end
+
+function forward(
+    # https://enzymead.github.io/Enzyme.jl/stable/#Forward-mode
+    # Of note, when we seed both arguments at once the tangent return is the sum of both.
+    config::EnzymeRules.FwdConfig,
+    func::Const{typeof(JacobiElliptic.cn)}, 
+    RT, 
+    ϕ::Annotation{<:Real}, 
+    m::Annotation{<:Real}
+) 
+    if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
+        if EnzymeRules.width(config) == 1
+            return Duplicated(
+                func.val(ϕ.val, m.val), 
+                (ϕ isa Const ? zero(ϕ.val) : ∂cn_∂ϕ(ϕ.val, m.val)*ϕ.dval) + (m isa Const ? zero(m.val) : ∂cn_∂m(ϕ.val, m.val)*m.dval)
+            )
+        else
+            return BatchDuplicated(
+                func.val(ϕ.val, m.val), 
+                ntuple(
+                    i -> (ϕ isa Const ? zero(ϕ.val) : ∂cn_∂ϕ(ϕ.val, m.val)*ϕ.dval[i]) + (m isa Const ? zero(m.val) : ∂cn_∂m(ϕ.val, m.val)*m.dval[i]), Val(EnzymeRules.width(config))
+                )
+            )
+        end
+    elseif EnzymeRules.needs_shadow(config)
+        if EnzymeRules.width(config) == 1
+            return (ϕ isa Const ? zero(ϕ.val) : ∂cn_∂ϕ(ϕ.val, m.val)*ϕ.dval) +(m isa Const ? zero(m.val) : ∂cn_∂m(ϕ.val, m.val)*m.dval)
+        
+        else
+            return ntuple(i -> (ϕ isa Const ? zero(ϕ.val) : ∂cn_∂ϕ(ϕ.val, m.val)*ϕ.dval[i]) + (m isa Const ? zero(m.val) : ∂cn_∂m(ϕ.val, m.val)*m.dval[i]), Val(EnzymeRules.width(config)))
+            
+        end
+    elseif EnzymeRules.needs_primal(config)
+        return func.val(ϕ.val, m.val)
+    else
+        return nothing
+    end
+end
+
+function augmented_primal(
+    config::RevConfigWidth,
+    func::Const{typeof(JacobiElliptic.cn)},
+    ::Type,
+    ϕ::Annotation{<:Real},
+    m::Annotation{<:Real}
+ ) 
+    primal = EnzymeRules.needs_primal(config) ? func.val(ϕ.val, m.val) : nothing
+
+    return EnzymeRules.AugmentedReturn(primal, nothing, nothing)
+end
+
+function reverse(
+    config::RevConfigWidth, 
+    func::Const{typeof(JacobiElliptic.cn)}, 
+    dret, 
+    tape, 
+    ϕ::Annotation{T}, 
+    m::Annotation{T}
+) where T
+    dϕ = if ϕ isa Const
+        nothing
+    elseif EnzymeRules.width(config) == 1
+        if dret isa Type{<:Const}
+            zero(ϕ.val)
+        else
+            ∂cn_∂ϕ(ϕ.val, m.val) * dret.val
+        end
+    else
+        if dret isa Type{<:Const}
+            ntuple(i -> zero(ϕ.val), Val(EnzymeRules.width(config)))
+        else
+            ntuple(i -> ∂cn_∂ϕ(ϕ.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+        end
+    end
+
+    dm = if m isa Const
+        nothing
+    elseif EnzymeRules.width(config) == 1
+        if dret isa Type{<:Const}
+            zero(ϕ.val)
+        else
+            ∂cn_∂m(ϕ.val, m.val) * dret.val
+        end
+    else
+        if dret isa Type{<:Const}
+            ntuple(i -> zero(ϕ.val), Val(EnzymeRules.width(config)))
+        else
+            ntuple(i -> ∂cn_∂m(ϕ.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+        end
+    end
+    return (dϕ, dm)
+end
+
+
+#----------------------------------------------------------------------------------------
+# Jacobi SN(ϕ, m)
+#----------------------------------------------------------------------------------------
+
+function ∂sn_∂m(ϕ, m)
+    s = JacobiElliptic.sn(ϕ, m)
+    a = JacobiElliptic.CarlsonAlg.am(ϕ, m)
+    d = JacobiElliptic.dn(ϕ, m)
+    c = JacobiElliptic.cn(ϕ, m)
+    e = JacobiElliptic.CarlsonAlg.E(a, m)
+    return inv(2m*(1-m)) * d * c * ((1-m)*ϕ + m*(c/d)*s - e )
+
+end
+
+function ∂sn_∂ϕ(ϕ, m)
+    return JacobiElliptic.dn(ϕ, m) * JacobiElliptic.cn(ϕ, m)
+end
+
+function forward(
+    # https://enzymead.github.io/Enzyme.jl/stable/#Forward-mode
+    # Of note, when we seed both arguments at once the tangent return is the sum of both.
+    config::EnzymeRules.FwdConfig,
+    func::Const{typeof(JacobiElliptic.sn)}, 
+    RT, 
+    ϕ::Annotation{<:Real}, 
+    m::Annotation{<:Real}
+) 
+    if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
+        if EnzymeRules.width(config) == 1
+            return Duplicated(
+                func.val(ϕ.val, m.val), 
+                (ϕ isa Const ? zero(ϕ.val) : ∂sn_∂ϕ(ϕ.val, m.val)*ϕ.dval) + (m isa Const ? zero(m.val) : ∂sn_∂m(ϕ.val, m.val)*m.dval)
+            )
+        else
+            return BatchDuplicated(
+                func.val(ϕ.val, m.val), 
+                ntuple(
+                    i -> (ϕ isa Const ? zero(ϕ.val) : ∂sn_∂ϕ(ϕ.val, m.val)*ϕ.dval[i]) + (m isa Const ? zero(m.val) : ∂sn_∂m(ϕ.val, m.val)*m.dval[i]), Val(EnzymeRules.width(config))
+                )
+            )
+        end
+    elseif EnzymeRules.needs_shadow(config)
+        if EnzymeRules.width(config) == 1
+            return (ϕ isa Const ? zero(ϕ.val) : ∂sn_∂ϕ(ϕ.val, m.val)*ϕ.dval) +(m isa Const ? zero(m.val) : ∂sn_∂m(ϕ.val, m.val)*m.dval)
+        
+        else
+            return ntuple(i -> (ϕ isa Const ? zero(ϕ.val) : ∂sn_∂ϕ(ϕ.val, m.val)*ϕ.dval[i]) + (m isa Const ? zero(m.val) : ∂sn_∂m(ϕ.val, m.val)*m.dval[i]), Val(EnzymeRules.width(config)))
+            
+        end
+    elseif EnzymeRules.needs_primal(config)
+        return func.val(ϕ.val, m.val)
+    else
+        return nothing
+    end
+end
+
+function augmented_primal(
+    config::RevConfigWidth,
+    func::Const{typeof(JacobiElliptic.sn)},
+    ::Type,
+    ϕ::Annotation{<:Real},
+    m::Annotation{<:Real}
+ ) 
+    primal = EnzymeRules.needs_primal(config) ? func.val(ϕ.val, m.val) : nothing
+
+    return EnzymeRules.AugmentedReturn(primal, nothing, nothing)
+end
+
+function reverse(
+    config::RevConfigWidth, 
+    func::Const{typeof(JacobiElliptic.sn)}, 
+    dret, 
+    tape, 
+    ϕ::Annotation{T}, 
+    m::Annotation{T}
+) where T
+    dϕ = if ϕ isa Const
+        nothing
+    elseif EnzymeRules.width(config) == 1
+        if dret isa Type{<:Const}
+            zero(ϕ.val)
+        else
+            ∂sn_∂ϕ(ϕ.val, m.val) * dret.val
+        end
+    else
+        if dret isa Type{<:Const}
+            ntuple(i -> zero(ϕ.val), Val(EnzymeRules.width(config)))
+        else
+            ntuple(i -> ∂sn_∂ϕ(ϕ.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+        end
+    end
+
+    dm = if m isa Const
+        nothing
+    elseif EnzymeRules.width(config) == 1
+        if dret isa Type{<:Const}
+            zero(ϕ.val)
+        else
+            ∂sn_∂m(ϕ.val, m.val) * dret.val
+        end
+    else
+        if dret isa Type{<:Const}
+            ntuple(i -> zero(ϕ.val), Val(EnzymeRules.width(config)))
+        else
+            ntuple(i -> ∂sn_∂m(ϕ.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+        end
+    end
+    return (dϕ, dm)
+end
 
 end

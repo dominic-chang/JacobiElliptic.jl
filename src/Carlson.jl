@@ -2,9 +2,6 @@ module CarlsonAlg
 # elliptic integrals of 1st/2nd/3rd kind
 export E, F, K, Pi
 
-# jacobi elliptic functions
-export Jacobi
-
 # matlab compatible
 export ellipj, ellipke
 
