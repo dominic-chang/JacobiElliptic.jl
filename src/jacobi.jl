@@ -61,6 +61,17 @@ function am(u::A, m::B, tol::C) where {A, B, C}
 end
 function am(u::A, m::B) where {A,B}
     T = promote_type(A, B)
+    if m < 0
+        mu1 = inv(1 - m)
+        mu = -m*mu1
+        sqrtmu1 = sqrt(mu1)
+        v = u/sqrtmu1
+        phi = _am(v,mu)
+        s = sin(phi)
+        t = floor((phi + A(π/2))/A(π))
+
+        return t*π + ((-1)^t)*asin(sqrtmu1*s/sqrt(1 - mu*s^2))
+    end
     return am(u, m, eps(T))
 end
 #am(u::Real, m::Real) = am(Float64(u), Float64(m))
