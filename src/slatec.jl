@@ -30,17 +30,17 @@ export DRC, DRD, DRF, DRJ
 function DRF(X::A, Y::B, Z::C) where {A,B,C}
     T = promote_type(A, B, C)
 
-    ERRTOL = (4*eps(T)/2)^T(1/6)
-    LOLIM  = 5floatmin(T)
-    UPLIM  = floatmax(T)/5
-    C1 = T(1/24)
-    C2 = T(3/44)
-    C3 = T(1/14)
+    ERRTOL = (4 * eps(T) / 2)^T(1 / 6)
+    LOLIM = 5floatmin(T)
+    UPLIM = floatmax(T) / 5
+    C1 = T(1 / 24)
+    C2 = T(3 / 44)
+    C3 = T(1 / 14)
 
     ans = zero(T)
-    min(X,Y,Z) < zero(T) && return (ans, 1)
-    max(X,Y,Z) > UPLIM && return (ans, 3)
-    min(X+Y,X+Z,Y+Z) < LOLIM && return (ans, 2)
+    min(X, Y, Z) < zero(T) && return (ans, 1)
+    max(X, Y, Z) > UPLIM && return (ans, 3)
+    min(X + Y, X + Z, Y + Z) < LOLIM && return (ans, 2)
 
     XN = X
     YN = Y
@@ -51,25 +51,25 @@ function DRF(X::A, Y::B, Z::C) where {A,B,C}
     ZNDEV = 0
 
     while true
-        MU = (XN+YN+ZN)/3
-        XNDEV = 2 - (MU+XN)/MU
-        YNDEV = 2 - (MU+YN)/MU
-        ZNDEV = 2 - (MU+ZN)/MU
-        EPSLON = max(abs(XNDEV),abs(YNDEV),abs(ZNDEV))
-        (EPSLON < ERRTOL) && break 
+        MU = (XN + YN + ZN) / 3
+        XNDEV = 2 - (MU + XN) / MU
+        YNDEV = 2 - (MU + YN) / MU
+        ZNDEV = 2 - (MU + ZN) / MU
+        EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV))
+        (EPSLON < ERRTOL) && break
         XNROOT = sqrt(XN)
         YNROOT = sqrt(YN)
         ZNROOT = sqrt(ZN)
-        LAMDA = XNROOT*(YNROOT+ZNROOT) + YNROOT*ZNROOT
-        XN = (XN+LAMDA)/4
-        YN = (YN+LAMDA)/4
-        ZN = (ZN+LAMDA)/4
+        LAMDA = XNROOT * (YNROOT + ZNROOT) + YNROOT * ZNROOT
+        XN = (XN + LAMDA) / 4
+        YN = (YN + LAMDA) / 4
+        ZN = (ZN + LAMDA) / 4
     end
 
-    E2 = XNDEV*YNDEV - ZNDEV*ZNDEV
-    E3 = XNDEV*YNDEV*ZNDEV
-    S  = 1 + (C1*E2-T(1/10)-C2*E3)*E2 + C3*E3
-    ans = S/sqrt(MU)
+    E2 = XNDEV * YNDEV - ZNDEV * ZNDEV
+    E3 = XNDEV * YNDEV * ZNDEV
+    S = 1 + (C1 * E2 - T(1 / 10) - C2 * E3) * E2 + C3 * E3
+    ans = S / sqrt(MU)
 
     return (ans, 0)
 end
@@ -99,23 +99,23 @@ end
 #             Lawrence Livermore National Laboratory
 #             Livermore, CA  94550
 
-function DRD(X::A, Y::B, Z::C) where {A, B, C}
+function DRD(X::A, Y::B, Z::C) where {A,B,C}
     T = promote_type(A, B, C)
 
-    ERRTOL = (eps(T)/6)^T(1/6)
-    LOLIM  = 2/(floatmax(T))^T(2/3)
-    TUPLIM = floatmin(T)^T(1/3)
-    TUPLIM = (ERRTOL/10)^T(1/3)/TUPLIM
-    UPLIM  = TUPLIM^2
-    C1 = T(3/14)
-    C2 = T(1/6)
-    C3 = T(9/22)
-    C4 = T(3/26)
+    ERRTOL = (eps(T) / 6)^T(1 / 6)
+    LOLIM = 2 / (floatmax(T))^T(2 / 3)
+    TUPLIM = floatmin(T)^T(1 / 3)
+    TUPLIM = (ERRTOL / 10)^T(1 / 3) / TUPLIM
+    UPLIM = TUPLIM^2
+    C1 = T(3 / 14)
+    C2 = T(1 / 6)
+    C3 = T(9 / 22)
+    C4 = T(3 / 26)
 
     ans = zero(T)
-    min(X,Y) < 0 && return (ans, 1)
-    max(X,Y,Z) > UPLIM && return (ans, 3)
-    min(X+Y,Z) < LOLIM && return (ans, 2)
+    min(X, Y) < 0 && return (ans, 1)
+    max(X, Y, Z) > UPLIM && return (ans, 3)
+    min(X + Y, Z) < LOLIM && return (ans, 2)
 
     XN = X
     YN = Y
@@ -128,31 +128,31 @@ function DRD(X::A, Y::B, Z::C) where {A, B, C}
     ZNDEV = zero(T)
 
     while true
-        MU = 2*(XN+YN+3*ZN)/10
-        XNDEV = (MU-XN)/MU
-        YNDEV = (MU-YN)/MU
-        ZNDEV = (MU-ZN)/MU
+        MU = 2 * (XN + YN + 3 * ZN) / 10
+        XNDEV = (MU - XN) / MU
+        YNDEV = (MU - YN) / MU
+        ZNDEV = (MU - ZN) / MU
         EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV))
-        (EPSLON < ERRTOL) && break 
+        (EPSLON < ERRTOL) && break
         XNROOT = sqrt(XN)
         YNROOT = sqrt(YN)
         ZNROOT = sqrt(ZN)
-        LAMDA = XNROOT*(YNROOT+ZNROOT) + YNROOT*ZNROOT
-        SIGMA = SIGMA + POWER4/(ZNROOT*(ZN+LAMDA))
-        POWER4 = POWER4/4
-        XN = (XN+LAMDA)/4
-        YN = (YN+LAMDA)/4
-        ZN = (ZN+LAMDA)/4
+        LAMDA = XNROOT * (YNROOT + ZNROOT) + YNROOT * ZNROOT
+        SIGMA = SIGMA + POWER4 / (ZNROOT * (ZN + LAMDA))
+        POWER4 = POWER4 / 4
+        XN = (XN + LAMDA) / 4
+        YN = (YN + LAMDA) / 4
+        ZN = (ZN + LAMDA) / 4
     end
 
-    EA = XNDEV*YNDEV
-    EB = ZNDEV*ZNDEV
+    EA = XNDEV * YNDEV
+    EB = ZNDEV * ZNDEV
     EC = EA - EB
-    ED = EA - 6*EB
+    ED = EA - 6 * EB
     EF = ED + EC + EC
-    S1 = ED*(-C1+C3*ED/4-3C4*ZNDEV*EF/2)
-    S2 = ZNDEV*(C2*EF+ZNDEV*(-C3*EC+ZNDEV*C4*EA))
-    ans = 3*SIGMA + POWER4*(1+S1+S2)/(MU*sqrt(MU))
+    S1 = ED * (-C1 + C3 * ED / 4 - 3C4 * ZNDEV * EF / 2)
+    S2 = ZNDEV * (C2 * EF + ZNDEV * (-C3 * EC + ZNDEV * C4 * EA))
+    ans = 3 * SIGMA + POWER4 * (1 + S1 + S2) / (MU * sqrt(MU))
 
     return (ans, 0)
 end
@@ -180,20 +180,20 @@ end
 #             Lawrence Livermore National Laboratory
 #             Livermore, CA  94550
 
-function DRC(X::A, Y::B) where {A, B}
+function DRC(X::A, Y::B) where {A,B}
     T = promote_type(A, B)
 
-    ERRTOL = (eps(T)/32)^T(1/6)
-    LOLIM  = T(5) * floatmin(T)
-    UPLIM  = T(floatmax(T) / 5)
-    C1 = T(1/7)
-    C2 = T(9/22)
+    ERRTOL = (eps(T) / 32)^T(1 / 6)
+    LOLIM = T(5) * floatmin(T)
+    UPLIM = T(floatmax(T) / 5)
+    C1 = T(1 / 7)
+    C2 = T(9 / 22)
 
     ans = zero(T)
 
     X < zero(T) || Y <= zero(T) && return (ans, 1)
-    max(X,Y) > UPLIM && return (ans, 3)
-    X+Y < LOLIM && return (ans, 2)
+    max(X, Y) > UPLIM && return (ans, 3)
+    X + Y < LOLIM && return (ans, 2)
 
     XN = X
     YN = Y
@@ -201,18 +201,18 @@ function DRC(X::A, Y::B) where {A, B}
     SN = zero(T)
 
     while true
-        MU = (XN+YN+YN)/3
-        SN = (YN+MU)/MU - 2
+        MU = (XN + YN + YN) / 3
+        SN = (YN + MU) / MU - 2
         abs(SN) < ERRTOL && break
-        LAMDA = 2*sqrt(XN)*sqrt(YN) + YN
-        XN = (XN+LAMDA)/4
-        YN = (YN+LAMDA)/4
+        LAMDA = 2 * sqrt(XN) * sqrt(YN) + YN
+        XN = (XN + LAMDA) / 4
+        YN = (YN + LAMDA) / 4
     end
 
-    S = SN*SN*(T(3/10)+SN*(C1+SN*(T(0.3750)+SN*C2)))
-    ans = (1+S)/sqrt(MU)
+    S = SN * SN * (T(3 / 10) + SN * (C1 + SN * (T(0.3750) + SN * C2)))
+    ans = (1 + S) / sqrt(MU)
 
-    return (ans,0)
+    return (ans, 0)
 end
 
 #***BEGIN PROLOGUE  DRJ
@@ -241,22 +241,22 @@ end
 #             Livermore, CA  94550
 
 function DRJ(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
-    T = promote_type(A,B,C,D)
+    T = promote_type(A, B, C, D)
 
-    ERRTOL = (eps(T)/6)^T(1/6)
-    LOLIM  = (5floatmin(T))^T(1/3)
-    UPLIM  = T(3/10)*( floatmax(T) / 5)^T(1/3)
+    ERRTOL = (eps(T) / 6)^T(1 / 6)
+    LOLIM = (5floatmin(T))^T(1 / 3)
+    UPLIM = T(3 / 10) * (floatmax(T) / 5)^T(1 / 3)
 
-    C1 = T(3/14)
-    C2 = T(1/3)
-    C3 = T(3/22)
-    C4 = T(3/26)
+    C1 = T(3 / 14)
+    C2 = T(1 / 3)
+    C3 = T(3 / 22)
+    C4 = T(3 / 26)
 
     ans = zero(T)
 
-    min(X,Y,Z) < zero(T) && return (ans, 1)
-    max(X,Y,Z,P) > UPLIM && return (ans, 3)
-    min(X+Y,X+Z,Y+Z,P) < LOLIM && return (ans, 2)
+    min(X, Y, Z) < zero(T) && return (ans, 1)
+    max(X, Y, Z, P) > UPLIM && return (ans, 3)
+    min(X + Y, X + Z, Y + Z, P) < LOLIM && return (ans, 2)
 
     IER = 0
     XN = X
@@ -272,38 +272,38 @@ function DRJ(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
     PNDEV = zero(T)
 
     while true
-        MU = 2(XN+YN+ZN+PN+PN)/10
-        XNDEV = (MU-XN)/MU
-        YNDEV = (MU-YN)/MU
-        ZNDEV = (MU-ZN)/MU
-        PNDEV = (MU-PN)/MU
+        MU = 2(XN + YN + ZN + PN + PN) / 10
+        XNDEV = (MU - XN) / MU
+        YNDEV = (MU - YN) / MU
+        ZNDEV = (MU - ZN) / MU
+        PNDEV = (MU - PN) / MU
         EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV), abs(PNDEV))
         EPSLON < ERRTOL && break
-        XNROOT =  sqrt(XN)
-        YNROOT =  sqrt(YN)
-        ZNROOT =  sqrt(ZN)
-        LAMDA = XNROOT*(YNROOT+ZNROOT) + YNROOT*ZNROOT
-        ALFA = PN*(XNROOT+YNROOT+ZNROOT) + XNROOT*YNROOT*ZNROOT
-        ALFA = ALFA*ALFA
-        BETA = PN*(PN+LAMDA)*(PN+LAMDA)
-        drc,IER = DRC(ALFA,BETA)
-        SIGMA = SIGMA + POWER4*drc
-        POWER4 = POWER4/4
-        XN = (XN+LAMDA)/4
-        YN = (YN+LAMDA)/4
-        ZN = (ZN+LAMDA)/4
-        PN = (PN+LAMDA)/4
+        XNROOT = sqrt(XN)
+        YNROOT = sqrt(YN)
+        ZNROOT = sqrt(ZN)
+        LAMDA = XNROOT * (YNROOT + ZNROOT) + YNROOT * ZNROOT
+        ALFA = PN * (XNROOT + YNROOT + ZNROOT) + XNROOT * YNROOT * ZNROOT
+        ALFA = ALFA * ALFA
+        BETA = PN * (PN + LAMDA) * (PN + LAMDA)
+        drc, IER = DRC(ALFA, BETA)
+        SIGMA = SIGMA + POWER4 * drc
+        POWER4 = POWER4 / 4
+        XN = (XN + LAMDA) / 4
+        YN = (YN + LAMDA) / 4
+        ZN = (ZN + LAMDA) / 4
+        PN = (PN + LAMDA) / 4
     end
 
-    EA = XNDEV*(YNDEV+ZNDEV) + YNDEV*ZNDEV
-    EB = XNDEV*YNDEV*ZNDEV
-    EC = PNDEV*PNDEV
-    E2 = EA - 3*EC
-    E3 = EB + 2*PNDEV*(EA-EC)
-    S1 = 1 + E2*(-C1+3C3/4*E2-3C4/2*E3)
-    S2 = EB*(C2/2+PNDEV*(-C3-C3+PNDEV*C4))
-    S3 = PNDEV*EA*(C2-PNDEV*C3) - C2*PNDEV*EC
-    ans = 3SIGMA + POWER4*(S1+S2+S3)/(MU* sqrt(MU))
+    EA = XNDEV * (YNDEV + ZNDEV) + YNDEV * ZNDEV
+    EB = XNDEV * YNDEV * ZNDEV
+    EC = PNDEV * PNDEV
+    E2 = EA - 3 * EC
+    E3 = EB + 2 * PNDEV * (EA - EC)
+    S1 = 1 + E2 * (-C1 + 3C3 / 4 * E2 - 3C4 / 2 * E3)
+    S2 = EB * (C2 / 2 + PNDEV * (-C3 - C3 + PNDEV * C4))
+    S3 = PNDEV * EA * (C2 - PNDEV * C3) - C2 * PNDEV * EC
+    ans = 3SIGMA + POWER4 * (S1 + S2 + S3) / (MU * sqrt(MU))
 
     return (ans, IER)
 end

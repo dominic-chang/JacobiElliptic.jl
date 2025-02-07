@@ -167,22 +167,22 @@ function _Pi(n::A, sinphi::B, m::C) where {A,B,C}
     end
     return T(NaN)
 end
-function custom_atanh(a::T) where T
+function custom_atanh(a::T) where {T}
 
-	arg1 = abs(one(T) + a)
-	arg2 = abs(one(T) - a)
+    arg1 = abs(one(T) + a)
+    arg2 = abs(one(T) - a)
 
-	ans = (log(arg1 / arg2)) / 2
-	return ans
+    ans = (log(arg1 / arg2)) / 2
+    return ans
 end
 
 function FukushimaT(t::A, h::B) where {A,B}
-    T = promote_type(A,B)
-	if h > zero(T)
-		return atan(t * √h) / √(h)
-	elseif h == zero(T)
-		return t
-	else
+    T = promote_type(A, B)
+    if h > zero(T)
+        return atan(t * √h) / √(h)
+    elseif h == zero(T)
+        return t
+    else
         arg = t * √(-h)
         ans = abs(arg) < one(T) ? atanh(arg) : custom_atanh(arg)
         return ans / √(-h)
@@ -191,7 +191,7 @@ end
 
 function Pi(n::A, φ::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
-    
+
     if m < zero(T) # Imaginary modulus transformation https://dlmf.nist.gov/19.7#iii
         mc = one(T) - m
         imc = inv(mc)
@@ -204,9 +204,9 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
     end # https://link.springer.com/book/10.1007/978-3-642-65138-0 117.01
     if n > one(T)
         nc = one(T) - n
-        t1 = tan(φ)/sqrt(one(T) − m*sin(φ)^2) 
-        h1 = nc*(n−m)/n 
-        n1 = m/n
+        t1 = tan(φ) / sqrt(one(T) − m * sin(φ)^2)
+        h1 = nc * (n − m) / n
+        n1 = m / n
         return (FukushimaT(t1, h1) - Pi(n1, φ, m) + F(φ, m))
     end
     if 2abs(φ) > T(π)
@@ -218,7 +218,7 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
         #    phi2= phi2 - signφ*T(π)
         #end
         #signφ = sign(phi2)
-        phi2 = φ+ T(π / 2)
+        phi2 = φ + T(π / 2)
         return 2fld(phi2, T(π)) * Pi(n, m) - _Pi(n, cos(mod(phi2, T(π))), m)
         #return 2j * Pi(n, m) - signφ*Pi(n, abs(phi2), m)
     end
@@ -228,12 +228,12 @@ end
 
 #https://doi.org/T(10).1016/j.cam.2011.1107
 function Pi(n::A, m::B) where {A,B}
-    T = promote_type(A,B)
-    n > one(T) && return K(m) - Pi(m/n, m)
+    T = promote_type(A, B)
+    n > one(T) && return K(m) - Pi(m / n, m)
     n == zero(T) && return K(m)
     m == zero(T) || m == one(T) && return T(Inf) #atanh(√(-1 + n)*tan(θ))/√(-1 + n)
-    kc = √(one(T)-m)
-    nc = one(T)-n
+    kc = √(one(T) - m)
+    nc = one(T) - n
     return cel(kc, nc, one(T), one(T))
 end
 
@@ -241,7 +241,7 @@ end
 
 #https://link-springer-com.ezp-prod1.hul.harvard.edu/article/T(10).1007/BF02165405
 function cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
-    T = promote_type(A,B,C,D)
+    T = promote_type(A, B, C, D)
     #ca = T(1e-6)
     ca = eps(T)
     kc = abs(kc)
@@ -251,34 +251,34 @@ function cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
     f, g, q = T(0), T(0), T(0)
     if p > T(0)
         p = √p
-        b = b/p
+        b = b / p
     else
         f = kc^2
         q = one(T) - f
         g = one(T) - p
-        f = f-p
-        q = (b-a*p)*q
-        p = √(f/g)
-        a = (a-b)/g
-        b = -q*(g^2*p) + a*p
+        f = f - p
+        q = (b - a * p) * q
+        p = √(f / g)
+        a = (a - b) / g
+        b = -q * (g^2 * p) + a * p
     end
     while true
         f = a
-        a = b/p + a
-        g = e/p
-        b = f*g + b
+        a = b / p + a
+        g = e / p
+        b = f * g + b
         b = b + b
-        p = g+p
+        p = g + p
         g = m
-        m = kc+m
-        if abs(g-kc) < g*ca
+        m = kc + m
+        if abs(g - kc) < g * ca
             break
         end
         kc = √e
-        kc = kc+kc
-        e = kc*m
+        kc = kc + kc
+        e = kc * m
     end
-    return T(π/2)*(a*m+b)/(m*(m+p))
+    return T(π / 2) * (a * m + b) / (m * (m + p))
 end
 
 

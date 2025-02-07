@@ -2,11 +2,10 @@ module JacobiElliptic
 using StaticArrays
 using DocStringExtensions
 
-@template (FUNCTIONS, METHODS, MACROS) =
-    """
-    $(TYPEDSIGNATURES)
-    $(DOCSTRING)
-    """
+@template (FUNCTIONS, METHODS, MACROS) = """
+                                         $(TYPEDSIGNATURES)
+                                         $(DOCSTRING)
+                                         """
 
 
 export Fukushima, Carlson
@@ -22,7 +21,29 @@ struct Fukushima <: AbstractAlgorithm end
 struct Carlson <: AbstractAlgorithm end
 
 
-func_syms = [:E, :F, :K, :Pi, :J, :sn, :cn, :dn, :nn, :sd, :dd, :nd, :sc, :cc, :dc, :nc, :ss, :cs, :ds, :ns, :cd]
+func_syms = [
+    :E,
+    :F,
+    :K,
+    :Pi,
+    :J,
+    :sn,
+    :cn,
+    :dn,
+    :nn,
+    :sd,
+    :dd,
+    :nd,
+    :sc,
+    :cc,
+    :dc,
+    :nc,
+    :ss,
+    :cs,
+    :ds,
+    :ns,
+    :cd,
+]
 sym_list = []
 
 
