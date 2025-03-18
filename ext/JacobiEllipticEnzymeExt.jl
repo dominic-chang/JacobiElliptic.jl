@@ -234,6 +234,138 @@ function reverse(
 end
 
 #----------------------------------------------------------------------------------------
+# Elliptic Pi(n, m)
+#----------------------------------------------------------------------------------------
+function ∂Pi_∂n(n, m)
+    return (
+        JacobiElliptic.CarlsonAlg.E(m) +
+        (m - n) * JacobiElliptic.CarlsonAlg.K(m) / n +
+        (n^2 - m) * JacobiElliptic.CarlsonAlg.Pi(n, m) / n
+    ) / (2 * (m - n) * (n - 1))
+end
+
+function ∂Pi_∂m(n, m)
+    return (
+        JacobiElliptic.CarlsonAlg.E(m) / (m - 1) +
+        JacobiElliptic.CarlsonAlg.Pi(n, m) 
+    ) / (2 * (n - m))
+end
+
+function forward(
+    # https://enzymead.github.io/Enzyme.jl/stable/#Forward-mode
+    # Of note, when we seed both arguments at once the tangent return is the sum of both.
+    config::EnzymeRules.FwdConfig,
+    func::Const{typeof(JacobiElliptic.CarlsonAlg.Pi)},
+    RT,
+    n::Annotation{<:Real},
+    m::Annotation{<:Real},
+)
+    if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
+        if EnzymeRules.width(config) == 1
+            return Duplicated(
+                func.val(n.val, m.val),
+                (n isa Const ? zero(n.val) : ∂Pi_∂n(n.val, ϕ.val, m.val) * n.dval) +
+                (m isa Const ? zero(m.val) : ∂Pi_∂m(n.val, ϕ.val, m.val) * m.dval),
+            )
+        else
+            return BatchDuplicated(
+                func.val(n.val, m.val),
+                ntuple(
+                    i ->
+                        (
+                            n isa Const ? zero(n.val) :
+                            ∂Pi_∂n(n.val, ϕ.val, m.val) * n.dval[i]
+                        ) +
+                        (
+                            m isa Const ? zero(m.val) :
+                            ∂Pi_∂m(n.val, ϕ.val, m.val) * m.dval[i]
+                        ),
+                    Val(EnzymeRules.width(config)),
+                ),
+            )
+        end
+    elseif EnzymeRules.needs_shadow(config)
+        if EnzymeRules.width(config) == 1
+            return (n isa Const ? zero(n.val) : ∂Pi_∂n(n.val, ϕ.val, m.val) * n.dval) +
+                   (m isa Const ? zero(m.val) : ∂Pi_∂m(n.val, ϕ.val, m.val) * m.dval)
+        else
+            return ntuple(
+                i ->
+                    (n isa Const ? zero(n.val) : ∂Pi_∂n(n.val, ϕ.val, m.val) * n.dval[i]) +
+                    (m isa Const ? zero(m.val) : ∂Pi_∂m(n.val, ϕ.val, m.val) * m.dval[i]),
+                Val(EnzymeRules.width(config)),
+            )
+        end
+    elseif EnzymeRules.needs_primal(config)
+        return func.val(n.val, m.val)
+    else
+        return nothing
+    end
+end
+
+function augmented_primal(
+    config::RevConfigWidth,
+    func::Const{typeof(JacobiElliptic.CarlsonAlg.Pi)},
+    ::Type,
+    n::Annotation{<:Real},
+    m::Annotation{<:Real},
+)
+    primal = EnzymeRules.needs_primal(config) ? func.val(n.val, m.val) : nothing
+
+    return EnzymeRules.AugmentedReturn(primal, nothing, nothing)
+end
+
+function reverse(
+    config::RevConfigWidth,
+    func::Const{typeof(JacobiElliptic.CarlsonAlg.Pi)},
+    dret,
+    tape,
+    n::Annotation{T},
+    m::Annotation{T},
+) where {T}
+    dn = if n isa Const
+        nothing
+    elseif EnzymeRules.width(config) == 1
+        if dret isa Type{<:Const}
+            zero(n.val)
+        else
+            ∂Pi_∂n(n.val, m.val) * dret.val
+        end
+    else
+        if dret isa Type{<:Const}
+            ntuple(i -> zero(n.val), Val(EnzymeRules.width(config)))
+        else
+            ntuple(
+                i -> ∂Pi_∂n(n.val, m.val) * dret.val[i],
+                Val(EnzymeRules.width(config)),
+            )
+        end
+    end
+
+    dm = if m isa Const
+        nothing
+    elseif EnzymeRules.width(config) == 1
+        if dret isa Type{<:Const}
+            zero(m.val)
+        else
+            ∂Pi_∂m(n.val, m.val) * dret.val
+        end
+    else
+        if dret isa Type{<:Const}
+            ntuple(i -> zero(m.val), Val(EnzymeRules.width(config)))
+        else
+            ntuple(
+                i -> ∂Pi_∂m(n.val, m.val) * dret.val[i],
+                Val(EnzymeRules.width(config)),
+            )
+        end
+    end
+    return (dn, dm)
+end
+
+
+
+#----------------------------------------------------------------------------------------
 # Elliptic Pi(n, ϕ, m)
 #----------------------------------------------------------------------------------------
 function ∂Pi_∂n(n, ϕ, m)
@@ -383,13 +515,13 @@ function reverse(
         nothing
     elseif EnzymeRules.width(config) == 1
         if dret isa Type{<:Const}
-            zero(ϕ.val)
+            zero(m.val)
         else
             ∂Pi_∂m(n.val, ϕ.val, m.val) * dret.val
         end
     else
         if dret isa Type{<:Const}
-            ntuple(i -> zero(ϕ.val), Val(EnzymeRules.width(config)))
+            ntuple(i -> zero(m.val), Val(EnzymeRules.width(config)))
         else
             ntuple(
                 i -> ∂Pi_∂m(n.val, ϕ.val, m.val) * dret.val[i],

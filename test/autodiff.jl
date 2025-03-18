@@ -26,6 +26,10 @@ using SpecialFunctions
                 @test Enzyme.autodiff(Reverse, alg.K, Active, Active(m))[1][1] ≈ grad
                 @test Enzyme.autodiff(Forward, alg.K, Duplicated, Duplicated(m, 1.0))[1][1] ≈
                       grad
+                x = rand()
+                for Tret in (Const, Active), Tx in (Const, Active)
+                    test_reverse(alg.K, Tret, (x, Tx))
+                end
             end
 
             # 2. E'(m) = (E(m) - K(m))/2m
@@ -34,8 +38,11 @@ using SpecialFunctions
                 @test Zygote.gradient(alg.E, m)[1] ≈ grad
                 @test ForwardDiff.derivative(alg.E, m) ≈ grad
                 @test Enzyme.autodiff(Reverse, alg.E, Active, Active(m))[1][1] ≈ grad
-                @test Enzyme.autodiff(Forward, alg.E, Duplicated, Duplicated(m, 1.0))[1][1] ≈
-                      grad
+                @test Enzyme.autodiff(Forward, alg.E, Duplicated, Duplicated(m, 1.0))[1][1] ≈ grad
+                x = rand()
+                for Tret in (Const, Active), Tx in (Const, Active)
+                    test_reverse(alg.E, Tret, (x, Tx))
+                end
             end
 
             # 3. ∂_n Pi(n, m) = (E(m) + (m-n)*K(m)/n + (n^2-m)*Pi(n,m)/n)/(2*(m-n)*(n-1))
@@ -46,6 +53,11 @@ using SpecialFunctions
                 @test ForwardDiff.derivative(m -> _Pi(n, m), m) ≈ grad
                 @test Enzyme.autodiff(Reverse, _Pi, Active, Const(n), Active(m))[1][2] ≈
                       grad
+                x = rand()
+                y = rand()
+                for Tret in (Const, Active), Tx in (Const, Active), Ty in (Const, Active)
+                    test_reverse(alg.Pi, Tret, (x, Tx), (y, Ty))
+                end
             end
 
             # II. Tests for incomplete integrals, from https://functions.wolfram.com/EllipticIntegrals/EllipticF/introductions/IncompleteEllipticIntegrals/ShowAll.html
@@ -81,6 +93,11 @@ using SpecialFunctions
                     Const(ϕ),
                     Duplicated(m, 1.0),
                 )[1][1] ≈ grad atol = 1e-5
+                ϕ = rand()*π/2
+                m = rand()
+                for Tret in (Const, Active), Tϕ in (Const, Active), Tm in (Const, Active)
+                    test_reverse(alg.F, Tret, (ϕ, Tϕ), (m, Tm))
+                end
             end
 
             @testset "Incomplete E" begin
@@ -113,6 +130,11 @@ using SpecialFunctions
                     Const(ϕ),
                     Duplicated(m, 1.0),
                 )[1][1] ≈ grad atol = 1e-5
+                ϕ = rand()*π/2
+                m = rand()
+                for Tret in (Const, Active), Tϕ in (Const, Active), Tm in (Const, Active)
+                    test_reverse(alg.E, Tret, (ϕ, Tϕ), (m, Tm))
+                end
             end
             @testset "Incomplete Pi" begin
                 _Pi = alg.Pi
@@ -190,6 +212,14 @@ using SpecialFunctions
                     Const(ϕ),
                     Duplicated(m, 1.0),
                 )[1][1] ≈ grad atol = 1e-5
+                ϕ = rand()*π/2
+                m = rand()
+                n = rand()
+
+                for Tret in (Const, Active), Tn in (Const, Active), Tϕ in (Const, Active), Tm in (Const, Active)
+                    test_reverse(alg.Pi, Tret, (n, Tn), (ϕ, Tϕ), (m, Tm))
+                end
+
             end
 
             @testset "CN" begin
