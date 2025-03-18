@@ -264,8 +264,8 @@ function forward(
         if EnzymeRules.width(config) == 1
             return Duplicated(
                 func.val(n.val, m.val),
-                (n isa Const ? zero(n.val) : ∂Pi_∂n(n.val, ϕ.val, m.val) * n.dval) +
-                (m isa Const ? zero(m.val) : ∂Pi_∂m(n.val, ϕ.val, m.val) * m.dval),
+                (n isa Const ? zero(n.val) : ∂Pi_∂n(n.val, m.val) * n.dval) +
+                (m isa Const ? zero(m.val) : ∂Pi_∂m(n.val, m.val) * m.dval),
             )
         else
             return BatchDuplicated(
@@ -274,11 +274,11 @@ function forward(
                     i ->
                         (
                             n isa Const ? zero(n.val) :
-                            ∂Pi_∂n(n.val, ϕ.val, m.val) * n.dval[i]
+                            ∂Pi_∂n(n.val, m.val) * n.dval[i]
                         ) +
                         (
                             m isa Const ? zero(m.val) :
-                            ∂Pi_∂m(n.val, ϕ.val, m.val) * m.dval[i]
+                            ∂Pi_∂m(n.val, m.val) * m.dval[i]
                         ),
                     Val(EnzymeRules.width(config)),
                 ),
@@ -286,13 +286,13 @@ function forward(
         end
     elseif EnzymeRules.needs_shadow(config)
         if EnzymeRules.width(config) == 1
-            return (n isa Const ? zero(n.val) : ∂Pi_∂n(n.val, ϕ.val, m.val) * n.dval) +
-                   (m isa Const ? zero(m.val) : ∂Pi_∂m(n.val, ϕ.val, m.val) * m.dval)
+            return (n isa Const ? zero(n.val) : ∂Pi_∂n(n.val, m.val) * n.dval) +
+                   (m isa Const ? zero(m.val) : ∂Pi_∂m(n.val, m.val) * m.dval)
         else
             return ntuple(
                 i ->
-                    (n isa Const ? zero(n.val) : ∂Pi_∂n(n.val, ϕ.val, m.val) * n.dval[i]) +
-                    (m isa Const ? zero(m.val) : ∂Pi_∂m(n.val, ϕ.val, m.val) * m.dval[i]),
+                    (n isa Const ? zero(n.val) : ∂Pi_∂n(n.val, m.val) * n.dval[i]) +
+                    (m isa Const ? zero(m.val) : ∂Pi_∂m(n.val, m.val) * m.dval[i]),
                 Val(EnzymeRules.width(config)),
             )
         end
