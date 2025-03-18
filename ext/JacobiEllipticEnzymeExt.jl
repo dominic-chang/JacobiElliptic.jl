@@ -320,7 +320,7 @@ end
 
 function augmented_primal(
     config::RevConfigWidth,
-    func::Const{typeof(JacobiElliptic.CarlsonAlg.F)},
+    func::Const{typeof(JacobiElliptic.CarlsonAlg.Pi)},
     ::Type,
     n::Annotation{<:Real},
     ϕ::Annotation{<:Real},
