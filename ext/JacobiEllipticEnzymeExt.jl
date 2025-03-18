@@ -333,7 +333,7 @@ end
 
 function reverse(
     config::RevConfigWidth,
-    func::Const{typeof(JacobiElliptic.CarlsonAlg.F)},
+    func::Const{typeof(JacobiElliptic.CarlsonAlg.Pi)},
     dret,
     tape,
     n::Annotation{T},
