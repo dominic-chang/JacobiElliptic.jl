@@ -24,7 +24,8 @@ using SpecialFunctions
                 @test Zygote.gradient(alg.K, m)[1] ≈ grad
                 @test ForwardDiff.derivative(alg.K, m) ≈ grad
                 @test Enzyme.autodiff(Reverse, alg.K, Active, Active(m))[1][1] ≈ grad
-                @test Enzyme.autodiff(Forward, alg.K, Duplicated, Duplicated(m, 1.0))[1][1] ≈ grad
+                @test Enzyme.autodiff(Forward, alg.K, Duplicated, Duplicated(m, 1.0))[1][1] ≈
+                      grad
                 m = rand()
                 for Tret in (Const, Duplicated, DuplicatedNoNeed), Tm in (Const, Duplicated)
                     test_forward(alg.K, Tret, (m, Tm))
@@ -41,7 +42,8 @@ using SpecialFunctions
                 @test Zygote.gradient(alg.E, m)[1] ≈ grad
                 @test ForwardDiff.derivative(alg.E, m) ≈ grad
                 @test Enzyme.autodiff(Reverse, alg.E, Active, Active(m))[1][1] ≈ grad
-                @test Enzyme.autodiff(Forward, alg.E, Duplicated, Duplicated(m, 1.0))[1][1] ≈ grad
+                @test Enzyme.autodiff(Forward, alg.E, Duplicated, Duplicated(m, 1.0))[1][1] ≈
+                      grad
                 m = rand()
                 for Tret in (Const, Duplicated, DuplicatedNoNeed), Tm in (Const, Duplicated)
                     test_forward(alg.E, Tret, (m, Tm))
@@ -59,7 +61,10 @@ using SpecialFunctions
                 @test ForwardDiff.derivative(m -> _Pi(n, m), m) ≈ grad
                 @test Enzyme.autodiff(Reverse, _Pi, Active, Const(n), Active(m))[1][2] ≈
                       grad
-                for Tret in (Const, Duplicated, DuplicatedNoNeed), Tn in (Const, Duplicated), Tm in (Const, Duplicated)
+                for Tret in (Const, Duplicated, DuplicatedNoNeed),
+                    Tn in (Const, Duplicated),
+                    Tm in (Const, Duplicated)
+
                     test_forward(alg.Pi, Tret, (n, Tn), (m, Tm))
                 end
                 for Tret in (Const, Active), Tn in (Const, Active), Tm in (Const, Active)
@@ -100,7 +105,10 @@ using SpecialFunctions
                     Const(ϕ),
                     Duplicated(m, 1.0),
                 )[1][1] ≈ grad atol = 1e-5
-                for Tret in (Const, Duplicated, DuplicatedNoNeed), Tϕ in (Const, Duplicated), Tm in (Const, Duplicated)
+                for Tret in (Const, Duplicated, DuplicatedNoNeed),
+                    Tϕ in (Const, Duplicated),
+                    Tm in (Const, Duplicated)
+
                     test_forward(alg.F, Tret, (ϕ, Tϕ), (m, Tm))
                 end
                 for Tret in (Const, Active), Tϕ in (Const, Active), Tm in (Const, Active)
@@ -138,7 +146,10 @@ using SpecialFunctions
                     Const(ϕ),
                     Duplicated(m, 1.0),
                 )[1][1] ≈ grad atol = 1e-5
-                for Tret in (Const, Duplicated, DuplicatedNoNeed), Tϕ in (Const, Duplicated), Tm in (Const, Duplicated)
+                for Tret in (Const, Duplicated, DuplicatedNoNeed),
+                    Tϕ in (Const, Duplicated),
+                    Tm in (Const, Duplicated)
+
                     test_forward(alg.E, Tret, (ϕ, Tϕ), (m, Tm))
                 end
                 for Tret in (Const, Active), Tϕ in (Const, Active), Tm in (Const, Active)
@@ -221,10 +232,18 @@ using SpecialFunctions
                     Const(ϕ),
                     Duplicated(m, 1.0),
                 )[1][1] ≈ grad atol = 1e-5
-                for Tret in (Const, Duplicated, DuplicatedNoNeed), Tn in (Const, Duplicated), Tϕ in (Const, Duplicated), Tm in (Const, Duplicated)
+                for Tret in (Const, Duplicated, DuplicatedNoNeed),
+                    Tn in (Const, Duplicated),
+                    Tϕ in (Const, Duplicated),
+                    Tm in (Const, Duplicated)
+
                     test_forward(alg.Pi, Tret, (n, Tn), (ϕ, Tϕ), (m, Tm))
                 end
-                for Tret in (Const, Active), Tn in (Const, Active), Tϕ in (Const, Active), Tm in (Const, Active)
+                for Tret in (Const, Active),
+                    Tn in (Const, Active),
+                    Tϕ in (Const, Active),
+                    Tm in (Const, Active)
+
                     test_reverse(alg.Pi, Tret, (n, Tn), (ϕ, Tϕ), (m, Tm))
                 end
 

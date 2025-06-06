@@ -9,7 +9,7 @@ using .EnzymeRules
 #----------------------------------------------------------------------------------------
 function ∂K_∂m(m)
     return JacobiElliptic.CarlsonAlg.E(m) / (2 * m * (1 - m)) -
-           JacobiElliptic.CarlsonAlg.K(m) / 2 / m 
+           JacobiElliptic.CarlsonAlg.K(m) / 2 / m
 end
 
 function ∂K_∂ϕ(m)
@@ -34,8 +34,7 @@ function forward(
             return BatchDuplicated(
                 func.val(m.val),
                 ntuple(
-                    i ->
-                        (m isa Const ? zero(m.val) : ∂K_∂m(m.val) * m.dval[i]),
+                    i -> (m isa Const ? zero(m.val) : ∂K_∂m(m.val) * m.dval[i]),
                     Val(EnzymeRules.width(config)),
                 ),
             )
@@ -45,8 +44,7 @@ function forward(
             return (m isa Const ? zero(m.val) : ∂K_∂m(m.val) * m.dval)
         else
             return ntuple(
-                i ->
-                    (m isa Const ? zero(m.val) : ∂K_∂m(m.val) * m.dval[i]),
+                i -> (m isa Const ? zero(m.val) : ∂K_∂m(m.val) * m.dval[i]),
                 Val(EnzymeRules.width(config)),
             )
         end
@@ -97,18 +95,20 @@ end
 # Elliptic Pi(n, m)
 #----------------------------------------------------------------------------------------
 function ∂Pi_∂n(n, m)
-    return (
-        JacobiElliptic.CarlsonAlg.E(m) +
-        (m - n) * JacobiElliptic.CarlsonAlg.K(m) / n +
-        (n^2 - m) * JacobiElliptic.CarlsonAlg.Pi(n, m) / n
-    ) / (2 * (m - n) * (n - 1))
+    if (n == zero(n))
+        return zero(n)
+    else
+        return (
+            JacobiElliptic.CarlsonAlg.E(m) +
+            (m - n) * JacobiElliptic.CarlsonAlg.K(m) / n +
+            (n^2 - m) * JacobiElliptic.CarlsonAlg.Pi(n, m) / n
+        ) / (2 * (m - n) * (n - 1))
+    end
 end
 
 function ∂Pi_∂m(n, m)
-    return (
-        JacobiElliptic.CarlsonAlg.E(m) / (m - 1) +
-        JacobiElliptic.CarlsonAlg.Pi(n, m) 
-    ) / (2 * (n - m))
+    return (JacobiElliptic.CarlsonAlg.E(m) / (m - 1) + JacobiElliptic.CarlsonAlg.Pi(n, m)) /
+           (2 * (n - m))
 end
 
 function forward(
@@ -132,14 +132,8 @@ function forward(
                 func.val(n.val, m.val),
                 ntuple(
                     i ->
-                        (
-                            n isa Const ? zero(n.val) :
-                            ∂Pi_∂n(n.val, m.val) * n.dval[i]
-                        ) +
-                        (
-                            m isa Const ? zero(m.val) :
-                            ∂Pi_∂m(n.val, m.val) * m.dval[i]
-                        ),
+                        (n isa Const ? zero(n.val) : ∂Pi_∂n(n.val, m.val) * n.dval[i]) +
+                        (m isa Const ? zero(m.val) : ∂Pi_∂m(n.val, m.val) * m.dval[i]),
                     Val(EnzymeRules.width(config)),
                 ),
             )
@@ -195,10 +189,7 @@ function reverse(
         if dret isa Type{<:Const}
             ntuple(i -> zero(n.val), Val(EnzymeRules.width(config)))
         else
-            ntuple(
-                i -> ∂Pi_∂n(n.val, m.val) * dret.val[i],
-                Val(EnzymeRules.width(config)),
-            )
+            ntuple(i -> ∂Pi_∂n(n.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
         end
     end
 
@@ -214,10 +205,7 @@ function reverse(
         if dret isa Type{<:Const}
             ntuple(i -> zero(m.val), Val(EnzymeRules.width(config)))
         else
-            ntuple(
-                i -> ∂Pi_∂m(n.val, m.val) * dret.val[i],
-                Val(EnzymeRules.width(config)),
-            )
+            ntuple(i -> ∂Pi_∂m(n.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
         end
     end
     return (dn, dm)
@@ -457,12 +445,16 @@ end
 # Elliptic Pi(n, ϕ, m)
 #----------------------------------------------------------------------------------------
 function ∂Pi_∂n(n, ϕ, m)
-    return (
-        JacobiElliptic.CarlsonAlg.E(ϕ, m) +
-        (m - n) * JacobiElliptic.CarlsonAlg.F(ϕ, m) / n +
-        (n^2 - m) * JacobiElliptic.CarlsonAlg.Pi(n, ϕ, m) / n -
-        n * √(1 - m * sin(ϕ)^2) * sin(2ϕ) / (2(1 - n * sin(ϕ)^2))
-    ) / (2 * (m - n) * (n - 1))
+    if (n == zero(n))
+        return zero(n)
+    else
+        return (
+            JacobiElliptic.CarlsonAlg.E(ϕ, m) +
+            (m - n) * JacobiElliptic.CarlsonAlg.F(ϕ, m) / n +
+            (n^2 - m) * JacobiElliptic.CarlsonAlg.Pi(n, ϕ, m) / n -
+            n * √(1 - m * sin(ϕ)^2) * sin(2ϕ) / (2(1 - n * sin(ϕ)^2))
+        ) / (2 * (m - n) * (n - 1))
+    end
 end
 
 function ∂Pi_∂m(n, ϕ, m)
