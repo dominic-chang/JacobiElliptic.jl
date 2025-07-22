@@ -134,9 +134,10 @@ function DRD(X::A, Y::B, Z::C) where {A,B,C}
 
     while true
         MU = 2 * (XN + YN + 3 * ZN) / 10
-        XNDEV = (MU - XN) / MU
-        YNDEV = (MU - YN) / MU
-        ZNDEV = (MU - ZN) / MU
+        invMU = inv(MU)
+        XNDEV = (MU - XN) * invMU
+        YNDEV = (MU - YN) * invMU
+        ZNDEV = (MU - ZN) * invMU
         EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV))
         (EPSLON < ERRTOL) && break
         XNROOT = _sqrt(XN)
@@ -289,8 +290,7 @@ function DRJ(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
         YNROOT = _sqrt(YN)
         ZNROOT = _sqrt(ZN)
         LAMDA = XNROOT * (YNROOT + ZNROOT) + YNROOT * ZNROOT
-        ALFA = PN * (XNROOT + YNROOT + ZNROOT) + XNROOT * YNROOT * ZNROOT
-        ALFA = ALFA * ALFA
+        ALFA = (PN * (XNROOT + YNROOT + ZNROOT) + XNROOT * YNROOT * ZNROOT)^2
         BETA = PN * (PN + LAMDA) * (PN + LAMDA)
         drc, IER = DRC(ALFA, BETA)
         SIGMA = SIGMA + POWER4 * drc
@@ -301,7 +301,7 @@ function DRJ(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
         PN = (PN + LAMDA) / 4
     end
 
-    EA = XNDEV * (YNDEV + ZNDEV) + YNDEV * ZNDEV
+    EA = muladd(XNDEV, (YNDEV + ZNDEV), YNDEV * ZNDEV)
     EB = XNDEV * YNDEV * ZNDEV
     EC = PNDEV * PNDEV
     E2 = EA - 3 * EC

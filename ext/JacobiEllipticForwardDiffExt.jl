@@ -16,6 +16,24 @@ function JacobiElliptic.CarlsonAlg._sqrt(x::ForwardDiff.Dual{T}) where {T}
 end
 
 #----------------------------------------------------------------------------------------
+# Elliptic K(ϕ)
+#----------------------------------------------------------------------------------------
+function JacobiElliptic.CarlsonAlg.K(x::ForwardDiff.Dual{T}) where {T}
+    xval = x.value
+
+    ForwardDiff.Dual{T}(JacobiElliptic.CarlsonAlg.K(xval), (JacobiElliptic.CarlsonAlg.E(xval) - (1-xval)*JacobiElliptic.CarlsonAlg.K(xval)) / (2*(1-xval)*xval) * x.partials)
+end
+
+#----------------------------------------------------------------------------------------
+# Elliptic E(ϕ)
+#----------------------------------------------------------------------------------------
+function JacobiElliptic.CarlsonAlg.E(x::ForwardDiff.Dual{T}) where {T}
+    xval = x.value
+
+    ForwardDiff.Dual{T}(JacobiElliptic.CarlsonAlg.E(xval), (JacobiElliptic.CarlsonAlg.E(xval) - JacobiElliptic.CarlsonAlg.K(xval)) / (2xval) * x.partials)
+end
+
+#----------------------------------------------------------------------------------------
 # Elliptic E(ϕ, m)
 #----------------------------------------------------------------------------------------
 function JacobiElliptic.CarlsonAlg.E(x::ForwardDiff.Dual{T}, y::U) where {T,U}
