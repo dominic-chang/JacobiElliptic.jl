@@ -9,13 +9,19 @@ function JacobiElliptic.CarlsonAlg._one(::Type{ForwardDiff.Dual{T,V,N}}) where {
     one(V)
 end
 
+#ForwardDiff.DiffRules.@define_diffrule JacobiElliptic.CarlsonAlg._sqrt(x) = :(inv(2 * JacobiElliptic.CarlsonAlg._sqrt($x)))
+function JacobiElliptic.CarlsonAlg._sqrt(x::ForwardDiff.Dual{T}) where {T}
+    xval = x.value
+    return ForwardDiff.Dual{T}(JacobiElliptic.CarlsonAlg._sqrt(xval), inv(2 * JacobiElliptic.CarlsonAlg._sqrt(xval)) * x.partials)
+end
+
 #----------------------------------------------------------------------------------------
 # Elliptic E(ϕ, m)
 #----------------------------------------------------------------------------------------
 function JacobiElliptic.CarlsonAlg.E(x::ForwardDiff.Dual{T}, y::U) where {T,U}
     xval = x.value
 
-    ForwardDiff.Dual{T}(JacobiElliptic.CarlsonAlg.E(xval, y), (sqrt(1 - y * sin(xval)^2)))
+    ForwardDiff.Dual{T}(JacobiElliptic.CarlsonAlg.E(xval, y), (sqrt(1 - y * sin(xval)^2)) * x.partials)
 end
 
 function JacobiElliptic.CarlsonAlg.E(x::U, y::ForwardDiff.Dual{T}) where {T,U}
@@ -23,7 +29,7 @@ function JacobiElliptic.CarlsonAlg.E(x::U, y::ForwardDiff.Dual{T}) where {T,U}
     ForwardDiff.Dual{T}(
         JacobiElliptic.CarlsonAlg.E(x, yval),
         (JacobiElliptic.CarlsonAlg.E(x, yval) - JacobiElliptic.CarlsonAlg.F(x, yval)) /
-        (2yval),
+        (2yval) * y.partials,
     )
 end
 
@@ -42,7 +48,7 @@ function JacobiElliptic.CarlsonAlg.E(
         ) / (2yval)
     ForwardDiff.Dual{T}(
         JacobiElliptic.CarlsonAlg.E(xval, yval),
-        ForwardDiff.Partials(((sqrt(1 - yval * sin(xval)^2)), ∂yE)),
+        ForwardDiff.Partials(((sqrt(1 - yval * sin(xval)^2)) .* x.partials[1], ∂yE * y.partials[2],))
     )
 end
 
@@ -54,7 +60,7 @@ function JacobiElliptic.CarlsonAlg.cn(x::ForwardDiff.Dual{T}, y::U) where {T,U}
 
     ForwardDiff.Dual{T}(
         JacobiElliptic.CarlsonAlg.cn(xval, y),
-        -JacobiElliptic.dn(xval, y) * JacobiElliptic.sn(xval, y),
+        -JacobiElliptic.dn(xval, y) * JacobiElliptic.sn(xval, y) * x.partials,
     )
 end
 
@@ -68,7 +74,7 @@ function JacobiElliptic.CarlsonAlg.cn(x::U, y::ForwardDiff.Dual{T}) where {T,U}
         (
             (yval - 1) * x + JacobiElliptic.CarlsonAlg.E(JacobiElliptic.am(x, yval), yval) -
             yval * JacobiElliptic.cd(x, yval) * JacobiElliptic.sn(x, yval)
-        ),
+        ) * y.partials,
     )
 end
 
@@ -82,7 +88,7 @@ function JacobiElliptic.CarlsonAlg.cn(
     ForwardDiff.Dual{T}(
         JacobiElliptic.CarlsonAlg.cn(xval, yval),
         ForwardDiff.Partials((
-            -JacobiElliptic.dn(xval, m) * JacobiElliptic.sn(xval, m),
+            -JacobiElliptic.dn(xval, m) * JacobiElliptic.sn(xval, m) * x.partials[1],
             inv(2 * (1 - m) * m) *
             JacobiElliptic.dn(xval, m) *
             JacobiElliptic.sn(xval, m) *
@@ -90,7 +96,7 @@ function JacobiElliptic.CarlsonAlg.cn(
                 (yval - 1) * xval +
                 JacobiElliptic.CarlsonAlg.E(JacobiElliptic.am(xval, yval), yval) -
                 yval * JacobiElliptic.cd(xval, yval) * JacobiElliptic.sn(xval, yval)
-            ),
+            ) * y.partials[2],
         )),
     )
 end
@@ -103,7 +109,7 @@ function JacobiElliptic.CarlsonAlg.sn(x::ForwardDiff.Dual{T}, y::U) where {T,U}
 
     ForwardDiff.Dual{T}(
         JacobiElliptic.CarlsonAlg.sn(xval, y),
-        JacobiElliptic.dn(xval, y) * JacobiElliptic.cn(xval, y),
+        JacobiElliptic.dn(xval, y) * JacobiElliptic.cn(xval, y) * x.partials,
     )
 end
 
@@ -117,7 +123,7 @@ function JacobiElliptic.CarlsonAlg.sn(x::U, y::ForwardDiff.Dual{T}) where {T,U}
         (
             (1 - yval) * x - JacobiElliptic.CarlsonAlg.E(JacobiElliptic.am(x, yval), yval) +
             yval * JacobiElliptic.cd(x, yval) * JacobiElliptic.sn(x, yval)
-        ),
+        ) * y.partials,
     )
 end
 
@@ -131,7 +137,7 @@ function JacobiElliptic.CarlsonAlg.sn(
     ForwardDiff.Dual{T}(
         JacobiElliptic.CarlsonAlg.sn(xval, yval),
         ForwardDiff.Partials((
-            JacobiElliptic.dn(xval, m) * JacobiElliptic.cn(xval, m),
+            JacobiElliptic.dn(xval, m) * JacobiElliptic.cn(xval, m) * x.partials[1],
             inv(2 * (1 - m) * m) *
             JacobiElliptic.dn(xval, m) *
             JacobiElliptic.cn(xval, m) *
@@ -139,7 +145,7 @@ function JacobiElliptic.CarlsonAlg.sn(
                 (1 - yval) * xval -
                 JacobiElliptic.CarlsonAlg.E(JacobiElliptic.am(xval, yval), yval) +
                 yval * JacobiElliptic.cd(xval, yval) * JacobiElliptic.sn(xval, yval)
-            ),
+            ) * y.partials[2],
         )),
     )
 end

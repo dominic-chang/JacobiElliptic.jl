@@ -2,6 +2,10 @@
 
 export DRC, DRD, DRF, DRJ
 
+@inline function _sqrt(x::Union{Float32,Float64})
+    return Core.Intrinsics.sqrt_llvm(x)
+end
+
 #***BEGIN PROLOGUE  DRF
 #***PURPOSE  Compute the incomplete or complete elliptic integral of the
 #            1st kind.  For X, Y, and Z non-negative and at most one of
@@ -52,14 +56,15 @@ function DRF(X::A, Y::B, Z::C) where {A,B,C}
 
     while true
         MU = (XN + YN + ZN) / 3
-        XNDEV = 2 - (MU + XN) / MU
-        YNDEV = 2 - (MU + YN) / MU
-        ZNDEV = 2 - (MU + ZN) / MU
+        ninvMU = -1 / MU
+        XNDEV = muladd(ninvMU, (MU + XN), 2)
+        YNDEV = muladd(ninvMU, (MU + YN), 2)
+        ZNDEV = muladd(ninvMU, (MU + ZN), 2)
         EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV))
         (EPSLON < ERRTOL) && break
-        XNROOT = sqrt(XN)
-        YNROOT = sqrt(YN)
-        ZNROOT = sqrt(ZN)
+        XNROOT = _sqrt(XN)
+        YNROOT = _sqrt(YN)
+        ZNROOT = _sqrt(ZN)
         LAMDA = XNROOT * (YNROOT + ZNROOT) + YNROOT * ZNROOT
         XN = (XN + LAMDA) / 4
         YN = (YN + LAMDA) / 4
@@ -69,7 +74,7 @@ function DRF(X::A, Y::B, Z::C) where {A,B,C}
     E2 = XNDEV * YNDEV - ZNDEV * ZNDEV
     E3 = XNDEV * YNDEV * ZNDEV
     S = 1 + (C1 * E2 - T(1 / 10) - C2 * E3) * E2 + C3 * E3
-    ans = S / sqrt(MU)
+    ans = S / _sqrt(MU)
 
     return (ans, 0)
 end
@@ -134,9 +139,9 @@ function DRD(X::A, Y::B, Z::C) where {A,B,C}
         ZNDEV = (MU - ZN) / MU
         EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV))
         (EPSLON < ERRTOL) && break
-        XNROOT = sqrt(XN)
-        YNROOT = sqrt(YN)
-        ZNROOT = sqrt(ZN)
+        XNROOT = _sqrt(XN)
+        YNROOT = _sqrt(YN)
+        ZNROOT = _sqrt(ZN)
         LAMDA = XNROOT * (YNROOT + ZNROOT) + YNROOT * ZNROOT
         SIGMA = SIGMA + POWER4 / (ZNROOT * (ZN + LAMDA))
         POWER4 = POWER4 / 4
@@ -152,7 +157,7 @@ function DRD(X::A, Y::B, Z::C) where {A,B,C}
     EF = ED + EC + EC
     S1 = ED * (-C1 + C3 * ED / 4 - 3C4 * ZNDEV * EF / 2)
     S2 = ZNDEV * (C2 * EF + ZNDEV * (-C3 * EC + ZNDEV * C4 * EA))
-    ans = 3 * SIGMA + POWER4 * (1 + S1 + S2) / (MU * sqrt(MU))
+    ans = 3 * SIGMA + POWER4 * (1 + S1 + S2) / (MU * _sqrt(MU))
 
     return (ans, 0)
 end
@@ -204,13 +209,13 @@ function DRC(X::A, Y::B) where {A,B}
         MU = (XN + YN + YN) / 3
         SN = (YN + MU) / MU - 2
         abs(SN) < ERRTOL && break
-        LAMDA = 2 * sqrt(XN) * sqrt(YN) + YN
+        LAMDA = 2 * _sqrt(XN) * _sqrt(YN) + YN
         XN = (XN + LAMDA) / 4
         YN = (YN + LAMDA) / 4
     end
 
     S = SN * SN * (T(3 / 10) + SN * (C1 + SN * (T(0.3750) + SN * C2)))
-    ans = (1 + S) / sqrt(MU)
+    ans = (1 + S) / _sqrt(MU)
 
     return (ans, 0)
 end
@@ -272,16 +277,17 @@ function DRJ(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
     PNDEV = zero(T)
 
     while true
-        MU = 2(XN + YN + ZN + PN + PN) / 10
-        XNDEV = (MU - XN) / MU
-        YNDEV = (MU - YN) / MU
-        ZNDEV = (MU - ZN) / MU
-        PNDEV = (MU - PN) / MU
+        MU = 2(XN + YN + ZN + 2PN) / 10
+        invMU = inv(MU)
+        XNDEV = (MU - XN) * invMU
+        YNDEV = (MU - YN) * invMU
+        ZNDEV = (MU - ZN) * invMU
+        PNDEV = (MU - PN) * invMU
         EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV), abs(PNDEV))
         EPSLON < ERRTOL && break
-        XNROOT = sqrt(XN)
-        YNROOT = sqrt(YN)
-        ZNROOT = sqrt(ZN)
+        XNROOT = _sqrt(XN)
+        YNROOT = _sqrt(YN)
+        ZNROOT = _sqrt(ZN)
         LAMDA = XNROOT * (YNROOT + ZNROOT) + YNROOT * ZNROOT
         ALFA = PN * (XNROOT + YNROOT + ZNROOT) + XNROOT * YNROOT * ZNROOT
         ALFA = ALFA * ALFA
@@ -303,7 +309,7 @@ function DRJ(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
     S1 = 1 + E2 * (-C1 + 3C3 / 4 * E2 - 3C4 / 2 * E3)
     S2 = EB * (C2 / 2 + PNDEV * (-C3 - C3 + PNDEV * C4))
     S3 = PNDEV * EA * (C2 - PNDEV * C3) - C2 * PNDEV * EC
-    ans = 3SIGMA + POWER4 * (S1 + S2 + S3) / (MU * sqrt(MU))
+    ans = 3SIGMA + POWER4 * (S1 + S2 + S3) / (MU * _sqrt(MU))
 
     return (ans, IER)
 end

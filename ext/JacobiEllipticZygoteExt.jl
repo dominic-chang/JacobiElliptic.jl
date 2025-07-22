@@ -3,6 +3,12 @@ module JacobiEllipticZygoteExt
 using JacobiElliptic
 using Zygote: @adjoint
 
+
+@adjoint JacobiElliptic.CarlsonAlg._sqrt(a) = JacobiElliptic.CarlsonAlg._sqrt(a),
+(
+    c̄ -> (c̄ * inv(2 * JacobiElliptic.CarlsonAlg._sqrt(a)),)
+)
+
 #----------------------------------------------------------------------------------------
 # Elliptic E(a, b)
 #----------------------------------------------------------------------------------------
@@ -10,10 +16,10 @@ using Zygote: @adjoint
 @adjoint JacobiElliptic.CarlsonAlg.E(a, b) = JacobiElliptic.CarlsonAlg.E(a, b),
 (
     c̄ ->
-        c̄ .* (
-            (sqrt(1 - b * sin(a)^2)),
-            iszero(b) ? -π / 8 :
-            (JacobiElliptic.CarlsonAlg.E(a, b) - JacobiElliptic.CarlsonAlg.F(a, b)) / (2b),
+        (
+            c̄ * (sqrt(1 - b * sin(a)^2)),
+            c̄ * (iszero(b) ? -π / 8 :
+            (JacobiElliptic.CarlsonAlg.E(a, b) - JacobiElliptic.CarlsonAlg.F(a, b)) / (2b)),
         )
 )
 
@@ -24,9 +30,9 @@ using Zygote: @adjoint
 @adjoint JacobiElliptic.cn(a, b) = JacobiElliptic.cn(a, b),
 (
     c̄ ->
-        c̄ .* (
-            (-JacobiElliptic.dn(a, b) * JacobiElliptic.sn(a, b)),
-            inv(2 * (1 - b) * b) *
+        (
+            c̄ * (-JacobiElliptic.dn(a, b) * JacobiElliptic.sn(a, b)),
+            c̄ * inv(2 * (1 - b) * b) *
             JacobiElliptic.dn(a, b) *
             JacobiElliptic.sn(a, b) *
             (
