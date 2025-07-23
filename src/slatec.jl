@@ -65,15 +65,16 @@ function DRF(X::A, Y::B, Z::C) where {A,B,C}
         XNROOT = _sqrt(XN)
         YNROOT = _sqrt(YN)
         ZNROOT = _sqrt(ZN)
-        LAMDA = XNROOT * (YNROOT + ZNROOT) + YNROOT * ZNROOT
+        YNROOTZNROOT = YNROOT * ZNROOT
+        LAMDA = muladd(XNROOT, (YNROOT + ZNROOT), YNROOTZNROOT)
         XN = (XN + LAMDA) / 4
         YN = (YN + LAMDA) / 4
         ZN = (ZN + LAMDA) / 4
     end
-
-    E2 = XNDEV * YNDEV - ZNDEV * ZNDEV
-    E3 = XNDEV * YNDEV * ZNDEV
-    S = 1 + (C1 * E2 - T(1 / 10) - C2 * E3) * E2 + C3 * E3
+    XNDEVYNDEV = XNDEV * YNDEV
+    E2 = muladd(-ZNDEV, ZNDEV, XNDEVYNDEV)
+    E3 = XNDEVYNDEV * ZNDEV
+    S = 1 + muladd(E2, muladd(-C2, E3, muladd(C1, E2, -T(1 / 10))), C3 * E3)
     ans = S / _sqrt(MU)
 
     return (ans, 0)
@@ -215,7 +216,7 @@ function DRC(X::A, Y::B) where {A,B}
         YN = (YN + LAMDA) / 4
     end
 
-    S = SN * SN * (T(3 / 10) + SN * (C1 + SN * (T(0.3750) + SN * C2)))
+    S = SN^2 * (muladd(SN, (muladd(SN, muladd(SN, C2, T(3 / 8)), C1)), T(3 / 10)))
     ans = (1 + S) / _sqrt(MU)
 
     return (ans, 0)
@@ -278,7 +279,8 @@ function DRJ(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
     PNDEV = zero(T)
 
     while true
-        MU = 2(XN + YN + ZN + 2PN) / 10
+        XNYNZN = XN + YN + ZN
+        MU = 2(XNYNZN + 2PN) / 10
         invMU = inv(MU)
         XNDEV = (MU - XN) * invMU
         YNDEV = (MU - YN) * invMU
@@ -289,20 +291,21 @@ function DRJ(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
         XNROOT = _sqrt(XN)
         YNROOT = _sqrt(YN)
         ZNROOT = _sqrt(ZN)
-        LAMDA = XNROOT * (YNROOT + ZNROOT) + YNROOT * ZNROOT
-        ALFA = (PN * (XNROOT + YNROOT + ZNROOT) + XNROOT * YNROOT * ZNROOT)^2
-        BETA = PN * (PN + LAMDA) * (PN + LAMDA)
+        YNROOTZNROOT = YNROOT * ZNROOT
+        LAMDA = muladd(XNROOT, (YNROOT + ZNROOT), YNROOTZNROOT)
+        ALFA = (PN * (XNROOT + YNROOT + ZNROOT) + XNROOT * YNROOTZNROOT)^2
+        BETA = PN * (PN + LAMDA)^2
         drc, IER = DRC(ALFA, BETA)
-        SIGMA = SIGMA + POWER4 * drc
+        SIGMA = muladd(POWER4, drc, SIGMA)
         POWER4 = POWER4 / 4
         XN = (XN + LAMDA) / 4
         YN = (YN + LAMDA) / 4
         ZN = (ZN + LAMDA) / 4
         PN = (PN + LAMDA) / 4
     end
-
-    EA = muladd(XNDEV, (YNDEV + ZNDEV), YNDEV * ZNDEV)
-    EB = XNDEV * YNDEV * ZNDEV
+    YNDEVZNDEV = YNDEV * ZNDEV
+    EA = muladd(XNDEV, (YNDEV + ZNDEV), YNDEVZNDEV)
+    EB = XNDEV * YNDEVZNDEV
     EC = PNDEV * PNDEV
     E2 = EA - 3 * EC
     E3 = EB + 2 * PNDEV * (EA - EC)
@@ -313,5 +316,126 @@ function DRJ(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
 
     return (ans, IER)
 end
+
+@inline function DRFJ(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
+    T = promote_type(A, B, C, D)
+
+    ERRTOLJ = (eps(T) / 6)^T(1 / 6)
+    LOLIMJ = (5floatmin(T))^T(1 / 3)
+    UPLIMJ = T(3 / 10) * (floatmax(T) / 5)^T(1 / 3)
+
+    ERRTOL = (4 * eps(T) / 2)^T(1 / 6)
+    LOLIM = 5floatmin(T)
+    UPLIM = floatmax(T) / 5
+
+    ans = zero(T)
+    ansJ = zero(T)
+
+    ierr1 = 0
+    ierr2 = 0
+    min(X, Y, Z) < zero(T) && return (ans, 1, ansJ, 1)
+    ierr1 = max(X, Y, Z) > UPLIM ? 3 : 0
+    ierr2 = max(X, Y, Z, P) > UPLIMJ ? 3 : 0
+    if ierr1 != 0 || ierr2 != 0
+        return (ans, ierr1, ansJ, ierr2)
+    end
+    ierr1 = min(X + Y, X + Z, Y + Z) < LOLIM ? 2 : 0
+    ierr2 = min(X + Y, X + Z, Y + Z, P) < LOLIMJ ? 2 : 0
+    if ierr1 != 0 || ierr2 != 0
+        return (ans, ierr1, ansJ, ierr2)
+    end
+
+
+    C1 = T(1 / 24)
+    C2 = T(3 / 44)
+    C3 = T(1 / 14)
+
+    C1J = T(3 / 14)
+    C2J = T(1 / 3)
+    C3J = T(3 / 22)
+    C4J = T(3 / 26)
+
+    
+    XN = X
+    YN = Y
+    ZN = Z
+    PN = P
+    MU = zero(T)
+    XNDEV = zero(T)
+    YNDEV = zero(T)
+    ZNDEV = zero(T)
+
+    IER = 0
+    SIGMA = zero(T)
+    POWER4 = one(T)
+    MUJ = zero(T)
+    XNDEVJ = zero(T)
+    YNDEVJ = zero(T)
+    ZNDEVJ = zero(T)
+    PNDEVJ = zero(T)
+
+    fflag = true
+    jflag = true
+    while true
+        XNYNZN = XN + YN + ZN
+        if fflag
+            MU = XNYNZN / 3
+            ninvMU = -1 / MU
+            XNDEV = muladd(ninvMU, (MU + XN), 2)
+            YNDEV = muladd(ninvMU, (MU + YN), 2)
+            ZNDEV = muladd(ninvMU, (MU + ZN), 2)
+            EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV))
+            fflag = EPSLON ≥ ERRTOL
+        end
+        
+        if jflag
+            MUJ = 2(XNYNZN + 2PN) / 10
+            invMUJ = inv(MUJ)
+            XNDEVJ = (MUJ - XN) * invMUJ
+            YNDEVJ = (MUJ - YN) * invMUJ
+            ZNDEVJ = (MUJ - ZN) * invMUJ
+            PNDEVJ = (MUJ - PN) * invMUJ
+            EPSLONJ = max(abs(XNDEVJ), abs(YNDEVJ), abs(ZNDEVJ), abs(PNDEVJ))
+            jflag = EPSLONJ ≥ ERRTOLJ 
+        end
+        fflag || jflag || break
+
+        XNROOT = _sqrt(XN)
+        YNROOT = _sqrt(YN)
+        ZNROOT = _sqrt(ZN)
+        YNROOTZNROOT = YNROOT * ZNROOT
+        LAMDA = muladd(XNROOT, (YNROOT + ZNROOT), YNROOTZNROOT)
+        ALFA = (PN * (XNROOT + YNROOT + ZNROOT) + XNROOT * YNROOTZNROOT)^2
+        BETA = PN * (PN + LAMDA)^2
+        drc, IER = DRC(ALFA, BETA)
+        SIGMA = muladd(POWER4, drc, SIGMA)
+        POWER4 = POWER4 / 4
+
+        XN = (XN + LAMDA) / 4
+        YN = (YN + LAMDA) / 4
+        ZN = (ZN + LAMDA) / 4
+        PN = (PN + LAMDA) / 4
+    end
+    XNDEVYNDEV = XNDEV * YNDEV
+    E2 = muladd(-ZNDEV, ZNDEV, XNDEVYNDEV)
+    E3 = XNDEVYNDEV * ZNDEV
+    S = 1 + muladd(E2, muladd(-C2, E3, muladd(C1, E2, -T(1 / 10))), C3 * E3)
+    ans = S / _sqrt(MU)
+
+    YNDEVZNDEVJ = YNDEVJ * ZNDEVJ
+    EAJ = muladd(XNDEVJ, (YNDEVJ + ZNDEVJ), YNDEVZNDEVJ)
+    EBJ = XNDEVJ * YNDEVZNDEVJ
+    ECJ = PNDEVJ * PNDEVJ
+    E2J = EAJ - 3 * ECJ
+    E3J = EBJ + 2 * PNDEVJ * (EAJ - ECJ)
+    S1J = 1 + E2J * (-C1J + 3C3J / 4 * E2J - 3C4J / 2 * E3J)
+    S2J = EBJ * (C2J / 2 + PNDEVJ * (-C3J - C3J + PNDEVJ * C4J))
+    S3J = PNDEVJ * EAJ * (C2J - PNDEVJ * C3J) - C2J * PNDEVJ * ECJ
+    ansJ = 3SIGMA + POWER4 * (S1J + S2J + S3J) / (MUJ * _sqrt(MUJ))
+
+
+    return (ans, 0, ansJ, IER)
+end
+
 
 #end # module

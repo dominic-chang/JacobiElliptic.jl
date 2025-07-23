@@ -154,8 +154,8 @@ function _Pi(n::A, sinphi::B, m::C) where {A,B,C}
     sinphi2 = sinphi^2
     cosphi2 = 1 - sinphi2
     y = 1 - m * sinphi2
-    drf, ierr1 = DRF(cosphi2, y, _one(T))
-    drj, ierr2 = DRJ(cosphi2, y, _one(T), 1 - n * sinphi2)
+    drf,ierr1, drj, ierr2 = DRFJ(cosphi2, y, _one(T), 1 - n * sinphi2)
+
     if ierr1 == 0 && ierr2 == 0
         return sinphi * (drf + n * sinphi2 * drj / 3)
     elseif ierr1 == 2 && ierr2 == 2
