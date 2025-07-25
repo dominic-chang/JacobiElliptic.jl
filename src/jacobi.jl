@@ -24,7 +24,7 @@ function _am(u::A, m::B, tol::C) where {A,B,C}
     ]
     u == 0 && return zero(T)
 
-    sqrt_tol = sqrt(tol)
+    sqrt_tol = _sqrt(tol)
     if m < sqrt_tol
         # A&S 16.13.4
         return u - m * (u - sin(2 * u) / 2) / 4
@@ -36,10 +36,10 @@ function _am(u::A, m::B, tol::C) where {A,B,C}
         return asin(t) + m1 * (t - u * (1 - t^2)) * cosh(u) / 4
     end
 
-    a, b, c, n = 1, sqrt(m1), sqrt(m), 0
+    a, b, c, n = 1, _sqrt(m1), _sqrt(m), 0
     while abs(c) > tol
         @assert n < 10
-        a, b, c, n = ((a + b) / 2, sqrt(a * b), (a - b) / 2, n + 1)
+        a, b, c, n = ((a + b) / 2, _sqrt(a * b), (a - b) / 2, n + 1)
         @inbounds _ambuf[n] = c / a
     end
 
@@ -71,22 +71,22 @@ function am(u::A, m::B) where {A,B}
     if m < 0
         mu1 = inv(1 - m)
         mu = -m * mu1
-        sqrtmu1 = sqrt(mu1)
+        sqrtmu1 = _sqrt(mu1)
         v = u / sqrtmu1
         phi = _am(v, mu)
         s = sin(phi)
         t = floor((phi + A(π / 2)) / A(π))
 
-        return t * π + ((-1)^t) * asin(sqrtmu1 * s / sqrt(1 - mu * s^2))
+        return t * π + ((-1)^t) * asin(sqrtmu1 * s / _sqrt(1 - mu * s^2))
     end
     return am(u, m, eps(T))
 end
 #am(u::Real, m::Real) = am(Float64(u), Float64(m))
 
 for (f, a, b, c) in (
-    (:sn, :(sin(phi)), :(sqrtmu1 * s), :(sqrt(mu) * sin(phi))),
-    (:cn, :(cos(phi)), :(cos(phi)), :(sqrt(1 - mu * sin(phi)^2))),
-    (:dn, :(sqrt(1 - m * sin(phi)^2)), :(1), :(cos(phi))),
+    (:sn, :(sin(phi)), :(sqrtmu1 * s), :(_sqrt(mu) * sin(phi))),
+    (:cn, :(cos(phi)), :(cos(phi)), :(_sqrt(1 - mu * sin(phi)^2))),
+    (:dn, :(_sqrt(1 - m * sin(phi)^2)), :(1), :(cos(phi))),
 )
     @eval begin
         function ($f)(u::A, m::B) where {A,B}
@@ -100,14 +100,14 @@ for (f, a, b, c) in (
             elseif lt0
                 mu1 = inv(1 - m)
                 mu = -m * mu1
-                sqrtmu1 = sqrt(mu1)
+                sqrtmu1 = _sqrt(mu1)
                 v = u / sqrtmu1
                 phi = _am(v, mu)
                 s = sin(phi)
-                return ($b) / sqrt(1 - mu * s^2)
+                return ($b) / _sqrt(1 - mu * s^2)
             elseif gt1
                 mu = inv(m)
-                v = u * sqrt(m)
+                v = u * _sqrt(m)
                 phi = _am(v, mu)
                 return $c
             end

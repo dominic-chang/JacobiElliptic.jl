@@ -5,6 +5,11 @@ export E, F, K, Pi
 # matlab compatible
 export ellipj, ellipke
 
+@inline function _sqrt(x::Union{Float32,Float64})
+    return Core.Intrinsics.sqrt_llvm(x)
+end
+
+
 include("jacobi.jl")
 include("slatec.jl")
 
@@ -38,7 +43,7 @@ function F(φ::A, m::B) where {A,B}
     T = promote_type(A, B)
     if m > 1
         ## Abramowitz & Stegum*(17.4.15)
-        m12 = sqrt(m)
+        m12 = _sqrt(m)
         theta = asin(m12 * sin(φ))
         signθ = sign(theta)
         absθ = abs(theta)
@@ -46,7 +51,7 @@ function F(φ::A, m::B) where {A,B}
     elseif m < 0
         # Abramowitz & Stegum*(17.4.17)
         n = -m
-        m12 = inv(sqrt(1 + n))
+        m12 = inv(_sqrt(1 + n))
         m1m = n / (1 + n)
         newφ = T(π / 2) - φ
         signφ = sign(newφ)
@@ -87,7 +92,7 @@ function _E(sinphi::A, m::B) where {A,B}
     T = promote_type(A, B)
     if m > one(T)
         minv = inv(m)
-        m12 = √m
+        m12 = _sqrt(m)
         sinalpha = m12 * sinphi
         sinalpha2 = sinalpha^2
         cosalpha2 = one(T) - sinalpha2
@@ -179,13 +184,13 @@ end
 function FukushimaT(t::A, h::B) where {A,B}
     T = promote_type(A, B)
     if h > zero(T)
-        return atan(t * √h) / √(h)
+        return atan(t * _sqrt(h)) / _sqrt(h)
     elseif h == zero(T)
         return t
     else
-        arg = t * √(-h)
+        arg = t * _sqrt(-h)
         ans = abs(arg) < one(T) ? atanh(arg) : custom_atanh(arg)
-        return ans / √(-h)
+        return ans / _sqrt(-h)
     end
 end
 
@@ -196,11 +201,11 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
         mc = one(T) - m
         imc = inv(mc)
         mN = -m * imc
-        φN = asin(sqrt(mc / (one(T) − m * sin(φ)^2)) * sin(φ))
+        φN = asin(_sqrt(mc / (one(T) − m * sin(φ)^2)) * sin(φ))
 
         nN = (n - m) * imc
 
-        return sqrt(imc) / nN * (mN * F(φN, mN) + imc * n * Pi(nN, φN, mN))
+        return _sqrt(imc) / nN * (mN * F(φN, mN) + imc * n * Pi(nN, φN, mN))
     end # https://link.springer.com/book/10.1007/978-3-642-65138-0 117.01
     if n > one(T)
         nc = one(T) - n
@@ -231,8 +236,8 @@ function Pi(n::A, m::B) where {A,B}
     T = promote_type(A, B)
     n > one(T) && return K(m) - Pi(m / n, m)
     n == zero(T) && return K(m)
-    m == zero(T) || m == one(T) && return T(Inf) #atanh(√(-1 + n)*tan(θ))/√(-1 + n)
-    kc = √(one(T) - m)
+    m == zero(T) || m == one(T) && return T(Inf) #atanh(_sqrt(-1 + n)*tan(θ))/_sqrt(-1 + n)
+    kc = _sqrt(one(T) - m)
     nc = one(T) - n
     return cel(kc, nc, one(T), one(T))
 end
@@ -250,7 +255,7 @@ function cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
 
     f, g, q = T(0), T(0), T(0)
     if p > T(0)
-        p = √p
+        p = _sqrt(p)
         b = b / p
     else
         f = kc^2
@@ -258,27 +263,26 @@ function cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
         g = one(T) - p
         f = f - p
         q = (b - a * p) * q
-        p = √(f / g)
+        p = _sqrt(f / g)
         a = (a - b) / g
         b = -q * (g^2 * p) + a * p
     end
     while true
         f = a
-        a = b / p + a
-        g = e / p
-        b = f * g + b
-        b = b + b
+        invp = inv(p)
+        a = muladd(invp, b, a)
+        g = e * invp
+        b = 2 * muladd(f, g, b)
         p = g + p
         g = m
         m = kc + m
         if abs(g - kc) < g * ca
             break
         end
-        kc = √e
-        kc = kc + kc
+        kc = 2 * _sqrt(e)
         e = kc * m
     end
-    return T(π / 2) * (a * m + b) / (m * (m + p))
+    return T(π / 2) * muladd(a, m, b) / (m * (m + p))
 end
 
 
@@ -288,7 +292,7 @@ function ellipj(u::A, m::B, tol::C) where {A,B,C}
     phi = am(u, m, tol)
     s = sin(phi)
     c = cos(phi)
-    d = sqrt(1 - m * s^2)
+    d = _sqrt(1 - m * s^2)
     return (s, c, d)
 end
 

@@ -2,10 +2,6 @@
 
 export DRC, DRD, DRF, DRJ
 
-@inline function _sqrt(x::Union{Float32,Float64})
-    return Core.Intrinsics.sqrt_llvm(x)
-end
-
 #***BEGIN PROLOGUE  DRF
 #***PURPOSE  Compute the incomplete or complete elliptic integral of the
 #            1st kind.  For X, Y, and Z non-negative and at most one of
