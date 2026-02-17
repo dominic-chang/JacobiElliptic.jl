@@ -6,6 +6,7 @@ version = "0.3.7"
 [deps]
 DocStringExtensions = "ffbed154-4ef7-542d-bbb7-c09d3a79fcae"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
+Reactant = "3c362404-f566-11ee-1572-e11a4b42c853"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 
 [weakdeps]

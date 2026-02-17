@@ -2,6 +2,54 @@
 
 export DRC, DRD, DRF, DRJ
 
+function DRF_whilebody_ifbody(XN, YN, ZN)
+
+    XNROOT = _sqrt(XN)
+    YNROOT = _sqrt(YN)
+    ZNROOT = _sqrt(ZN)
+    YNROOTZNROOT = YNROOT * ZNROOT
+    LAMDA = muladd(XNROOT, (YNROOT + ZNROOT), YNROOTZNROOT)
+    return (XN + LAMDA) / 4, (YN + LAMDA) / 4, (ZN + LAMDA) / 4
+end
+
+function DRF_whilebody(XN, YN, ZN, ERRTOL) 
+
+    MU = (XN + YN + ZN) / 3
+    ninvMU = -1 / MU
+    XNDEV = muladd(ninvMU, (MU + XN), 2)
+    YNDEV = muladd(ninvMU, (MU + YN), 2)
+    ZNDEV = muladd(ninvMU, (MU + ZN), 2)
+    EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV))
+    XN, YN, ZN = Base.ifelse(EPSLON >= ERRTOL, DRF_whilebody_ifbody(XN, YN, ZN), (XN, YN, ZN))
+
+    return (XN, YN, ZN, XNDEV, YNDEV, ZNDEV, MU, (EPSLON >= ERRTOL))
+end
+
+function DRF_ifbody(X::A, Y::B, Z::C, ERRTOL::D) where {A, B, C, D}
+        T = promote_type(A, B, C, D)
+        C1 = T(1 / 24)
+        C2 = T(3 / 44)
+        C3 = T(1 / 14)
+
+        XN = X
+        YN = Y
+        ZN = Z
+        MU = zero(T)
+        XNDEV = zero(T)
+        YNDEV = zero(T)
+        ZNDEV = zero(T)
+        CONTINUE = true 
+
+        @trace while CONTINUE 
+            XN, YN, ZN, XNDEV, YNDEV, ZNDEV, MU, CONTINUE = DRF_whilebody(XN, YN, ZN, ERRTOL)
+        end
+        XNDEVYNDEV = XNDEV * YNDEV
+        E2 = muladd(-ZNDEV, ZNDEV, XNDEVYNDEV)
+        E3 = XNDEVYNDEV * ZNDEV
+        S = 1 + muladd(E2, muladd(-C2, E3, muladd(C1, E2, -T(1 / 10))), C3 * E3)
+        return S / _sqrt(MU)
+end
+
 #***BEGIN PROLOGUE  DRF
 #***PURPOSE  Compute the incomplete or complete elliptic integral of the
 #            1st kind.  For X, Y, and Z non-negative and at most one of
@@ -33,47 +81,20 @@ function DRF(X::A, Y::B, Z::C) where {A,B,C}
     ERRTOL = (4 * eps(T) / 2)^T(1 / 6)
     LOLIM = 5floatmin(T)
     UPLIM = floatmax(T) / 5
-    C1 = T(1 / 24)
-    C2 = T(3 / 44)
-    C3 = T(1 / 14)
-
+    
     ans = zero(T)
-    min(X, Y, Z) < zero(T) && return (ans, 1)
-    max(X, Y, Z) > UPLIM && return (ans, 3)
-    min(X + Y, X + Z, Y + Z) < LOLIM && return (ans, 2)
+    ierr = 0
+    ans, ierr = Base.ifelse(min(X, Y, Z) < zero(T), (ans, 1),
+        Base.ifelse(max(X, Y, Z) > UPLIM, (ans, 3),
+            Base.ifelse(min(X + Y, X + Z, Y + Z) < LOLIM, (ans, 2),
+                (zero(T), 0)
+            )
+        )
+    )
 
-    XN = X
-    YN = Y
-    ZN = Z
-    MU = 0
-    XNDEV = 0
-    YNDEV = 0
-    ZNDEV = 0
+    ans = Base.ifelse(ierr == 0, DRF_ifbody(X, Y, Z, ERRTOL), ans)
 
-    while true
-        MU = (XN + YN + ZN) / 3
-        ninvMU = -1 / MU
-        XNDEV = muladd(ninvMU, (MU + XN), 2)
-        YNDEV = muladd(ninvMU, (MU + YN), 2)
-        ZNDEV = muladd(ninvMU, (MU + ZN), 2)
-        EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV))
-        (EPSLON < ERRTOL) && break
-        XNROOT = _sqrt(XN)
-        YNROOT = _sqrt(YN)
-        ZNROOT = _sqrt(ZN)
-        YNROOTZNROOT = YNROOT * ZNROOT
-        LAMDA = muladd(XNROOT, (YNROOT + ZNROOT), YNROOTZNROOT)
-        XN = (XN + LAMDA) / 4
-        YN = (YN + LAMDA) / 4
-        ZN = (ZN + LAMDA) / 4
-    end
-    XNDEVYNDEV = XNDEV * YNDEV
-    E2 = muladd(-ZNDEV, ZNDEV, XNDEVYNDEV)
-    E3 = XNDEVYNDEV * ZNDEV
-    S = 1 + muladd(E2, muladd(-C2, E3, muladd(C1, E2, -T(1 / 10))), C3 * E3)
-    ans = S / _sqrt(MU)
-
-    return (ans, 0)
+    return (ans, ierr)
 end
 
 #***BEGIN PROLOGUE  DRD

@@ -1,14 +1,25 @@
 module CarlsonAlg
+using Reactant
 # elliptic integrals of 1st/2nd/3rd kind
 export E, F, K, Pi
 
 # matlab compatible
 export ellipj, ellipke
 
+@inline function _sqrt(x::Reactant.TracedRNumber)
+	return sqrt(x)
+end
+
 @inline function _sqrt(x::Union{Float32,Float64})
     return Core.Intrinsics.sqrt_llvm(x)
 end
+function Base.floatmin(::Type{Reactant.TracedRNumber{T}}) where {T}
+	return floatmin(T)
+end
 
+function Base.floatmax(::Type{Reactant.TracedRNumber{T}}) where {T}
+	return floatmax(T)
+end
 
 include("jacobi.jl")
 include("slatec.jl")
@@ -64,17 +75,19 @@ function F(φ::A, m::B) where {A,B}
 end
 
 function K(m::T) where {T}
-    if m < 1
-        drf, ierr = DRF(_zero(T), 1 - m, _one(T))
-        @assert ierr == 0
-        return drf
-    elseif m == 1
-        return T(Inf)
-    elseif isnan(m)
-        return T(NaN)
-    else
-        throw(DomainError("argument m not <= 1"))
-    end
+    drf, ierr = Base.ifelse( m < 1, 
+		DRF(_zero(T), 1 - m, _one(T)), 
+		Base.ifelse(m == 1, 
+			(T(Inf), 0), Base.ifelse(isnan(m), 
+				(T(NaN), 0), 
+				(T(NaN), 4)
+			)
+		)
+	)
+	if ierr isa Int
+		@assert ierr == 0
+	end
+	return drf
 end
 
 function E(phi::A, m::B) where {A,B}
