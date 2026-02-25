@@ -84,9 +84,12 @@ function DRF(X::A, Y::B, Z::C) where {A,B,C}
     
     ans = zero(T)
     ierr = 0
-    ans, ierr = Base.ifelse(min(X, Y, Z) < zero(T), (ans, 1),
-        Base.ifelse(max(X, Y, Z) > UPLIM, (ans, 3),
-            Base.ifelse(min(X + Y, X + Z, Y + Z) < LOLIM, (ans, 2),
+    ans, ierr = Base.ifelse(min(X, Y, Z) < zero(T), 
+        (ans, 1),
+        Base.ifelse(max(X, Y, Z) > UPLIM, 
+            (ans, 3),
+            Base.ifelse(min(X + Y, X + Z, Y + Z) < LOLIM, 
+                (ans, 2),
                 (zero(T), 0)
             )
         )

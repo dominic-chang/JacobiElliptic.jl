@@ -13,13 +13,6 @@ end
 @inline function _sqrt(x::Union{Float32,Float64})
     return Core.Intrinsics.sqrt_llvm(x)
 end
-function Base.floatmin(::Type{Reactant.TracedRNumber{T}}) where {T}
-	return floatmin(T)
-end
-
-function Base.floatmax(::Type{Reactant.TracedRNumber{T}}) where {T}
-	return floatmax(T)
-end
 
 include("jacobi.jl")
 include("slatec.jl")
@@ -30,48 +23,71 @@ _one(T) = one(T)
 # assumes 0 ≤ m ≤ 1
 function rawF(sinphi::A, m::B) where {A,B}
     T = promote_type(A, B)
-    (abs(sinphi) == one(T) && m == one(T)) && return sign(sinphi) * T(Inf)
-    sinphi2 = sinphi^2
-    drf, ierr = DRF(_one(T) - sinphi2, _one(T) - m * sinphi2, _one(T))
-    @assert ierr == 0
-    sinphi * drf
+    cond = (abs(sinphi) == one(T)) & (m == one(T))  
+
+    res = sinphi
+    @trace if cond
+        res = sign(sinphi) * T(Inf)
+        nothing
+    else
+        sinphi2 = sinphi^2
+        drf, ierr = DRF(_one(T) - sinphi2, _one(T) - m * sinphi2, _one(T))
+        @assert ierr == 0
+        res = sinphi * drf
+        nothing
+    end
+    return res
 end
 
 function _F(phi::A, m::B) where {A,B}
     T = promote_type(A, B)
-
-    (isnan(phi) || isnan(m)) && return T(NaN)
+    res2 = phi
+    
+    @trace if (isnan(phi) | isnan(m))
+         res2 = T(Base.NaN)
+         nothing
     #(m < 0 || m > 1) && throw(DomainError(m, "argument m not in [0,1]"))
-    if abs(phi) > T(π / 2)
+    elseif abs(phi) > Base.π / 2
         # Abramowitz & Stegun (17.4.3)
-        phi2 = phi + T(π / 2)
-        return 2 * fld(phi2, T(π)) * K(m) - rawF(cos(mod(phi2, T(π))), m)
+        phi2 = phi + Base.π / 2
+        res2 = 2 * fld(phi2, 0 * phi2 + Base.π) * K(m) - rawF(cos(mod(phi2, 0 * phi2 + Base.π)), m)
+        nothing
+    else
+        res2 = rawF(sin(phi), m)
+        nothing
     end
-    return rawF(sin(phi), m)
+    return res2
 end
 
 function F(φ::A, m::B) where {A,B}
     T = promote_type(A, B)
-    if m > 1
+    res3 = m
+    @trace if m > 1
         ## Abramowitz & Stegum*(17.4.15)
         m12 = _sqrt(m)
         theta = asin(m12 * sin(φ))
         signθ = sign(theta)
         absθ = abs(theta)
-        return signθ / m12 * _F(absθ, inv(m))
+        res3 = signθ / m12 * _F(absθ, inv(m))
+        nothing
     elseif m < 0
         # Abramowitz & Stegum*(17.4.17)
         n = -m
         m12 = inv(_sqrt(1 + n))
         m1m = n / (1 + n)
-        newφ = T(π / 2) - φ
+        newφ = Base.π / 2 - φ
         signφ = sign(newφ)
         absφ = abs(newφ)
-        return (m12 * K(m1m) - signφ * m12 * _F(absφ, m1m))
+        res3 = (m12 * K(m1m) - signφ * m12 * _F(absφ, m1m))
+        nothing
+    else
+        absφ = abs(φ)
+        signφ = sign(φ)
+        res3 = signφ * _F(absφ, m)
+        nothing
     end
-    absφ = abs(φ)
-    signφ = sign(φ)
-    return signφ * _F(absφ, m)
+    
+    return res3
 end
 
 function K(m::T) where {T}
