@@ -95,8 +95,11 @@ end
 # Elliptic Pi(n, m)
 #----------------------------------------------------------------------------------------
 function ∂Pi_∂n(n, m)
-    if (n == zero(n))
-        return zero(n)
+    if iszero(n)
+        if iszero(m)
+            return π / 4
+        end
+        return (JacobiElliptic.CarlsonAlg.K(m) - JacobiElliptic.CarlsonAlg.E(m)) / m
     else
         return (
             JacobiElliptic.CarlsonAlg.E(m) +
@@ -330,7 +333,7 @@ end
 # Elliptic E(ϕ, m)
 #----------------------------------------------------------------------------------------
 function ∂E_∂m(ϕ, m)
-    return iszero(m) ? -π / 8 :
+    return iszero(m) ? (sin(2 * ϕ) - 2 * ϕ) / 8 :
            (JacobiElliptic.CarlsonAlg.E(ϕ, m) - JacobiElliptic.CarlsonAlg.F(ϕ, m)) / (2m)
 end
 
@@ -445,8 +448,13 @@ end
 # Elliptic Pi(n, ϕ, m)
 #----------------------------------------------------------------------------------------
 function ∂Pi_∂n(n, ϕ, m)
-    if (n == zero(n))
-        return zero(n)
+    if iszero(n)
+        if iszero(m)
+            return (2 * ϕ - sin(2 * ϕ)) / 4
+        end
+        return (
+            JacobiElliptic.CarlsonAlg.F(ϕ, m) - JacobiElliptic.CarlsonAlg.E(ϕ, m)
+        ) / m
     else
         return (
             JacobiElliptic.CarlsonAlg.E(ϕ, m) +
