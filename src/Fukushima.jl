@@ -2331,6 +2331,7 @@ Returns the incomplete elliptic integral of the third kind.
 """
 function Pi(n::A, φ::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
+
     (isnan(n) || isnan(φ) || isnan(m)) && return T(NaN)
 
     if m < 0 # Imaginary modulus transformation https://dlmf.nist.gov/19.7#iii
@@ -2349,9 +2350,18 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
         h1 = nc * (n − m) / n
         n1 = m / n
         return (FukushimaT(t1, h1) - n1 * J(n1, φ, m))
+    elseif n == 1
+        φ == T(π/2) && return T(Inf)
+        if m == 1
+            return 1/2*(log(sec(φ)*(1 + sin(φ))) + sec(φ)*tan(φ))
+        else
+            return F(φ, m) + (-E(φ, m) + sqrt(1 - m*sin(φ)^2)*tan(φ))/(1 - m)
+        end
+    elseif n == 0
+        return F(φ, m)
     end
 
-    φ == T(π/2) && n == 1 && return T(Inf)
+
     return n * J(n, φ, m) + F(φ, m)
 end
 

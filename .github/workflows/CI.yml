@@ -7,11 +7,18 @@ on:
     tags: '*'
 jobs:
   code-style-julia:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix: 
+        version: ['1.10']
+        os: [ubuntu-latest]
+        arch: [x64]
+        allow_failure: [false]
     steps:
       - uses: julia-actions/julia-format@v4
         with:
-          version: '1'
+          version: '2'
 
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
