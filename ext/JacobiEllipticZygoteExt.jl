@@ -18,7 +18,7 @@ using Zygote: @adjoint
     c̄ ->
         (
             c̄ * (sqrt(1 - b * sin(a)^2)),
-            c̄ * (iszero(b) ? -π / 8 :
+            c̄ * (iszero(b) ? (sin(2 * a) - 2 * a) / 8 :
             (JacobiElliptic.CarlsonAlg.E(a, b) - JacobiElliptic.CarlsonAlg.F(a, b)) / (2b)),
         )
 )
