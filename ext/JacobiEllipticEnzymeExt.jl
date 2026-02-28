@@ -452,9 +452,7 @@ function ∂Pi_∂n(n, ϕ, m)
         if iszero(m)
             return (2 * ϕ - sin(2 * ϕ)) / 4
         end
-        return (
-            JacobiElliptic.CarlsonAlg.F(ϕ, m) - JacobiElliptic.CarlsonAlg.E(ϕ, m)
-        ) / m
+        return (JacobiElliptic.CarlsonAlg.F(ϕ, m) - JacobiElliptic.CarlsonAlg.E(ϕ, m)) / m
     else
         return (
             JacobiElliptic.CarlsonAlg.E(ϕ, m) +
