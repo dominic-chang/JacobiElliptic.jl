@@ -59,7 +59,7 @@ function JacobiElliptic.CarlsonAlg.E(
     yval = y.value
 
     ∂yE =
-        iszero(yval) ? -π / 8 :
+        iszero(yval) ? (sin(2xval) - 2xval) / 8 :
         (
             JacobiElliptic.CarlsonAlg.E(xval, yval) -
             JacobiElliptic.CarlsonAlg.F(xval, yval)
@@ -67,6 +67,50 @@ function JacobiElliptic.CarlsonAlg.E(
     ForwardDiff.Dual{T}(
         JacobiElliptic.CarlsonAlg.E(xval, yval),
         ForwardDiff.Partials(((sqrt(1 - yval * sin(xval)^2)) .* x.partials[1], ∂yE * y.partials[2],))
+    )
+end
+
+#----------------------------------------------------------------------------------------
+# Fukushima incomplete Elliptic E(ϕ, m)
+#----------------------------------------------------------------------------------------
+function JacobiElliptic.FukushimaAlg.E(x::ForwardDiff.Dual{T}, y::U) where {T,U}
+    xval = x.value
+
+    ForwardDiff.Dual{T}(
+        JacobiElliptic.FukushimaAlg.E(xval, y),
+        sqrt(1 - y * sin(xval)^2) * x.partials,
+    )
+end
+
+function JacobiElliptic.FukushimaAlg.E(x::U, y::ForwardDiff.Dual{T}) where {T,U}
+    yval = y.value
+    ∂yE =
+        iszero(yval) ? (sin(2x) - 2x) / 8 :
+        (
+            JacobiElliptic.FukushimaAlg.E(x, yval) -
+            JacobiElliptic.FukushimaAlg.F(x, yval)
+        ) / (2yval)
+
+    ForwardDiff.Dual{T}(JacobiElliptic.FukushimaAlg.E(x, yval), ∂yE * y.partials)
+end
+
+function JacobiElliptic.FukushimaAlg.E(
+    x::ForwardDiff.Dual{T},
+    y::ForwardDiff.Dual{T},
+) where {T}
+    xval = x.value
+    yval = y.value
+    ∂xE = sqrt(1 - yval * sin(xval)^2)
+    ∂yE =
+        iszero(yval) ? (sin(2xval) - 2xval) / 8 :
+        (
+            JacobiElliptic.FukushimaAlg.E(xval, yval) -
+            JacobiElliptic.FukushimaAlg.F(xval, yval)
+        ) / (2yval)
+
+    ForwardDiff.Dual{T}(
+        JacobiElliptic.FukushimaAlg.E(xval, yval),
+        ∂xE * x.partials + ∂yE * y.partials,
     )
 end
 

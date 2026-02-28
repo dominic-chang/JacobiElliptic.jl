@@ -721,5 +721,3 @@ end
     end
 end
 
-include("jacobi_tests.jl")
-include("autodiff.jl")
