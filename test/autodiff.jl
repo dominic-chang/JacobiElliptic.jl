@@ -253,21 +253,21 @@ using SpecialFunctions
                 _cn = JacobiElliptic.cn
 
                 # 10. ∂ϕ(cn(ϕ, m)) == -dn(ϕ, m)*sn(ϕ, m)
-                grad = -dn(ϕ, m) * sn(ϕ, m)
-                @test Zygote.gradient(ϕ -> _cn(ϕ, m), ϕ)[1] ≈ grad atol = 1e-5
-                @test ForwardDiff.derivative(ϕ -> _cn(ϕ, m), ϕ) ≈ grad atol = 1e-5
+                grad1 = -dn(ϕ, m) * sn(ϕ, m)
+                @test Zygote.gradient(ϕ -> _cn(ϕ, m), ϕ)[1] ≈ grad1 atol = 1e-5
+                @test ForwardDiff.derivative(ϕ -> _cn(ϕ, m), ϕ) ≈ grad1 atol = 1e-5
                 @test Enzyme.autodiff(Reverse, _cn, Active, Active(ϕ), Const(m))[1][1] ≈
-                      grad atol = 1e-5
+                      grad1 atol = 1e-5
                 @test Enzyme.autodiff(
                     Forward,
                     _cn,
                     Duplicated,
                     Duplicated(ϕ, 1.0),
                     Const(m),
-                )[1][1] ≈ grad atol = 1e-5
+                )[1][1] ≈ grad1 atol = 1e-5
 
                 # 11. ∂m(cn(ϕ, m)) == 1/(2m*(1-m))*dn(ϕ, m)*sn(ϕ, m)*((m-1)*ϕ+ϵ(ϕ,m)-m*cd(ϕ, m)*sn(ϕ, m))
-                grad =
+                grad2 =
                     1 / (2m * (1 - m)) *
                     dn(ϕ, m) *
                     sn(ϕ, m) *
@@ -275,38 +275,63 @@ using SpecialFunctions
                         (m - 1) * ϕ + alg.E(am(ϕ, m), m) -
                         m * JacobiElliptic.cd(ϕ, m) * sn(ϕ, m)
                     )
-                @test Zygote.gradient(m -> _cn(ϕ, m), m)[1] ≈ grad atol = 1e-5
-                @test ForwardDiff.derivative(m -> _cn(ϕ, m), m) ≈ grad atol = 1e-5
+                @test Zygote.gradient(m -> _cn(ϕ, m), m)[1] ≈ grad2 atol = 1e-5
+                @test ForwardDiff.derivative(m -> _cn(ϕ, m), m) ≈ grad2 atol = 1e-5
                 @test Enzyme.autodiff(Reverse, _cn, Active, Const(ϕ), Active(m))[1][2] ≈
-                      grad atol = 1e-5
+                      grad2 atol = 1e-5
                 @test Enzyme.autodiff(
                     Forward,
                     _cn,
                     Duplicated,
                     Const(ϕ),
                     Duplicated(m, 1.0),
-                )[1][1] ≈ grad atol = 1e-5
+                )[1][1] ≈ grad2 atol = 1e-5
+
+                @test ForwardDiff.gradient(x -> _cn(x[1], x[2]), [ϕ, m]) ≈ [grad1, grad2] atol =
+                    1e-5
+
+                g1 = ((ϕ, m)->-dn(ϕ, m) * sn(ϕ, m))(0.5, 0.5)
+                g2 = (
+                    (
+                        ϕ,
+                        m,
+                    )->(
+                        1 / (2m * (1 - m)) *
+                        dn(ϕ, m) *
+                        sn(ϕ, m) *
+                        (
+                            (m - 1) * ϕ + alg.E(am(ϕ, m), m) -
+                            m * JacobiElliptic.cd(ϕ, m) * sn(ϕ, m)
+                        )
+                    )
+                )(
+                    0.5,
+                    0.5,
+                )
+
+                @test ForwardDiff.derivative(x -> JacobiElliptic.CarlsonAlg.cn(x, x), 0.5) ≈
+                      g1 + g2 atol = 1e-5
             end
 
             @testset "SN" begin
                 _sn = JacobiElliptic.sn
 
                 # 12. ∂ϕ(sn(ϕ, m)) == dn(ϕ, m)*cn(ϕ, m)
-                grad = dn(ϕ, m) * cn(ϕ, m)
-                @test Zygote.gradient(ϕ -> _sn(ϕ, m), ϕ)[1] ≈ grad atol = 1e-5
-                @test ForwardDiff.derivative(ϕ -> _sn(ϕ, m), ϕ) ≈ grad atol = 1e-5
+                grad1 = dn(ϕ, m) * cn(ϕ, m)
+                @test Zygote.gradient(ϕ -> _sn(ϕ, m), ϕ)[1] ≈ grad1 atol = 1e-5
+                @test ForwardDiff.derivative(ϕ -> _sn(ϕ, m), ϕ) ≈ grad1 atol = 1e-5
                 @test Enzyme.autodiff(Reverse, _sn, Active, Active(ϕ), Const(m))[1][1] ≈
-                      grad atol = 1e-5
+                      grad1 atol = 1e-5
                 @test Enzyme.autodiff(
                     Forward,
                     _sn,
                     Duplicated,
                     Duplicated(ϕ, 1.0),
                     Const(m),
-                )[1][1] ≈ grad atol = 1e-5
+                )[1][1] ≈ grad1 atol = 1e-5
 
                 # 13. ∂m(sn(ϕ, m)) == 1/(2m*(1-m))*dn(ϕ, m)*cn(ϕ, m)*((1-m)*ϕ-ϵ(ϕ,m)+m*cd(ϕ, m)*sn(ϕ, m))
-                grad =
+                grad2 =
                     1 / (2m * (1 - m)) *
                     dn(ϕ, m) *
                     cn(ϕ, m) *
@@ -314,17 +339,42 @@ using SpecialFunctions
                         (1 - m) * ϕ - alg.E(am(ϕ, m), m) +
                         m * JacobiElliptic.cd(ϕ, m) * sn(ϕ, m)
                     )
-                @test Zygote.gradient(m -> _sn(ϕ, m), m)[1] ≈ grad atol = 1e-5
-                @test ForwardDiff.derivative(m -> _sn(ϕ, m), m) ≈ grad atol = 1e-5
+                @test Zygote.gradient(m -> _sn(ϕ, m), m)[1] ≈ grad2 atol = 1e-5
+                @test ForwardDiff.derivative(m -> _sn(ϕ, m), m) ≈ grad2 atol = 1e-5
                 @test Enzyme.autodiff(Reverse, _sn, Active, Const(ϕ), Active(m))[1][2] ≈
-                      grad atol = 1e-5
+                      grad2 atol = 1e-5
                 @test Enzyme.autodiff(
                     Forward,
                     _sn,
                     Duplicated,
                     Const(ϕ),
                     Duplicated(m, 1.0),
-                )[1][1] ≈ grad atol = 1e-5
+                )[1][1] ≈ grad2 atol = 1e-5
+
+                @test ForwardDiff.gradient(x -> _sn(x[1], x[2]), [ϕ, m]) ≈
+                      [grad1, Float32(grad2)] atol = 1e-5
+
+                g1 = ((ϕ, m)->dn(ϕ, m) * cn(ϕ, m))(0.5, 0.5)
+                g2 = (
+                    (
+                        ϕ,
+                        m,
+                    )->(
+                        1 / (2m * (1 - m)) *
+                        dn(ϕ, m) *
+                        cn(ϕ, m) *
+                        (
+                            (1 - m) * ϕ - alg.E(am(ϕ, m), m) +
+                            m * JacobiElliptic.cd(ϕ, m) * sn(ϕ, m)
+                        )
+                    )
+                )(
+                    0.5,
+                    0.5,
+                )
+
+                @test ForwardDiff.derivative(x -> JacobiElliptic.CarlsonAlg.sn(x, x), 0.5) ≈
+                      g1 + g2 atol = 1e-5
             end
 
         end
