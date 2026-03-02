@@ -137,7 +137,10 @@ function JacobiElliptic.CarlsonAlg.cn(x::U, y::ForwardDiff.Dual{T}) where {T,U}
     ForwardDiff.Dual{T}(fval, ∂yf * y.partials)
 end
 
-function JacobiElliptic.cn(x::ForwardDiff.Dual{T}, y::ForwardDiff.Dual{T}) where {T}
+function JacobiElliptic.CarlsonAlg.cn(
+    x::ForwardDiff.Dual{T},
+    y::ForwardDiff.Dual{T},
+) where {T}
     xval = ForwardDiff.value(x)
     yval = ForwardDiff.value(y)
 
