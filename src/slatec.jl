@@ -351,7 +351,7 @@ end
     C3J = T(3 / 22)
     C4J = T(3 / 26)
 
-    
+
     XN = X
     YN = Y
     ZN = Z
@@ -383,7 +383,7 @@ end
             EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV))
             fflag = EPSLON ≥ ERRTOL
         end
-        
+
         if jflag
             MUJ = 2(XNYNZN + 2PN) / 10
             invMUJ = inv(MUJ)
@@ -392,7 +392,7 @@ end
             ZNDEVJ = (MUJ - ZN) * invMUJ
             PNDEVJ = (MUJ - PN) * invMUJ
             EPSLONJ = max(abs(XNDEVJ), abs(YNDEVJ), abs(ZNDEVJ), abs(PNDEVJ))
-            jflag = EPSLONJ ≥ ERRTOLJ 
+            jflag = EPSLONJ ≥ ERRTOLJ
         end
         fflag || jflag || break
 

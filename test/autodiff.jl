@@ -420,11 +420,12 @@ end
                 @test ForwardDiff.derivative(ϕ -> _Pi(n, ϕ, m), ϕ) ≈ grad atol = 1e-5
 
                 # 8. ∂m(Pi(n, ϕ, m))
-                grad = (
-                    JacobiElliptic.CarlsonAlg.E(ϕ, m) / (m - 1) +
-                    JacobiElliptic.CarlsonAlg.Pi(n, ϕ, m) -
-                    m * sin(2 * ϕ) / (2 * (m - 1) * √(1 - m * sin(ϕ)^2))
-                ) / (2 * (n - m))
+                grad =
+                    (
+                        JacobiElliptic.CarlsonAlg.E(ϕ, m) / (m - 1) +
+                        JacobiElliptic.CarlsonAlg.Pi(n, ϕ, m) -
+                        m * sin(2 * ϕ) / (2 * (m - 1) * √(1 - m * sin(ϕ)^2))
+                    ) / (2 * (n - m))
                 @test ForwardDiff.derivative(m -> _Pi(n, ϕ, m), m) ≈ grad atol = 1e-5
             end
 
@@ -445,7 +446,8 @@ end
                     )
                 @test ForwardDiff.derivative(m -> _cn(ϕ, m), m) ≈ grad2 atol = 1e-5
                 # gradient 
-                @test ForwardDiff.gradient(x -> _cn(x[1], x[2]), [ϕ,m]) ≈ [grad1, grad2] atol = 1e-5
+                @test ForwardDiff.gradient(x -> _cn(x[1], x[2]), [ϕ, m]) ≈ [grad1, grad2] atol =
+                    1e-5
 
             end
 
@@ -467,7 +469,8 @@ end
                     )
                 @test ForwardDiff.derivative(m -> _sn(ϕ, m), m) ≈ grad2 atol = 1e-5
                 # gradient 
-                @test ForwardDiff.gradient(x -> _sn(x[1], x[2]), [ϕ,m]) ≈ [grad1, grad2] atol = 1e-5
+                @test ForwardDiff.gradient(x -> _sn(x[1], x[2]), [ϕ, m]) ≈ [grad1, grad2] atol =
+                    1e-5
             end
 
         end

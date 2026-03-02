@@ -2024,7 +2024,7 @@ Returns the incomplete elliptic integral of the first kind.
 - `m` : Elliptic modulus
 """
 function F(φ::A, m::B) where {A,B}
-    T = promote_type(A,B)
+    T = promote_type(A, B)
     (isnan(φ) || isnan(m)) && return T(NaN)
     if m > 1
         ## Abramowitz & Stegum*(17.4.15)
@@ -2286,7 +2286,7 @@ Returns the incomplete elliptic integral of the second kind.
 
 """
 function E(φ::A, m::B) where {A,B}
-    T = promote_type(A,B)
+    T = promote_type(A, B)
     (isnan(φ) || isnan(m)) && return T(NaN)
     return F(φ, m) - m * D(φ, m)
 end
@@ -2308,7 +2308,7 @@ Returns the complete elliptic integral of the third kind.
 - `m` : Elliptic modulus
 """
 function Pi(n::A, m::B) where {A,B}
-    T = promote_type(A,B)
+    T = promote_type(A, B)
     (isnan(n) || isnan(m)) && return T(NaN)
     n > one(T) && return K(m) - Pi(m / n, m)
     n == zero(T) && return K(m)
@@ -2330,7 +2330,8 @@ Returns the incomplete elliptic integral of the third kind.
 - `m` : Elliptic modulus
 """
 function Pi(n::A, φ::B, m::C) where {A,B,C}
-    T = promote_type(A,B,C)
+    T = promote_type(A, B, C)
+
     (isnan(n) || isnan(φ) || isnan(m)) && return T(NaN)
 
     if m < 0 # Imaginary modulus transformation https://dlmf.nist.gov/19.7#iii
@@ -2349,9 +2350,18 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
         h1 = nc * (n − m) / n
         n1 = m / n
         return (FukushimaT(t1, h1) - n1 * J(n1, φ, m))
+    elseif n == 1
+        φ == T(π/2) && return T(Inf)
+        if m == 1
+            return 1/2*(log(sec(φ)*(1 + sin(φ))) + sec(φ)*tan(φ))
+        else
+            return F(φ, m) + (-E(φ, m) + sqrt(1 - m*sin(φ)^2)*tan(φ))/(1 - m)
+        end
+    elseif n == 0
+        return F(φ, m)
     end
 
-    φ == T(π/2) && n == 1 && return T(Inf)
+
     return n * J(n, φ, m) + F(φ, m)
 end
 
@@ -3194,7 +3204,7 @@ function _ΔXNloop(u::A, m::B, n::C) where {A,B,C}
 end
 
 function fold_0_25(u1::A, m::B, kp::C) where {A,B,C}
-    T = promote_type(A,B,C)
+    T = promote_type(A, B, C)
     u1 == 0 && return zero(T), one(T), one(T)
 
     sn, cn, dn =
@@ -3206,7 +3216,7 @@ function fold_0_25(u1::A, m::B, kp::C) where {A,B,C}
 end
 
 function fold_0_50(u1::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
-    T =promote_type(A,B,C,D,E)
+    T = promote_type(A, B, C, D, E)
     u1 == 0 && return zero(T), one(T), one(T)
 
     if u1 > T(0.25) * Kscreen
@@ -3219,7 +3229,7 @@ function fold_0_50(u1::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
 end
 
 function fold_1_00(u1::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
-    T =promote_type(A,B,C,D,E)
+    T = promote_type(A, B, C, D, E)
     u1 == 0 && return zero(T), one(T), one(T)
 
     if u1 > Kscreen / 2
@@ -3242,7 +3252,7 @@ function _SN(u::T, m) where {T}
 end
 
 function rawSN(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
-    T = promote_type(A,B,C,D,E)
+    T = promote_type(A, B, C, D, E)
     check = u ≥ 2 * Kscreen
     sign = check ? -1 : 1
     u = check ? u - 2 * Kactual : u
@@ -3255,7 +3265,7 @@ function rawSN(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
            _ΔXNloop(u, m, u > zero(T) ? max(6 + (floor(log2(u))), one(T)) : zero(T))[1]
 end
 
-function _CN(u, m) 
+function _CN(u, m)
     tempK = K(m)
     if u > (4tempK)
         return rawCN(u % (4tempK), m, tempK, tempK, √(1 - m))
@@ -3263,7 +3273,7 @@ function _CN(u, m)
     return rawCN(u, m, tempK, tempK, √(1 - m))
 end
 function rawCN(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
-    T = promote_type(A,B,C,D,E)
+    T = promote_type(A, B, C, D, E)
     check = u ≥ 2 * Kscreen
     sign = check ? -1 : 1
     u = check ? u - 2 * Kactual : u
@@ -3276,7 +3286,7 @@ function rawCN(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
            _ΔXNloop(u, m, u > zero(T) ? max(6 + (floor(log2(u))), one(T)) : zero(T))[2]
 end
 
-function _DN(u, m) 
+function _DN(u, m)
     tempK = K(m)
     if u > 4tempK
         return rawDN(u % (4tempK), m, tempK, tempK, √(1 - m))
@@ -3284,7 +3294,7 @@ function _DN(u, m)
     return rawDN(u, m, tempK, tempK, √(1 - m))
 end
 function rawDN(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
-    T = promote_type(A,B,C,D,E)
+    T = promote_type(A, B, C, D, E)
     check = u ≥ 2 * Kscreen
     u = check ? u - 2 * Kactual : u
     u > Kscreen && return fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[3]
@@ -3297,7 +3307,7 @@ end
 
 _sc_helper(jacobituple) = jacobituple[1] / jacobituple[2]
 function rawSC(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
-    T = promote_type(A,B,C,D,E)
+    T = promote_type(A, B, C, D, E)
     u = u ≥ 4 * Kscreen ? u % 4 * Kactual : u
     u = u ≥ 2 * Kscreen ? u - 2 * Kactual : u
     u > Kscreen && return _sc_helper(fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
@@ -3310,13 +3320,13 @@ function rawSC(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
     )
 end
 
-function _SC(u, m) 
+function _SC(u, m)
     return rawSC(u, m, K(m), K(m), √(1 - m))
 end
 
 _sd_helper(jacobituple) = jacobituple[1] / jacobituple[3]
 function rawSD(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
-    T = promote_type(A,B,C,D,E)
+    T = promote_type(A, B, C, D, E)
     u = u ≥ 4 * Kscreen ? u % 4 * Kactual : u
     u = u ≥ 2 * Kscreen ? u - 2 * Kactual : u
     u > Kscreen && return _sd_helper(fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
@@ -3329,7 +3339,7 @@ function rawSD(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
     )
 end
 
-function _SD(u, m) 
+function _SD(u, m)
     return rawSD(u, m, K(m), K(m), √(1 - m))
 end
 
@@ -3344,7 +3354,7 @@ Returns the Jacobi Elliptic sn.
 - `u` : Amplitude
 - `m` : Elliptic modulus
 """
-function sn(u, m) 
+function sn(u, m)
     signu = sign(u)
     u = abs(u)
     m < 1 && return signu * _SN(u, m)
@@ -3363,7 +3373,7 @@ Returns the Jacobi Elliptic cn.
 - `u` : Amplitude
 - `m` : Elliptic modulus
 """
-function cn(u, m) 
+function cn(u, m)
     u = abs(u)
     m < 1 && return _CN(u, m)
     sqrtm = √m
@@ -3381,14 +3391,14 @@ Returns the Jacobi Elliptic dn.
 - `u` : Amplitude
 - `m` : Elliptic modulus
 """
-function dn(u, m) 
+function dn(u, m)
     u = abs(u)
     m < 1 && return _DN(u, m)
     sqrtm = √m
     return _CN(u * sqrtm, inv(m))
 end
 
-function sc(u, m) 
+function sc(u, m)
     signu = sign(u)
     u = abs(u)
 
@@ -3397,16 +3407,16 @@ function sc(u, m)
     return signu * _SD(u * sqrtm, inv(m)) / sqrtm
 end
 
-function sd(u, m) 
+function sd(u, m)
     signu = sign(u)
     u = abs(u)
 
-    m <1 && return signu * _SD(u, m)
+    m < 1 && return signu * _SD(u, m)
     sqrtm = √m
     return signu * _SC(u * sqrtm, inv(m)) * inv(sqrtm)
 end
 
-function am(u, m) 
+function am(u, m)
     asin(sn(u, m))
 end
 
