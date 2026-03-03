@@ -499,6 +499,26 @@ end
                 @test ForwardDiff.gradient(x -> _cn(x[1], x[2]), [ϕ, m]) ≈ [grad1, grad2] atol =
                     1e-5
 
+                g1 = ((ϕ, m)->dn(ϕ, m) * cn(ϕ, m))(0.5, 0.5)
+                g2 = (
+                    (
+                        ϕ,
+                        m,
+                    )->(
+                        1 / (2m * (1 - m)) *
+                        dn(ϕ, m) *
+                        cn(ϕ, m) *
+                        (
+                            (1 - m) * ϕ - alg.E(am(ϕ, m), m) +
+                            m * JacobiElliptic.cd(ϕ, m) * sn(ϕ, m)
+                        )
+                    )
+                )(
+                    0.5,
+                    0.5,
+                )
+
+                @test ForwardDiff.derivative(x -> _cn(x, x), 0.5) ≈ g1 + g2 atol = 1e-5
             end
 
             @testset "SN" begin
@@ -521,6 +541,26 @@ end
                 # gradient 
                 @test ForwardDiff.gradient(x -> _sn(x[1], x[2]), [ϕ, m]) ≈ [grad1, grad2] atol =
                     1e-5
+                g1 = ((ϕ, m)->dn(ϕ, m) * cn(ϕ, m))(0.5, 0.5)
+                g2 = (
+                    (
+                        ϕ,
+                        m,
+                    )->(
+                        1 / (2m * (1 - m)) *
+                        dn(ϕ, m) *
+                        cn(ϕ, m) *
+                        (
+                            (1 - m) * ϕ - alg.E(am(ϕ, m), m) +
+                            m * JacobiElliptic.cd(ϕ, m) * sn(ϕ, m)
+                        )
+                    )
+                )(
+                    0.5,
+                    0.5,
+                )
+
+                @test ForwardDiff.derivative(x -> _sn(x, x), 0.5) ≈ g1 + g2 atol = 1e-5
             end
 
         end
