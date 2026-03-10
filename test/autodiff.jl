@@ -383,6 +383,7 @@ using SpecialFunctions
 
     @testset "SpecialCases" begin
         _E = alg.E
+        @test ForwardDiff.derivative(x -> _E(0.5, x), 0.0) ≈ (sin(1.0) - 1.0) / 8
         @test ForwardDiff.gradient(x -> _E(x[1], x[2]), [π / 2.0, 0.0]) |> collect ≈
               [1.0, -π / 8]
         @test Enzyme.autodiff(Reverse, _E, Active, Active(π / 2.0), Active(0.0))[1] |>
@@ -499,7 +500,7 @@ end
                 @test ForwardDiff.gradient(x -> _cn(x[1], x[2]), [ϕ, m]) ≈ [grad1, grad2] atol =
                     1e-5
 
-                g1 = ((ϕ, m)->dn(ϕ, m) * cn(ϕ, m))(0.5, 0.5)
+                g1 = ((ϕ, m)->-dn(ϕ, m) * sn(ϕ, m))(0.5, 0.5)
                 g2 = (
                     (
                         ϕ,
@@ -507,9 +508,9 @@ end
                     )->(
                         1 / (2m * (1 - m)) *
                         dn(ϕ, m) *
-                        cn(ϕ, m) *
+                        sn(ϕ, m) *
                         (
-                            (1 - m) * ϕ - alg.E(am(ϕ, m), m) +
+                            (m - 1) * ϕ + alg.E(am(ϕ, m), m) -
                             m * JacobiElliptic.cd(ϕ, m) * sn(ϕ, m)
                         )
                     )
@@ -569,8 +570,13 @@ end
 
     @testset "SpecialCases" begin
         _E = alg.E
+        @test ForwardDiff.derivative(x -> _E(0.5, x), 0.0) ≈ (sin(1.0) - 1.0) / 8
         @test ForwardDiff.gradient(x -> _E(x[1], x[2]), [π / 2.0, 0.0]) |> collect ≈
               [1.0, -π / 8]
+        @test Enzyme.autodiff(Reverse, _E, Active, Active(π / 2.0), Active(0.0))[1] |>
+              collect ≈ [1.0, -π / 8]
+        @test Zygote.gradient(x -> _E(x[1], x[2]), [π / 2.0, 0.0])[1] ≈ [1.0, -π / 8]
+
     end
 
 end

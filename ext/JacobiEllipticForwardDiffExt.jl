@@ -37,7 +37,8 @@ end
 function JacobiElliptic.CarlsonAlg.E(x::ForwardDiff.Dual{T}) where {T}
     xval = x.value
     fval = JacobiElliptic.CarlsonAlg.E(xval)
-    ∂xf = (JacobiElliptic.CarlsonAlg.E(xval) - JacobiElliptic.CarlsonAlg.K(xval)) / (2xval)
+    ∂xf = iszero(xval) ? -T(π) / 8 :
+        (fval - JacobiElliptic.CarlsonAlg.K(xval)) / (2xval)
     ForwardDiff.Dual{T}(fval, ∂xf * x.partials)
 end
 
@@ -54,7 +55,8 @@ end
 function JacobiElliptic.CarlsonAlg.E(x::U, y::ForwardDiff.Dual{T}) where {T,U}
     yval = y.value
     fval = JacobiElliptic.CarlsonAlg.E(x, yval)
-    ∂yf = (fval - JacobiElliptic.CarlsonAlg.F(x, yval)) / (2yval)
+    ∂yf = iszero(yval) ? (sin(2x) - 2x) / 8 :
+        (fval - JacobiElliptic.CarlsonAlg.F(x, yval)) / (2yval)
     ForwardDiff.Dual{T}(fval, ∂yf * y.partials)
 end
 
