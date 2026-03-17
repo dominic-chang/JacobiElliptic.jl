@@ -110,6 +110,12 @@
         @test JacobiElliptic.am(10.0, -10.0) ≈ 19.58906782107541
     end
 
+    @testset "modulus > 1 for Jacobi am" begin
+        @test JacobiElliptic.am(0.5, 1.1) ≈ 0.4784409095408496
+        @test JacobiElliptic.am(10.0, 1.1) ≈ -0.0038260319603258524
+        @test JacobiElliptic.am(10.0, 10.0) ≈ -0.18538447091861052
+    end
+
     @testset "errors" begin
         u = 0.5 # random value for testing
 
