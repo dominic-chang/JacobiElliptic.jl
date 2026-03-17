@@ -1,4 +1,5 @@
 module CarlsonAlg
+using ForwardDiff
 # elliptic integrals of 1st/2nd/3rd kind
 export E, F, K, Pi
 
@@ -19,7 +20,7 @@ _one(T) = one(T)
 # assumes 0 ≤ m ≤ 1
 function rawF(sinphi::A, m::B) where {A,B}
     T = promote_type(A, B)
-    (abs(sinphi) == one(T) && m == one(T)) && return sign(sinphi) * T(Inf)
+    (ForwardDiff.value(abs(sinphi)) == one(T) && ForwardDiff.value(m) == one(T)) && return sign(sinphi) * T(Inf)
     sinphi2 = sinphi^2
     drf, ierr = DRF(_one(T) - sinphi2, _one(T) - m * sinphi2, _one(T))
     @assert ierr == 0
