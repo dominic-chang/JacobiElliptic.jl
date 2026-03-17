@@ -15,11 +15,12 @@ include("slatec.jl")
 
 _zero(T) = zero(T)
 _one(T) = one(T)
+function _isequals(A, B) return A == B; end
 
 # assumes 0 ≤ m ≤ 1
 function rawF(sinphi::A, m::B) where {A,B}
     T = promote_type(A, B)
-    (abs(sinphi) == one(T) && m == one(T)) && return sign(sinphi) * T(Inf)
+    _isequals(abs(sinphi), 1) && _isequals(m, 1) && return sign(sinphi) * T(Inf)
     sinphi2 = sinphi^2
     drf, ierr = DRF(_one(T) - sinphi2, _one(T) - m * sinphi2, _one(T))
     @assert ierr == 0

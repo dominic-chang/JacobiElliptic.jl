@@ -3,6 +3,14 @@ using ForwardDiff
 using Enzyme
 using SpecialFunctions
 
+@testset "specialfunctions" begin
+    @test JacobiElliptic.CarlsonAlg._isequals(ForwardDiff.Dual(1.0,1.0),1.0) == true
+    @test JacobiElliptic.CarlsonAlg._isequals(ForwardDiff.Dual(2.0,1.0),1.0) == false
+    @test JacobiElliptic.CarlsonAlg._isequals(1.0, 1.0) == true
+    @test JacobiElliptic.CarlsonAlg._isequals(2.0, 1.0) == false
+    @test JacobiElliptic.CarlsonAlg._isequals(2.0, ForwardDiff.Dual(2.0,1.0)) == true
+end
+
 @testset "alg:$alg" for alg in [JacobiElliptic.CarlsonAlg]
     @testset "Zygote, ForwardDiff and Enzyme" begin
 
