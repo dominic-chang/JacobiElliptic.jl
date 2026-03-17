@@ -8,6 +8,12 @@ end
 function JacobiElliptic.CarlsonAlg._one(::Type{ForwardDiff.Dual{T,V,N}}) where {T,V,N}
     one(V)
 end
+_types = [ForwardDiff.Dual, Real]
+for (T1,T2) in zip(_types, _types)
+    function JacobiElliptic.CarlsonAlg._equal(a::T1, b::T2)
+        return ForwardDiff.value(a) == ForwardDiff.value(b)
+    end
+end
 
 #ForwardDiff.DiffRules.@define_diffrule JacobiElliptic.CarlsonAlg._sqrt(x) = :(inv(2 * JacobiElliptic.CarlsonAlg._sqrt($x)))
 function JacobiElliptic.CarlsonAlg._sqrt(x::ForwardDiff.Dual{T}) where {T}
