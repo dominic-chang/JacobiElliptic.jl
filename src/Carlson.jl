@@ -210,9 +210,7 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
     end # https://link.springer.com/book/10.1007/978-3-642-65138-0 117.01
     if n > one(T)
         nc = one(T) - n
-        sin_φ, cos_φ = sincos(φ) # sincos is faster than calling sin and tan separately
-        tan_φ = sin_φ / cos_φ
-        t1 = tan_φ / sqrt(one(T) − m * sin_φ^2)
+        t1 = tan(φ) / sqrt(one(T) − m * sin(φ)^2)
         h1 = nc * (n − m) / n
         n1 = m / n
         return (FukushimaT(t1, h1) - Pi(n1, φ, m) + F(φ, m))
