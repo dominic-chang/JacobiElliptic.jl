@@ -61,6 +61,8 @@ end
 Returns amplitude, φ, such that u = F(φ | m)
 
 Landen sequence with convergence to `tol` used if `√(tol) ≤ m ≤ 1 - √(tol)`
+
+For ``m > 1``, the reciprocal modulus transformation is used.
 """
 function am(u::A, m::B) where {A,B}
     T = promote_type(A, B)
