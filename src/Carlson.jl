@@ -285,20 +285,12 @@ function cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
     return T(π / 2) * muladd(a, m, b) / (m * (m + p))
 end
 
-
-
-function ellipj(u::A, m::B, tol::C) where {A,B,C}
-
-    phi = am(u, m, tol)
+function ellipj(u, m) 
+    phi = am(u, m)
     s = sin(phi)
     c = cos(phi)
     d = _sqrt(1 - m * s^2)
     return (s, c, d)
-end
-
-function ellipj(u::A, m::B) where {A,B}
-    T = promote_type(A, B)
-    ellipj(u, m, eps(T))
 end
 
 end # module
