@@ -201,7 +201,7 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
         mc = one(T) - m
         imc = inv(mc)
         mN = -m * imc
-        sin_φ = sin(φ)
+        sin_φ = sin(φ) # Avoid redundant sin calculation
         φN = asin(_sqrt(mc / (one(T) − m * sin_φ^2)) * sin_φ)
 
         nN = (n - m) * imc
@@ -210,7 +210,7 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
     end # https://link.springer.com/book/10.1007/978-3-642-65138-0 117.01
     if n > one(T)
         nc = one(T) - n
-        sin_φ, cos_φ = sincos(φ)
+        sin_φ, cos_φ = sincos(φ) # sincos is faster than calling sin and tan separately
         tan_φ = sin_φ / cos_φ
         t1 = tan_φ / sqrt(one(T) − m * sin_φ^2)
         h1 = nc * (n − m) / n
@@ -293,7 +293,7 @@ end
 function ellipj(u::A, m::B, tol::C) where {A,B,C}
 
     phi = am(u, m, tol)
-    s, c = sincos(phi)
+    s, c = sincos(phi) # sincos is faster than calling sin and cos of the same argument separately
     d = _sqrt(1 - m * s^2)
     return (s, c, d)
 end
