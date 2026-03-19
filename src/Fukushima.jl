@@ -2288,6 +2288,9 @@ Returns the incomplete elliptic integral of the second kind.
 function E(φ::A, m::B) where {A,B}
     T = promote_type(A, B)
     (isnan(φ) || isnan(m)) && return T(NaN)
+    m == one(T) && abs(φ) <= T(π / 2) && return sin(T(φ))
+    φ == T(π / 2) && return E(T(m))
+    φ == -T(π / 2) && return -E(T(m))
     return F(φ, m) - m * D(φ, m)
 end
 
