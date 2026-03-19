@@ -61,11 +61,9 @@ end
 Returns amplitude, φ, such that u = F(φ | m)
 
 Landen sequence with convergence to `tol` used if `√(tol) ≤ m ≤ 1 - √(tol)`
+
+For ``m > 1``, the reciprocal modulus transformation is used.
 """
-function am(u::A, m::B, tol::C) where {A,B,C}
-    !(0 ≤ m ≤ 1) && throw(DomainError(m, "argument m not in [0,1]"))
-    return _am(u, m, tol)
-end
 function am(u::A, m::B) where {A,B}
     T = promote_type(A, B)
     if m < 0
@@ -78,8 +76,15 @@ function am(u::A, m::B) where {A,B}
         t = floor((phi + A(π / 2)) / A(π))
 
         return t * π + ((-1)^t) * asin(sqrtmu1 * s / _sqrt(1 - mu * s^2))
+    elseif m <= 1 # 0 <= m <= 1
+        return _am(u, m, eps(T))
+    else # m > 1
+        # Reciprocal Modulus Transformation
+        # P.F. Byrd & M.D. Friedman: Handbook of Elliptic Integrals for Engineers and Scientists, 1971, p. 38, eq. 162.01
+        # am(u,k) = arcsin(sin(am(u,k))) = arcsin(sn(u,k)) = arcsin(1 / k * sn(k * u, 1 / k))
+        k = _sqrt(m)
+        return asin(inv(k) * sn(k * u, inv(m)))
     end
-    return am(u, m, eps(T))
 end
 #am(u::Real, m::Real) = am(Float64(u), Float64(m))
 

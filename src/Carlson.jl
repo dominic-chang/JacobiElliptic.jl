@@ -15,11 +15,12 @@ include("slatec.jl")
 
 _zero(T) = zero(T)
 _one(T) = one(T)
+function _isequals(A, B) return A == B; end
 
 # assumes 0 ≤ m ≤ 1
 function rawF(sinphi::A, m::B) where {A,B}
     T = promote_type(A, B)
-    (abs(sinphi) == one(T) && m == one(T)) && return sign(sinphi) * T(Inf)
+    _isequals(abs(sinphi), 1) && _isequals(m, 1) && return sign(sinphi) * T(Inf)
     sinphi2 = sinphi^2
     drf, ierr = DRF(_one(T) - sinphi2, _one(T) - m * sinphi2, _one(T))
     @assert ierr == 0
@@ -286,19 +287,12 @@ function cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
     return T(π / 2) * muladd(a, m, b) / (m * (m + p))
 end
 
-
-
-function ellipj(u::A, m::B, tol::C) where {A,B,C}
-
-    phi = am(u, m, tol)
-    s, c = sincos(phi) # sincos is faster than calling sin and cos of the same argument separately
+function ellipj(u, m) 
+    phi = am(u, m)
+    s = sin(phi)
+    c = cos(phi)
     d = _sqrt(1 - m * s^2)
     return (s, c, d)
-end
-
-function ellipj(u::A, m::B) where {A,B}
-    T = promote_type(A, B)
-    ellipj(u, m, eps(T))
 end
 
 end # module
