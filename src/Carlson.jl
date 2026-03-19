@@ -10,7 +10,7 @@ export ellipj, ellipke
 	return sqrt(x)
 end
 
-@inline function _sqrt(x::Union{Float32,Float64})
+@inline function _sqrt(x::Union{Float32,Float64,Int})
     return Core.Intrinsics.sqrt_llvm(x)
 end
 
@@ -21,17 +21,16 @@ _zero(T) = zero(T)
 _one(T) = one(T)
 
 # assumes 0 ≤ m ≤ 1
-function rawF(sinphi::A, m::B) where {A,B}
-    T = promote_type(A, B)
-    cond = (abs(sinphi) == one(T)) & (m == one(T))  
+function rawF(sinphi, m) 
+    cond = (abs(sinphi) == 1) & (m == 1)  
 
     res = sinphi
     @trace if cond
-        res = sign(sinphi) * T(Inf)
+        res = sign(sinphi) * Inf
         nothing
     else
         sinphi2 = sinphi^2
-        drf, ierr = DRF(_one(T) - sinphi2, _one(T) - m * sinphi2, _one(T))
+        drf, ierr = DRF(1 - sinphi2, 1 - m * sinphi2, 1)
         @assert ierr == 0
         res = sinphi * drf
         nothing

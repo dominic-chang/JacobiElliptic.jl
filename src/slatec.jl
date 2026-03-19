@@ -25,19 +25,18 @@ function DRF_whilebody(XN, YN, ZN, ERRTOL)
     return (XN, YN, ZN, XNDEV, YNDEV, ZNDEV, MU, (EPSLON >= ERRTOL))
 end
 
-function DRF_ifbody(X::A, Y::B, Z::C, ERRTOL::D) where {A, B, C, D}
-        T = promote_type(A, B, C, D)
-        C1 = T(1 / 24)
-        C2 = T(3 / 44)
-        C3 = T(1 / 14)
+function DRF_ifbody(X, Y, Z, ERRTOL) 
+        C1 = 1 / 24
+        C2 = 3 / 44
+        C3 = 1 / 14
 
         XN = X
         YN = Y
         ZN = Z
-        MU = zero(T)
-        XNDEV = zero(T)
-        YNDEV = zero(T)
-        ZNDEV = zero(T)
+        MU = 0
+        XNDEV = 0
+        YNDEV = 0
+        ZNDEV = 0
         CONTINUE = true 
 
         @trace while CONTINUE 
@@ -46,7 +45,7 @@ function DRF_ifbody(X::A, Y::B, Z::C, ERRTOL::D) where {A, B, C, D}
         XNDEVYNDEV = XNDEV * YNDEV
         E2 = muladd(-ZNDEV, ZNDEV, XNDEVYNDEV)
         E3 = XNDEVYNDEV * ZNDEV
-        S = 1 + muladd(E2, muladd(-C2, E3, muladd(C1, E2, -T(1 / 10))), C3 * E3)
+        S = 1 + muladd(E2, muladd(-C2, E3, muladd(C1, E2, -1 / 10)), C3 * E3)
         return S / _sqrt(MU)
 end
 
@@ -78,24 +77,34 @@ end
 function DRF(X::A, Y::B, Z::C) where {A,B,C}
     T = promote_type(A, B, C)
 
-    ERRTOL = (4 * eps(T) / 2)^T(1 / 6)
+    ERRTOL = (4 * eps(T) / 2)^(1 / 6)
     LOLIM = 5floatmin(T)
     UPLIM = floatmax(T) / 5
     
     ans = zero(T)
-    ierr = 0
-    ans, ierr = Base.ifelse(min(X, Y, Z) < zero(T), 
-        (ans, 1),
+    ierr = Base.ifelse(min(X, Y, Z) < zero(T), 
+        1,
         Base.ifelse(max(X, Y, Z) > UPLIM, 
-            (ans, 3),
+            3,
             Base.ifelse(min(X + Y, X + Z, Y + Z) < LOLIM, 
-                (ans, 2),
-                (zero(T), 0)
+                2,
+                0
             )
         )
     )
+    #ierr = @trace if min(X, Y, Z) < 0
+    #    1
+    #elseif max(X, Y, Z) > UPLIM
+    #    3
+    #elseif min(X + Y, X + Z, Y + Z) < LOLIM
+    #    2
+    #end
 
-    ans = Base.ifelse(ierr == 0, DRF_ifbody(X, Y, Z, ERRTOL), ans)
+    #ans = Base.ifelse(ierr == 0, DRF_ifbody(X, Y, Z, ERRTOL), ans)
+    cond = ierr == 0
+    @trace if cond
+        ans = DRF_ifbody(X, Y, Z, ERRTOL)
+    end
 
     return (ans, ierr)
 end
