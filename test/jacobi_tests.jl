@@ -110,10 +110,9 @@
         @test JacobiElliptic.am(10.0, -10.0) ≈ 19.58906782107541
     end
 
-    @testset "errors" begin
-        u = 0.5 # random value for testing
-
-        @test_throws DomainError JacobiElliptic.am(u, 1 + eps(1.0))
-        @test_throws DomainError JacobiElliptic.am(u, 1.1)
+    @testset "modulus > 1 for Jacobi am" begin
+        @test JacobiElliptic.am(0.5, 1.1) ≈ 0.4784409095408496
+        @test JacobiElliptic.am(10.0, 1.1) ≈ -0.0038260319603258524
+        @test JacobiElliptic.am(10.0, 10.0) ≈ -0.18538447091861052
     end
 end
