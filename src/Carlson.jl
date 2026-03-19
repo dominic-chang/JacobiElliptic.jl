@@ -65,16 +65,31 @@ function F(φ::A, m::B) where {A,B}
 end
 
 function K(m::T) where {T}
-    if m < 1
-        drf, ierr = DRF(_zero(T), 1 - m, _one(T))
-        @assert ierr == 0
-        return drf
-    elseif m == 1
-        return T(Inf)
-    elseif isnan(m)
+    if isnan(m)
         return T(NaN)
+    elseif m < zero(T)
+        # Transformation for m < 0
+        m_abs = -m
+        m_transformed = m_abs / (m_abs + one(T))
+        k_trans = K(m_transformed)
+        sqrt_factor = _sqrt(m_abs + one(T))
+        k_result = k_trans / sqrt_factor
+        return k_result
+    elseif m > one(T)
+        # Reciprocal modulus transformation for m > 1
+        k = _sqrt(m)
+        k_inv = inv(k)
+        m_inv = inv(m)
+        k_complete = K(m_inv)
+        k_transformed = k_inv * k_complete
+        return k_transformed
+    elseif m == one(T)
+        return T(Inf)
     else
-        throw(DomainError("argument m not <= 1"))
+        # 0 ≤ m < 1
+        drf, ierr = DRF(_zero(T), 1-m, _one(T))
+        @assert ierr == 0 
+        return drf
     end
 end
 
@@ -133,18 +148,35 @@ end
 returns `(K(m), E(m))` for scalar `0 ≤ m ≤ 1`
 """
 function ellipke(m::T) where {T}
-    if m < one(T)
+    if isnan(m)
+        return (T(NaN), T(NaN))
+    elseif m < zero(T)
+        # Transformation for m < 0
+        m_abs = -m
+        m_transformed = m_abs / (m_abs + one(T))
+        k_trans, e_trans = ellipke(m_transformed)
+        sqrt_factor = _sqrt(m_abs + one(T))
+        k_result = k_trans / sqrt_factor
+        e_result = e_trans * sqrt_factor
+        return (k_result, e_result)
+    elseif m > one(T)
+        # Reciprocal modulus transformation for m > 1
+        k = _sqrt(m)
+        k_inv = inv(k)
+        m_inv = inv(m)
+        k_complete, e_complete = ellipke(m_inv)
+        k_transformed = k_inv * k_complete
+        e_transformed = k * (e_complete - (1 - m_inv) * k_complete)
+        return (k_transformed, e_transformed)
+    elseif m == one(T)
+        return (T(Inf), one(T))
+    else
+        # 0 ≤ m < 1
         y = 1 - m
         drf, ierr1 = DRF(_zero(T), y, _one(T))
         drd, ierr2 = DRD(_zero(T), y, _one(T))
         @assert ierr1 == 0 && ierr2 == 0
         return (drf, drf - m * drd / 3)
-    elseif m == 1
-        return (T(Inf), one(T))
-    elseif isnan(m)
-        return (T(NaN), T(NaN))
-    else
-        throw(DomainError("argument m not <= 1"))
     end
 end
 
