@@ -202,7 +202,8 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
         mc = one(T) - m
         imc = inv(mc)
         mN = -m * imc
-        φN = asin(_sqrt(mc / (one(T) − m * sin(φ)^2)) * sin(φ))
+        sin_φ = sin(φ) # Avoid redundant sin calculation
+        φN = asin(_sqrt(mc / (one(T) − m * sin_φ^2)) * sin_φ)
 
         nN = (n - m) * imc
 
