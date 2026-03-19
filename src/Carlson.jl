@@ -90,7 +90,7 @@ function K(m::T) where {T}
     else
         # 0 ≤ m < 1
         drf, ierr = DRF(_zero(T), 1-m, _one(T))
-        @assert ierr == 0 
+        @assert ierr == 0
         return drf
     end
 end

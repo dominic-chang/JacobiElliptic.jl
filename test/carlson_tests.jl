@@ -409,10 +409,13 @@ end
                         #@test alg.ellipke(m)[1] == f
                     end
                 else
-                    @test alg.F(phi, m) ≈ f atol = (alg == JacobiElliptic.Carlson ? 1e-8 : 1e-5)
-                    @test alg.F(-phi, m) ≈ -f atol = (alg == JacobiElliptic.Carlson ? 1e-8 : 1e-5)
+                    @test alg.F(phi, m) ≈ f atol =
+                        (alg == JacobiElliptic.Carlson ? 1e-8 : 1e-5)
+                    @test alg.F(-phi, m) ≈ -f atol =
+                        (alg == JacobiElliptic.Carlson ? 1e-8 : 1e-5)
                     if phid == 90
-                        @test alg.K(m) ≈ f atol = (alg == JacobiElliptic.Carlson ? 1e-8 : 1e-5)
+                        @test alg.K(m) ≈ f atol =
+                            (alg == JacobiElliptic.Carlson ? 1e-8 : 1e-5)
                         #@test alg.ellipke(m)[1] ≈ f atol=(alg == JacobiElliptic.Carlson ? 1e-8 : 1e-5)
                     end
                 end
@@ -587,11 +590,12 @@ end
                 phi = deg2rad(phid)
                 e = table17p6[i, j]
                 @test alg.E(phi, m) ≈ e atol = (alg == JacobiElliptic.Carlson ? 1e-8 : 1e-5)
-                @test alg.E(-phi, m) ≈ -e atol = (alg == JacobiElliptic.Carlson ? 1e-8 : 1e-5)
+                @test alg.E(-phi, m) ≈ -e atol =
+                    (alg == JacobiElliptic.Carlson ? 1e-8 : 1e-5)
                 if phid == 90
                     @test alg.E(m) ≈ e atol = (alg == JacobiElliptic.Carlson ? 1e-8 : 1e-5)
                     if alg == JacobiElliptic.Carlson
-                        @test alg.ellipke(m)[2] ≈ e atol = 1e-8 
+                        @test alg.ellipke(m)[2] ≈ e atol = 1e-8
                     end
                 end
             end
