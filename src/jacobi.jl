@@ -76,7 +76,7 @@ function am(u::A, m::B) where {A,B}
         t = floor((phi + A(π / 2)) / A(π))
 
         return t * π + ((-1)^t) * asin(sqrtmu1 * s / _sqrt(1 - mu * s^2))
-    elseif m < 1
+    elseif m <= 1 # 0 <= m <= 1
         return _am(u, m, eps(T))
     else # m > 1
         # Reciprocal Modulus Transformation
