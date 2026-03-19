@@ -9,7 +9,7 @@ function JacobiElliptic.CarlsonAlg._one(::Type{ForwardDiff.Dual{T,V,N}}) where {
     one(V)
 end
 _types = [ForwardDiff.Dual, Real]
-for (T1,T2) in zip(_types, _types)
+for (T1, T2) in zip(_types, _types)
     function JacobiElliptic.CarlsonAlg._isequals(a::T1, b::T2)
         return ForwardDiff.value(a) == ForwardDiff.value(b)
     end
