@@ -15,7 +15,9 @@ include("slatec.jl")
 
 _zero(T) = zero(T)
 _one(T) = one(T)
-function _isequals(A, B) return A == B; end
+function _isequals(A, B)
+    return A == B;
+end
 
 # assumes 0 ≤ m ≤ 1
 function rawF(sinphi::A, m::B) where {A,B}
@@ -287,7 +289,7 @@ function cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
     return T(π / 2) * muladd(a, m, b) / (m * (m + p))
 end
 
-function ellipj(u, m) 
+function ellipj(u, m)
     phi = am(u, m)
     s = sin(phi)
     c = cos(phi)
