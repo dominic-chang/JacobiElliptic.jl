@@ -114,6 +114,14 @@ end
                     Const(ϕ),
                     Duplicated(m, 1.0),
                 )[1][1] ≈ grad atol = 1e-5
+
+                grad_both = [
+                    1 / √(1 - m * sin(ϕ)^2),
+                    iszero(m) ? (2 * ϕ - sin(2 * ϕ)) / 8 :
+                    alg.E(ϕ, m) / (2 * m * (1 - m)) - alg.F(ϕ, m) / (2 * m) -
+                    sin(2 * ϕ) / (4 * (1 - m) * √(1 - m * sin(ϕ)^2)),
+                ]
+                @test ForwardDiff.gradient(x -> _F(x[1], x[2]), [ϕ, m]) ≈ grad_both atol = 1e-5
                 for Tret in (Const, Duplicated, DuplicatedNoNeed),
                     Tϕ in (Const, Duplicated),
                     Tm in (Const, Duplicated)
@@ -552,8 +560,34 @@ end
 
     @testset "SpecialCases" begin
         _E = alg.E
-        @test ForwardDiff.gradient(x -> _E(x[1], x[2]), [π / 2.0, 0.0]) |> collect ≈
-              [1.0, -π / 8]
+        ϕ = π / 2.0
+        m = 0.0
+        grad = [1.0, -π / 8]
+        @test Zygote.gradient(ϕ -> _E(ϕ, m), ϕ)[1] ≈ grad atol = 1e-5
+        @test ForwardDiff.derivative(ϕ -> _E(ϕ, m), ϕ) ≈ grad atol = 1e-5
+        @test Enzyme.autodiff(Reverse, _E, Active, Active(ϕ), Const(m))[1][1] ≈ grad atol =
+            1e-5
+        @test Enzyme.autodiff(
+            Forward,
+            _E,
+            Duplicated,
+            Duplicated(ϕ, 1.0),
+            Const(m),
+        )[1][1] ≈ grad atol = 1e-5
+              
+        ϕ = π / 2.0
+        m = 0.5
+        _F = alg.F
+        @test Zygote.gradient(ϕ -> _F(ϕ, m), ϕ)[1] ≈ grad atol = 1e-5
+        @test ForwardDiff.derivative(ϕ -> _F(ϕ, m), ϕ) ≈ grad atol = 1e-5
+        @test Enzyme.autodiff(Reverse, _F, Active, Active(ϕ), Const(m))[1][1] ≈ grad atol =
+            1e-5
+        @test Enzyme.autodiff(
+            Forward,
+            _F,
+            Duplicated,
+            Duplicated(ϕ, 1.0),
+            Const(m),
+        )[1][1] ≈ grad atol = 1e-5
     end
-
 end
