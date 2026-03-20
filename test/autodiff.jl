@@ -11,13 +11,14 @@ using SpecialFunctions
     @test JacobiElliptic.CarlsonAlg._isequals(2.0, ForwardDiff.Dual(2.0, 1.0)) == true
 end
 
-@testset "alg:$alg" for alg in [JacobiElliptic.CarlsonAlg]
+@testset "alg:$alg" for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     @testset "Zygote, ForwardDiff and Enzyme" begin
 
         num_trials = 1
         ms = rand(num_trials)
         ϕs = rand(num_trials) .* 2π
         ns = rand(num_trials)
+        enzyme_atol = alg === JacobiElliptic.CarlsonAlg ? 1e-9 : 1e-5
 
         @show ms, ϕs, ns
 
@@ -36,11 +37,11 @@ end
                       grad
                 m = rand()
                 for Tret in (Const, Duplicated, DuplicatedNoNeed), Tm in (Const, Duplicated)
-                    test_forward(alg.K, Tret, (m, Tm))
+                    test_forward(alg.K, Tret, (m, Tm); atol=enzyme_atol)
                 end
 
                 for Tret in (Const, Active), Tm in (Const, Active)
-                    test_reverse(alg.K, Tret, (m, Tm))
+                    test_reverse(alg.K, Tret, (m, Tm); atol=enzyme_atol)
                 end
             end
 
@@ -54,10 +55,10 @@ end
                       grad
                 m = rand()
                 for Tret in (Const, Duplicated, DuplicatedNoNeed), Tm in (Const, Duplicated)
-                    test_forward(alg.E, Tret, (m, Tm))
+                    test_forward(alg.E, Tret, (m, Tm); atol=enzyme_atol)
                 end
                 for Tret in (Const, Active), Tm in (Const, Active)
-                    test_reverse(alg.E, Tret, (m, Tm))
+                    test_reverse(alg.E, Tret, (m, Tm); atol=enzyme_atol)
                 end
             end
 
@@ -73,10 +74,10 @@ end
                     Tn in (Const, Duplicated),
                     Tm in (Const, Duplicated)
 
-                    test_forward(alg.Pi, Tret, (n, Tn), (m, Tm))
+                    test_forward(alg.Pi, Tret, (n, Tn), (m, Tm); atol=enzyme_atol)
                 end
                 for Tret in (Const, Active), Tn in (Const, Active), Tm in (Const, Active)
-                    test_reverse(alg.Pi, Tret, (n, Tn), (m, Tm))
+                    test_reverse(alg.Pi, Tret, (n, Tn), (m, Tm); atol=enzyme_atol)
                 end
             end
 
@@ -117,10 +118,10 @@ end
                     Tϕ in (Const, Duplicated),
                     Tm in (Const, Duplicated)
 
-                    test_forward(alg.F, Tret, (ϕ, Tϕ), (m, Tm))
+                    test_forward(alg.F, Tret, (ϕ, Tϕ), (m, Tm); atol=enzyme_atol)
                 end
                 for Tret in (Const, Active), Tϕ in (Const, Active), Tm in (Const, Active)
-                    test_reverse(alg.F, Tret, (ϕ, Tϕ), (m, Tm))
+                    test_reverse(alg.F, Tret, (ϕ, Tϕ), (m, Tm); atol=enzyme_atol)
                 end
             end
 
@@ -158,10 +159,10 @@ end
                     Tϕ in (Const, Duplicated),
                     Tm in (Const, Duplicated)
 
-                    test_forward(alg.E, Tret, (ϕ, Tϕ), (m, Tm))
+                    test_forward(alg.E, Tret, (ϕ, Tϕ), (m, Tm); atol=enzyme_atol)
                 end
                 for Tret in (Const, Active), Tϕ in (Const, Active), Tm in (Const, Active)
-                    test_reverse(alg.E, Tret, (ϕ, Tϕ), (m, Tm))
+                    test_reverse(alg.E, Tret, (ϕ, Tϕ), (m, Tm); atol=enzyme_atol)
                 end
             end
             @testset "Incomplete Pi" begin
@@ -245,14 +246,28 @@ end
                     Tϕ in (Const, Duplicated),
                     Tm in (Const, Duplicated)
 
-                    test_forward(alg.Pi, Tret, (n, Tn), (ϕ, Tϕ), (m, Tm))
+                    test_forward(
+                        alg.Pi,
+                        Tret,
+                        (n, Tn),
+                        (ϕ, Tϕ),
+                        (m, Tm);
+                        atol=enzyme_atol,
+                    )
                 end
                 for Tret in (Const, Active),
                     Tn in (Const, Active),
                     Tϕ in (Const, Active),
                     Tm in (Const, Active)
 
-                    test_reverse(alg.Pi, Tret, (n, Tn), (ϕ, Tϕ), (m, Tm))
+                    test_reverse(
+                        alg.Pi,
+                        Tret,
+                        (n, Tn),
+                        (ϕ, Tϕ),
+                        (m, Tm);
+                        atol=enzyme_atol,
+                    )
                 end
 
             end
