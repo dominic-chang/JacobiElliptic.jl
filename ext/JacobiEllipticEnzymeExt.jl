@@ -17,7 +17,6 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         m::Annotation{<:Real},
     )
         ∂K_∂m(m) = ($alg).E(m) / (2 * m * (1 - m)) - ($alg).K(m) / 2 / m
-        ∂K_∂ϕ(m) = 1 / √(1 - m)
 
         if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
             if EnzymeRules.width(config) == 1
@@ -56,9 +55,10 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ::Type,
         m::Annotation{<:Real},
     )
-        primal = EnzymeRules.needs_primal(config) ? func.val(m.val) : nothing
-
-        return EnzymeRules.AugmentedReturn(primal, nothing, nothing)
+        K = func.val(m.val)
+        E = ($alg).E(m.val)
+        primal = EnzymeRules.needs_primal(config) ? K : nothing
+        return EnzymeRules.AugmentedReturn(primal, nothing, (E, K))
     end
 
     @eval function reverse(
@@ -68,8 +68,8 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         tape,
         m::Annotation{T},
     ) where {T}
-        ∂K_∂m(m) = ($alg).E(m) / (2 * m * (1 - m)) - ($alg).K(m) / 2 / m
-        ∂K_∂ϕ(m) = 1 / √(1 - m)
+        E, K = tape
+        ∂K_∂m(m) = E / (2 * m * (1 - m)) - K / 2 / m
 
         dm = if m isa Const
             nothing
@@ -103,7 +103,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         m::Annotation{<:Real},
     )
         E, K, Pi = ($alg).E(m.val), ($alg).K(m.val), func.val(n.val, m.val)
-        ∂Pi_∂n(E, K, Pi, n, m) = begin
+        ∂Pi_∂n(n, m) = begin
             if iszero(n)
                 if iszero(m)
                     π / 4
@@ -114,35 +114,35 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             end
         end
 
-        ∂Pi_∂m(E, Pi, n, m) = (E / (m - 1) + Pi) / (2 * (n - m))
+        ∂Pi_∂m(n, m) = (E / (m - 1) + Pi) / (2 * (n - m))
 
         if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
             if EnzymeRules.width(config) == 1
                 return Duplicated(
                     func.val(n.val, m.val),
-                    (n isa Const ? zero(n.val) : ∂Pi_∂n(E, K, Pi, n.val, m.val) * n.dval) +
-                    (m isa Const ? zero(m.val) : ∂Pi_∂m(E, Pi, n.val, m.val) * m.dval),
+                    (n isa Const ? zero(n.val) : ∂Pi_∂n(n.val, m.val) * n.dval) +
+                    (m isa Const ? zero(m.val) : ∂Pi_∂m(n.val, m.val) * m.dval),
                 )
             else
                 return BatchDuplicated(
                     func.val(n.val, m.val),
                     ntuple(
                         i ->
-                            (n isa Const ? zero(n.val) : ∂Pi_∂n(E, K, Pi, n.val, m.val) * n.dval[i]) +
-                            (m isa Const ? zero(m.val) : ∂Pi_∂m(E, Pi, n.val, m.val) * m.dval[i]),
+                            (n isa Const ? zero(n.val) : ∂Pi_∂n(n.val, m.val) * n.dval[i]) +
+                            (m isa Const ? zero(m.val) : ∂Pi_∂m(n.val, m.val) * m.dval[i]),
                         Val(EnzymeRules.width(config)),
                     ),
                 )
             end
         elseif EnzymeRules.needs_shadow(config)
             if EnzymeRules.width(config) == 1
-                return (n isa Const ? zero(n.val) : ∂Pi_∂n(E, K, Pi, n.val, m.val) * n.dval) +
-                       (m isa Const ? zero(m.val) : ∂Pi_∂m(E, Pi, n.val, m.val) * m.dval)
+                return (n isa Const ? zero(n.val) : ∂Pi_∂n(n.val, m.val) * n.dval) +
+                       (m isa Const ? zero(m.val) : ∂Pi_∂m(n.val, m.val) * m.dval)
             else
                 return ntuple(
                     i ->
-                        (n isa Const ? zero(n.val) : ∂Pi_∂n(E, K, Pi, n.val, m.val) * n.dval[i]) +
-                        (m isa Const ? zero(m.val) : ∂Pi_∂m(E, Pi, n.val, m.val) * m.dval[i]),
+                        (n isa Const ? zero(n.val) : ∂Pi_∂n(n.val, m.val) * n.dval[i]) +
+                        (m isa Const ? zero(m.val) : ∂Pi_∂m(n.val, m.val) * m.dval[i]),
                     Val(EnzymeRules.width(config)),
                 )
             end
@@ -160,9 +160,11 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         n::Annotation{<:Real},
         m::Annotation{<:Real},
     )
-        primal = EnzymeRules.needs_primal(config) ? func.val(n.val, m.val) : nothing
-
-        return EnzymeRules.AugmentedReturn(primal, nothing, nothing)
+        Pi = func.val(n.val, m.val)
+        E = ($alg).E(m.val)
+        K = ($alg).K(m.val)
+        primal = EnzymeRules.needs_primal(config) ? Pi : nothing
+        return EnzymeRules.AugmentedReturn(primal, nothing, (E, K, Pi))
     end
 
     @eval function reverse(
@@ -173,8 +175,8 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         n::Annotation{T},
         m::Annotation{T},
     ) where {T}
-        E, K, Pi = ($alg).E(m.val), ($alg).K(m.val), ($alg).Pi(n.val, m.val)
-        ∂Pi_∂n(E, K, Pi, n, m) = begin
+        E, K, Pi = tape
+        ∂Pi_∂n(n, m) = begin
             if iszero(n)
                 if iszero(m)
                     π / 4
@@ -185,7 +187,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             end
         end
 
-        ∂Pi_∂m(E, Pi, n, m) = (E / (m - 1) + Pi) / (2 * (n - m))
+        ∂Pi_∂m(n, m) = (E / (m - 1) + Pi) / (2 * (n - m))
 
         dn = if n isa Const
             nothing
@@ -193,13 +195,13 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             if dret isa Type{<:Const}
                 zero(n.val)
             else
-                ∂Pi_∂n(E, K, Pi, n.val, m.val) * dret.val
+                ∂Pi_∂n(n.val, m.val) * dret.val
             end
         else
             if dret isa Type{<:Const}
                 ntuple(i -> zero(n.val), Val(EnzymeRules.width(config)))
             else
-                ntuple(i -> ∂Pi_∂n(E, K, Pi, n.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+                ntuple(i -> ∂Pi_∂n(n.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
             end
         end
 
@@ -209,13 +211,13 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             if dret isa Type{<:Const}
                 zero(m.val)
             else
-                ∂Pi_∂m(E, Pi, n.val, m.val) * dret.val
+                ∂Pi_∂m(n.val, m.val) * dret.val
             end
         else
             if dret isa Type{<:Const}
                 ntuple(i -> zero(m.val), Val(EnzymeRules.width(config)))
             else
-                ntuple(i -> ∂Pi_∂m(E, Pi, n.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+                ntuple(i -> ∂Pi_∂m(n.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
             end
         end
         return (dn, dm)
@@ -284,9 +286,12 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ϕ::Annotation{<:Real},
         m::Annotation{<:Real},
     )
-        primal = EnzymeRules.needs_primal(config) ? func.val(ϕ.val, m.val) : nothing
-
-        return EnzymeRules.AugmentedReturn(primal, nothing, nothing)
+        F = func.val(ϕ.val, m.val)
+        E = ($alg).E(ϕ.val, m.val)
+        sin_2ϕ = sin(2 * ϕ.val)
+        sqrt_term = √(1 - m.val * sin(ϕ.val)^2)
+        primal = EnzymeRules.needs_primal(config) ? F : nothing
+        return EnzymeRules.AugmentedReturn(primal, nothing, (E, sin_2ϕ, sqrt_term, F))
     end
 
     @eval function reverse(
@@ -297,11 +302,9 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ϕ::Annotation{T},
         m::Annotation{T},
     ) where {T}
-        ∂F_∂m(ϕ, m) =
-            ($alg).E(ϕ, m) / (2 * m * (1 - m)) - ($alg).F(ϕ, m) / 2 / m -
-            sin(2 * ϕ) / (4 * (1 - m) * √(1 - m * sin(ϕ)^2))
-
-        ∂F_∂ϕ(ϕ, m) = 1 / √(1 - m * sin(ϕ)^2)
+        E, sin_2ϕ, sqrt_term, F = tape
+        ∂F_∂m(ϕ, m) = E / (2 * m * (1 - m)) - F / 2 / m - sin_2ϕ / (4 * (1 - m) * sqrt_term)
+        ∂F_∂ϕ(ϕ, m) = 1 / sqrt_term
 
         dϕ = if ϕ isa Const
             nothing
@@ -402,9 +405,10 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ϕ::Annotation{<:Real},
         m::Annotation{<:Real},
     )
-        primal = EnzymeRules.needs_primal(config) ? func.val(ϕ.val, m.val) : nothing
-
-        return EnzymeRules.AugmentedReturn(primal, nothing, nothing)
+        E = func.val(ϕ.val, m.val)
+        F = ($alg).F(ϕ.val, m.val)
+        primal = EnzymeRules.needs_primal(config) ? E : nothing
+        return EnzymeRules.AugmentedReturn(primal, nothing, (E, F))
     end
 
     @eval function reverse(
@@ -415,9 +419,8 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ϕ::Annotation{T},
         m::Annotation{T},
     ) where {T}
-        ∂E_∂m(ϕ, m) =
-            iszero(m) ? (sin(2 * ϕ) - 2 * ϕ) / 8 : (($alg).E(ϕ, m) - ($alg).F(ϕ, m)) / (2m)
-
+        E, F = tape
+        ∂E_∂m(ϕ, m) = iszero(m) ? (sin(2 * ϕ) - 2 * ϕ) / 8 : (E - F) / (2m)
         ∂E_∂ϕ(ϕ, m) = √(1 - m * sin(ϕ)^2)
 
         dϕ = if ϕ isa Const
@@ -469,7 +472,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         m::Annotation{<:Real},
     )
         E, F, Pi = ($alg).E(ϕ.val, m.val), ($alg).F(ϕ.val, m.val), func.val(n.val, ϕ.val, m.val)
-        ∂Pi_∂n(E, F, Pi, n, ϕ, m) = begin
+        ∂Pi_∂n(n, ϕ, m) = begin
             if iszero(n)
                 if iszero(m)
                     (2 * ϕ - sin(2 * ϕ)) / 4
@@ -485,7 +488,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             end
         end
 
-        ∂Pi_∂m(E, Pi, n, ϕ, m) =
+        ∂Pi_∂m(n, ϕ, m) =
             (
                 E / (m - 1) + Pi -
                 m * sin(2 * ϕ) / (2 * (m - 1) * √(1 - m * sin(ϕ)^2))
@@ -497,9 +500,9 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             if EnzymeRules.width(config) == 1
                 return Duplicated(
                     func.val(n.val, ϕ.val, m.val),
-                    (n isa Const ? zero(n.val) : ∂Pi_∂n(E, F, Pi, n.val, ϕ.val, m.val) * n.dval) +
+                    (n isa Const ? zero(n.val) : ∂Pi_∂n(n.val, ϕ.val, m.val) * n.dval) +
                     (ϕ isa Const ? zero(ϕ.val) : ∂Pi_∂ϕ(n.val, ϕ.val, m.val) * ϕ.dval) +
-                    (m isa Const ? zero(m.val) : ∂Pi_∂m(E, Pi, n.val, ϕ.val, m.val) * m.dval),
+                    (m isa Const ? zero(m.val) : ∂Pi_∂m(n.val, ϕ.val, m.val) * m.dval),
                 )
             else
                 return BatchDuplicated(
@@ -508,7 +511,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
                         i ->
                             (
                                 n isa Const ? zero(n.val) :
-                                ∂Pi_∂n(E, F, Pi, n.val, ϕ.val, m.val) * n.dval[i]
+                                ∂Pi_∂n(n.val, ϕ.val, m.val) * n.dval[i]
                             ) +
                             (
                                 ϕ isa Const ? zero(ϕ.val) :
@@ -516,7 +519,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
                             ) +
                             (
                                 m isa Const ? zero(m.val) :
-                                ∂Pi_∂m(E, Pi, n.val, ϕ.val, m.val) * m.dval[i]
+                                ∂Pi_∂m(n.val, ϕ.val, m.val) * m.dval[i]
                             ),
                         Val(EnzymeRules.width(config)),
                     ),
@@ -524,15 +527,15 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             end
         elseif EnzymeRules.needs_shadow(config)
             if EnzymeRules.width(config) == 1
-                return (n isa Const ? zero(n.val) : ∂Pi_∂n(E, F, Pi, n.val, ϕ.val, m.val) * n.dval) +
+                return (n isa Const ? zero(n.val) : ∂Pi_∂n(n.val, ϕ.val, m.val) * n.dval) +
                        (ϕ isa Const ? zero(ϕ.val) : ∂Pi_∂ϕ(n.val, ϕ.val, m.val) * ϕ.dval) +
-                       (m isa Const ? zero(m.val) : ∂Pi_∂m(E, Pi, n.val, ϕ.val, m.val) * m.dval)
+                       (m isa Const ? zero(m.val) : ∂Pi_∂m(n.val, ϕ.val, m.val) * m.dval)
             else
                 return ntuple(
                     i ->
                         (
                             n isa Const ? zero(n.val) :
-                            ∂Pi_∂n(E, F, Pi, n.val, ϕ.val, m.val) * n.dval[i]
+                            ∂Pi_∂n(n.val, ϕ.val, m.val) * n.dval[i]
                         ) +
                         (
                             ϕ isa Const ? zero(ϕ.val) :
@@ -540,7 +543,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
                         ) +
                         (
                             m isa Const ? zero(m.val) :
-                            ∂Pi_∂m(E, Pi, n.val, ϕ.val, m.val) * m.dval[i]
+                            ∂Pi_∂m(n.val, ϕ.val, m.val) * m.dval[i]
                         ),
                     Val(EnzymeRules.width(config)),
                 )
@@ -560,9 +563,18 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ϕ::Annotation{<:Real},
         m::Annotation{<:Real},
     )
-        primal = EnzymeRules.needs_primal(config) ? func.val(n.val, ϕ.val, m.val) : nothing
-
-        return EnzymeRules.AugmentedReturn(primal, nothing, nothing)
+        Pi = func.val(n.val, ϕ.val, m.val)
+        E = ($alg).E(ϕ.val, m.val)
+        F = ($alg).F(ϕ.val, m.val)
+        sin_2ϕ = sin(2 * ϕ.val)
+        sin_ϕ = sin(ϕ.val)
+        sqrt_term = √(1 - m.val * sin_ϕ^2)
+        primal = EnzymeRules.needs_primal(config) ? Pi : nothing
+        return EnzymeRules.AugmentedReturn(
+            primal,
+            nothing,
+            (E, F, sin_2ϕ, sin_ϕ, sqrt_term, Pi),
+        )
     end
 
     @eval function reverse(
@@ -574,11 +586,11 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ϕ::Annotation{T},
         m::Annotation{T},
     ) where {T}
-        E, F, Pi = ($alg).E(ϕ.val, m.val), ($alg).F(ϕ.val, m.val), func.val(n.val, ϕ.val, m.val)
-        ∂Pi_∂n(E, F, Pi, n, ϕ, m) = begin
+        E, F, sin_2ϕ, sin_ϕ, sqrt_term, Pi = tape
+        ∂Pi_∂n(n, ϕ, m) = begin
             if iszero(n)
                 if iszero(m)
-                    (2 * ϕ - sin(2 * ϕ)) / 4
+                    (2 * ϕ - sin_2ϕ) / 4
                 end
                 (F - E) / m
             else
@@ -586,18 +598,18 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
                     E +
                     (m - n) * F / n +
                     (n^2 - m) * Pi / n -
-                    n * √(1 - m * sin(ϕ)^2) * sin(2ϕ) / (2(1 - n * sin(ϕ)^2))
+                    n * sqrt_term * sin_2ϕ / (2 * (1 - n * sin_ϕ^2))
                 ) / (2 * (m - n) * (n - 1))
             end
         end
 
-        ∂Pi_∂m(E, Pi, n, ϕ, m) =
+        ∂Pi_∂m(n, ϕ, m) =
             (
                 E / (m - 1) + Pi -
-                m * sin(2 * ϕ) / (2 * (m - 1) * √(1 - m * sin(ϕ)^2))
+                m * sin_2ϕ / (2 * (m - 1) * sqrt_term)
             ) / (2 * (n - m))
 
-        ∂Pi_∂ϕ(n, ϕ, m) = 1 / (√(1 - m * sin(ϕ)^2) * (1 - n * sin(ϕ)^2))
+        ∂Pi_∂ϕ(n, ϕ, m) = 1 / (sqrt_term * (1 - n * sin_ϕ^2))
 
         dn = if n isa Const
             nothing
@@ -605,14 +617,14 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             if dret isa Type{<:Const}
                 zero(n.val)
             else
-                ∂Pi_∂n(E, F, Pi, n.val, ϕ.val, m.val) * dret.val
+                ∂Pi_∂n(n.val, ϕ.val, m.val) * dret.val
             end
         else
             if dret isa Type{<:Const}
                 ntuple(i -> zero(n.val), Val(EnzymeRules.width(config)))
             else
                 ntuple(
-                    i -> ∂Pi_∂n(E, F, Pi, n.val, ϕ.val, m.val) * dret.val[i],
+                    i -> ∂Pi_∂n(n.val, ϕ.val, m.val) * dret.val[i],
                     Val(EnzymeRules.width(config)),
                 )
             end
@@ -643,14 +655,14 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             if dret isa Type{<:Const}
                 zero(m.val)
             else
-                ∂Pi_∂m(E, Pi, n.val, ϕ.val, m.val) * dret.val
+                ∂Pi_∂m(n.val, ϕ.val, m.val) * dret.val
             end
         else
             if dret isa Type{<:Const}
                 ntuple(i -> zero(m.val), Val(EnzymeRules.width(config)))
             else
                 ntuple(
-                    i -> ∂Pi_∂m(E, Pi, n.val, ϕ.val, m.val) * dret.val[i],
+                    i -> ∂Pi_∂m(n.val, ϕ.val, m.val) * dret.val[i],
                     Val(EnzymeRules.width(config)),
                 )
             end
@@ -729,9 +741,12 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ϕ::Annotation{<:Real},
         m::Annotation{<:Real},
     )
-        primal = EnzymeRules.needs_primal(config) ? func.val(ϕ.val, m.val) : nothing
-
-        return EnzymeRules.AugmentedReturn(primal, nothing, nothing)
+        c = func.val(ϕ.val, m.val)
+        s = ($alg).sn(ϕ.val, m.val)
+        d = ($alg).dn(ϕ.val, m.val)
+        e = ($alg).E(($alg).am(ϕ.val, m.val), m.val)
+        primal = EnzymeRules.needs_primal(config) ? c : nothing
+        return EnzymeRules.AugmentedReturn(primal, nothing, (s, d, c, e))
     end
 
     @eval function reverse(
@@ -742,17 +757,9 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ϕ::Annotation{T},
         m::Annotation{T},
     ) where {T}
-        ∂cn_∂m(ϕ, m) = begin
-            s = ($alg).sn(ϕ, m)
-            a = ($alg).am(ϕ, m)
-            d = ($alg).dn(ϕ, m)
-            c = ($alg).cn(ϕ, m)
-            e = ($alg).E(a, m)
-            inv(2m * (1 - m)) * d * s * ((m - 1) * ϕ - m * (c / d) * s + e)
-
-        end
-
-        ∂cn_∂ϕ(ϕ, m) = -($alg).dn(ϕ, m) * ($alg).sn(ϕ, m)
+        s, d, c, e = tape
+        ∂cn_∂m = inv(2 * m.val * (1 - m.val)) * d * s * ((m.val - 1) * ϕ.val - m.val * (c / d) * s + e)
+        ∂cn_∂ϕ = -d * s
 
         dϕ = if ϕ isa Const
             nothing
@@ -760,13 +767,13 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             if dret isa Type{<:Const}
                 zero(ϕ.val)
             else
-                ∂cn_∂ϕ(ϕ.val, m.val) * dret.val
+                ∂cn_∂ϕ * dret.val
             end
         else
             if dret isa Type{<:Const}
                 ntuple(i -> zero(ϕ.val), Val(EnzymeRules.width(config)))
             else
-                ntuple(i -> ∂cn_∂ϕ(ϕ.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+                ntuple(i -> ∂cn_∂ϕ * dret.val[i], Val(EnzymeRules.width(config)))
             end
         end
 
@@ -776,13 +783,13 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             if dret isa Type{<:Const}
                 zero(m.val)
             else
-                ∂cn_∂m(ϕ.val, m.val) * dret.val
+                ∂cn_∂m * dret.val
             end
         else
             if dret isa Type{<:Const}
                 ntuple(i -> zero(m.val), Val(EnzymeRules.width(config)))
             else
-                ntuple(i -> ∂cn_∂m(ϕ.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+                ntuple(i -> ∂cn_∂m * dret.val[i], Val(EnzymeRules.width(config)))
             end
         end
         return (dϕ, dm)
@@ -861,9 +868,12 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ϕ::Annotation{<:Real},
         m::Annotation{<:Real},
     )
-        primal = EnzymeRules.needs_primal(config) ? func.val(ϕ.val, m.val) : nothing
-
-        return EnzymeRules.AugmentedReturn(primal, nothing, nothing)
+        s = func.val(ϕ.val, m.val)
+        d = ($alg).dn(ϕ.val, m.val)
+        c = ($alg).cn(ϕ.val, m.val)
+        e = ($alg).E(($alg).am(ϕ.val, m.val), m.val)
+        primal = EnzymeRules.needs_primal(config) ? s : nothing
+        return EnzymeRules.AugmentedReturn(primal, nothing, (s, d, c, e))
     end
 
     @eval function reverse(
@@ -874,17 +884,9 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ϕ::Annotation{T},
         m::Annotation{T},
     ) where {T}
-        ∂sn_∂m(ϕ, m) = begin
-            s = ($alg).sn(ϕ, m)
-            a = ($alg).am(ϕ, m)
-            d = ($alg).dn(ϕ, m)
-            c = ($alg).cn(ϕ, m)
-            e = ($alg).E(a, m)
-            inv(2m * (1 - m)) * d * c * ((1 - m) * ϕ + m * (c / d) * s - e)
-
-        end
-
-        ∂sn_∂ϕ(ϕ, m) = ($alg).dn(ϕ, m) * ($alg).cn(ϕ, m)
+        s, d, c, e = tape
+        ∂sn_∂m = inv(2 * m.val * (1 - m.val)) * d * c * ((1 - m.val) * ϕ.val + m.val * (c / d) * s - e)
+        ∂sn_∂ϕ = d * c
 
 
         dϕ = if ϕ isa Const
@@ -893,13 +895,13 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             if dret isa Type{<:Const}
                 zero(ϕ.val)
             else
-                ∂sn_∂ϕ(ϕ.val, m.val) * dret.val
+                ∂sn_∂ϕ * dret.val
             end
         else
             if dret isa Type{<:Const}
                 ntuple(i -> zero(ϕ.val), Val(EnzymeRules.width(config)))
             else
-                ntuple(i -> ∂sn_∂ϕ(ϕ.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+                ntuple(i -> ∂sn_∂ϕ * dret.val[i], Val(EnzymeRules.width(config)))
             end
         end
 
@@ -909,13 +911,13 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             if dret isa Type{<:Const}
                 zero(m.val)
             else
-                ∂sn_∂m(ϕ.val, m.val) * dret.val
+                ∂sn_∂m * dret.val
             end
         else
             if dret isa Type{<:Const}
                 ntuple(i -> zero(m.val), Val(EnzymeRules.width(config)))
             else
-                ntuple(i -> ∂sn_∂m(ϕ.val, m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+                ntuple(i -> ∂sn_∂m * dret.val[i], Val(EnzymeRules.width(config)))
             end
         end
         return (dϕ, dm)
