@@ -17,7 +17,10 @@ for alg in (JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg)
         (
             c̄ -> (
                 c̄ * sqrt(1 - b * sin(a)^2),
-                c̄ * (iszero(b) ? (sin(2 * a) - 2 * a) / 8 : (($alg).E(a, b) - ($alg).F(a, b)) / (2b)),
+                c̄ * (
+                    iszero(b) ? (sin(2 * a) - 2 * a) / 8 :
+                    (($alg).E(a, b) - ($alg).F(a, b)) / (2b)
+                ),
             )
         )
 
@@ -50,7 +53,10 @@ for alg in (JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg)
             c̄ -> (
                 c̄ * (
                     iszero(a) ?
-                    (iszero(c) ? (2 * b - sin(2 * b)) / 4 : (($alg).F(b, c) - ($alg).E(b, c)) / c) :
+                    (
+                        iszero(c) ? (2 * b - sin(2 * b)) / 4 :
+                        (($alg).F(b, c) - ($alg).E(b, c)) / c
+                    ) :
                     (
                         ($alg).E(b, c) +
                         (c - a) * ($alg).F(b, c) / a +
@@ -61,8 +67,7 @@ for alg in (JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg)
                 c̄ * (1 / (sqrt(1 - c * sin(b)^2) * (1 - a * sin(b)^2))),
                 c̄ * (
                     (
-                        ($alg).E(b, c) / (c - 1) +
-                        ($alg).Pi(a, b, c) -
+                        ($alg).E(b, c) / (c - 1) + ($alg).Pi(a, b, c) -
                         c * sin(2 * b) / (2 * (c - 1) * sqrt(1 - c * sin(b)^2))
                     ) / (2 * (a - c))
                 ),
