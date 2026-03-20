@@ -76,11 +76,14 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
 		xval = x.value
 		yval = y.value
 		fval = ($alg).F(xval, yval)
-		∂xf = inv(sqrt(1 - yval * sin(xval)^2))
+		sin_x = sin(xval)
+		sin_2x = sin(2 * xval)
+		sqrt_term = sqrt(1 - yval * sin_x^2)
+		∂xf = inv(sqrt_term)
 		∂yf =
-			iszero(yval) ? (2xval - sin(2xval)) / 8 :
+			iszero(yval) ? (2xval - sin_2x) / 8 :
 			($alg).E(xval, yval) / (2 * yval * (1 - yval)) - fval / (2 * yval) -
-			sin(2 * xval) / (4 * (1 - yval) * sqrt(1 - yval * sin(xval)^2))
+			sin_2x / (4 * (1 - yval) * sqrt_term)
 		ForwardDiff.Dual{T}(fval, ∂xf * x.partials + ∂yf * y.partials)
 	end
 
@@ -109,14 +112,14 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
 		yval = y.value
 
 		fval = ($alg).E(xval, yval)
-		∂xf = sqrt(1 - yval * sin(xval)^2)
+		sin_x = sin(xval)
+		sin_2x = sin(2 * xval)
+		sqrt_term = sqrt(1 - yval * sin_x^2)
+		∂xf = sqrt_term
 		∂yf =
-			iszero(yval) ? (sin(2xval) - 2xval) / 8 :
+			iszero(yval) ? (sin_2x - 2xval) / 8 :
 			(fval - ($alg).F(xval, yval)) / (2yval)
-		ForwardDiff.Dual{T}(
-			fval,
-			ForwardDiff.Partials((∂xf * x.partials[1], ∂yf * y.partials[2])),
-		)
+		ForwardDiff.Dual{T}(fval, ∂xf * x.partials + ∂yf * y.partials)
 	end
 
 	#----------------------------------------------------------------------------------------
@@ -152,16 +155,16 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
 		yval = ForwardDiff.value(y)
 
 		fval = JacobiElliptic.cn(xval, yval)
-		∂xf = -JacobiElliptic.dn(xval, yval) * JacobiElliptic.sn(xval, yval)
-		∂yf =
-			inv(2 * (1 - yval) * yval) *
-			JacobiElliptic.dn(xval, yval) *
-			JacobiElliptic.sn(xval, yval) *
-			(
-				(yval - 1) * xval +
-				($alg).E(JacobiElliptic.am(xval, yval), yval) -
-				yval * JacobiElliptic.cd(xval, yval) * JacobiElliptic.sn(xval, yval)
-			)
+		dn_val = JacobiElliptic.dn(xval, yval)
+		sn_val = JacobiElliptic.sn(xval, yval)
+		dn_sn = dn_val * sn_val
+		∂xf = -dn_sn
+		am_val = JacobiElliptic.am(xval, yval)
+		E_am = ($alg).E(am_val, yval)
+		cd_val = JacobiElliptic.cd(xval, yval)
+		cd_sn = cd_val * sn_val
+		expr = (yval - 1) * xval + E_am - yval * cd_sn
+		∂yf = inv(2 * (1 - yval) * yval) * dn_sn * expr
 		ForwardDiff.Dual{T}(fval, ∂xf * ForwardDiff.partials(x) + ∂yf * ForwardDiff.partials(y))
 	end
 
@@ -198,16 +201,17 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
 		yval = y.value
 
 		fval = ($alg).sn(xval, yval)
-		∂xf = JacobiElliptic.dn(xval, yval) * JacobiElliptic.cn(xval, yval)
-		∂yf =
-			inv(2 * (1 - yval) * yval) *
-			JacobiElliptic.dn(xval, yval) *
-			JacobiElliptic.cn(xval, yval) *
-			(
-				(1 - yval) * xval -
-				($alg).E(JacobiElliptic.am(xval, yval), yval) +
-				yval * JacobiElliptic.cd(xval, yval) * JacobiElliptic.sn(xval, yval)
-			)
+		dn_val = JacobiElliptic.dn(xval, yval)
+		cn_val = JacobiElliptic.cn(xval, yval)
+		dn_cn = dn_val * cn_val
+		∂xf = dn_cn
+		am_val = JacobiElliptic.am(xval, yval)
+		E_am = ($alg).E(am_val, yval)
+		cd_val = JacobiElliptic.cd(xval, yval)
+		sn_val = JacobiElliptic.sn(xval, yval)
+		cd_sn = cd_val * sn_val
+		expr = (1 - yval) * xval - E_am + yval * cd_sn
+		∂yf = inv(2 * (1 - yval) * yval) * dn_cn * expr
 
 		ForwardDiff.Dual{T}(fval, ∂xf * x.partials + ∂yf * y.partials)
 	end

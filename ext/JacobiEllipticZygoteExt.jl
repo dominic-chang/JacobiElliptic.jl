@@ -13,120 +13,143 @@ for alg in (JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg)
         # Elliptic F(a, b)
         #------------------------------------------------------------------------------------
 
-        @adjoint ($alg).F(a, b) = ($alg).F(a, b),
-        (
-            c̄ -> (
-                c̄ / sqrt(1 - b * sin(a)^2),
+        @adjoint function ($alg).F(a, b)
+            F = ($alg).F(a, b)
+            E = ($alg).E(a, b)
+            sin_a = sin(a)
+            sin_2a = sin(2 * a)
+            sqrt_term = sqrt(1 - b * sin_a^2)
+            return F, c̄ -> (
+                c̄ / sqrt_term,
                 c̄ * (
-                    iszero(b) ? (2 * a - sin(2 * a)) / 8 :
-                    ($alg).E(a, b) / (2 * b * (1 - b)) - ($alg).F(a, b) / (2 * b) -
-                    sin(2 * a) / (4 * (1 - b) * sqrt(1 - b * sin(a)^2))
+                    iszero(b) ? (2 * a - sin_2a) / 8 :
+                    E / (2 * b * (1 - b)) - F / (2 * b) -
+                    sin_2a / (4 * (1 - b) * sqrt_term)
                 ),
             )
-        )
+        end
 
         #------------------------------------------------------------------------------------
         # Elliptic E(a, b)
         #------------------------------------------------------------------------------------
 
-        @adjoint ($alg).E(a, b) = ($alg).E(a, b),
-        (
-            c̄ -> (
-                c̄ * sqrt(1 - b * sin(a)^2),
+        @adjoint function ($alg).E(a, b)
+            E = ($alg).E(a, b)
+            F = ($alg).F(a, b)
+            sin_a = sin(a)
+            return E, c̄ -> (
+                c̄ * sqrt(1 - b * sin_a^2),
                 c̄ * (
                     iszero(b) ? (sin(2 * a) - 2 * a) / 8 :
-                    (($alg).E(a, b) - ($alg).F(a, b)) / (2b)
+                    (E - F) / (2 * b)
                 ),
             )
-        )
+        end
 
         #------------------------------------------------------------------------------------
         # Elliptic Pi(a, b)
         #------------------------------------------------------------------------------------
 
-        @adjoint ($alg).Pi(a, b) = ($alg).Pi(a, b),
-        (
-            c̄ -> (
+        @adjoint function ($alg).Pi(a, b)
+            Pi = ($alg).Pi(a, b)
+            K = ($alg).K(b)
+            E_b = ($alg).E(b)
+            return Pi, c̄ -> (
                 c̄ * (
                     iszero(a) ?
-                    (iszero(b) ? π / 4 : (($alg).K(b) - ($alg).E(b)) / b) :
+                    (iszero(b) ? π / 4 : (K - E_b) / b) :
                     (
-                        ($alg).E(b) +
-                        (b - a) * ($alg).K(b) / a +
-                        (a^2 - b) * ($alg).Pi(a, b) / a
+                        E_b +
+                        (b - a) * K / a +
+                        (a^2 - b) * Pi / a
                     ) / (2 * (b - a) * (a - 1))
                 ),
-                c̄ * ((($alg).E(b) / (b - 1) + ($alg).Pi(a, b)) / (2 * (a - b))),
+                c̄ * ((E_b / (b - 1) + Pi) / (2 * (a - b))),
             )
-        )
+        end
 
         #------------------------------------------------------------------------------------
         # Elliptic Pi(a, b, c)
         #------------------------------------------------------------------------------------
 
-        @adjoint ($alg).Pi(a, b, c) = ($alg).Pi(a, b, c),
-        (
-            c̄ -> (
+        @adjoint function ($alg).Pi(a, b, c)
+            Pi = ($alg).Pi(a, b, c)
+            F_bc = ($alg).F(b, c)
+            E_bc = ($alg).E(b, c)
+            sin_b = sin(b)
+            sin_2b = sin(2 * b)
+            sqrt_term = sqrt(1 - c * sin_b^2)
+            return Pi, c̄ -> (
                 c̄ * (
                     iszero(a) ?
                     (
-                        iszero(c) ? (2 * b - sin(2 * b)) / 4 :
-                        (($alg).F(b, c) - ($alg).E(b, c)) / c
+                        iszero(c) ? (2 * b - sin_2b) / 4 :
+                        (F_bc - E_bc) / c
                     ) :
                     (
-                        ($alg).E(b, c) +
-                        (c - a) * ($alg).F(b, c) / a +
-                        (a^2 - c) * ($alg).Pi(a, b, c) / a -
-                        a * sqrt(1 - c * sin(b)^2) * sin(2 * b) / (2 * (1 - a * sin(b)^2))
+                        E_bc +
+                        (c - a) * F_bc / a +
+                        (a^2 - c) * Pi / a -
+                        a * sqrt_term * sin_2b / (2 * (1 - a * sin_b^2))
                     ) / (2 * (c - a) * (a - 1))
                 ),
-                c̄ * (1 / (sqrt(1 - c * sin(b)^2) * (1 - a * sin(b)^2))),
+                c̄ * (1 / (sqrt_term * (1 - a * sin_b^2))),
                 c̄ * (
                     (
-                        ($alg).E(b, c) / (c - 1) + ($alg).Pi(a, b, c) -
-                        c * sin(2 * b) / (2 * (c - 1) * sqrt(1 - c * sin(b)^2))
+                        E_bc / (c - 1) + Pi -
+                        c * sin_2b / (2 * (c - 1) * sqrt_term)
                     ) / (2 * (a - c))
                 ),
             )
-        )
+        end
 
         #------------------------------------------------------------------------------------
         # Elliptic CN(a, b)
         #------------------------------------------------------------------------------------
 
-        @adjoint ($alg).cn(a, b) = ($alg).cn(a, b),
-        (
-            c̄ -> (
-                c̄ * (-($alg).dn(a, b) * ($alg).sn(a, b)),
+        @adjoint function ($alg).cn(a, b)
+            cn = ($alg).cn(a, b)
+            dn = ($alg).dn(a, b)
+            sn = ($alg).sn(a, b)
+            am = ($alg).am(a, b)
+            cd = ($alg).cd(a, b)
+            E_am = ($alg).E(am, b)
+            return cn, c̄ -> (
+                c̄ * (-dn * sn),
                 c̄ *
                 inv(2 * (1 - b) * b) *
-                ($alg).dn(a, b) *
-                ($alg).sn(a, b) *
+                dn *
+                sn *
                 (
-                    (b - 1) * a + ($alg).E(($alg).am(a, b), b) -
-                    b * ($alg).cd(a, b) * ($alg).sn(a, b)
+                    (b - 1) * a + E_am -
+                    b * (cn / dn) * sn
                 ),
             )
-        )
+        end
 
         #------------------------------------------------------------------------------------
         # Elliptic SN(a, b)
         #------------------------------------------------------------------------------------
 
-        @adjoint ($alg).sn(a, b) = ($alg).sn(a, b),
-        (
-            c̄ -> (
-                c̄ * (($alg).dn(a, b) * ($alg).cn(a, b)),
+        @adjoint function ($alg).sn(a, b)
+            sn = ($alg).sn(a, b)
+            dn = ($alg).dn(a, b)
+            cn = ($alg).cn(a, b)
+            am = ($alg).am(a, b)
+            cd = ($alg).cd(a, b)
+            E_am = ($alg).E(am, b)
+            return sn, c̄ -> (
+                c̄ * (dn * cn),
                 c̄ *
                 inv(2 * (1 - b) * b) *
-                ($alg).dn(a, b) *
-                ($alg).cn(a, b) *
+                dn *
+                cn *
                 (
-                    (1 - b) * a - ($alg).E(($alg).am(a, b), b) +
-                    b * ($alg).cd(a, b) * ($alg).sn(a, b)
+                    (1 - b) * a - E_am +
+                    b * (cn / dn) * sn
                 ),
             )
-        )
+        end
     end
 end
 
