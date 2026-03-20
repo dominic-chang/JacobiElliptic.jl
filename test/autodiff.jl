@@ -119,7 +119,8 @@ end
                     alg.E(ϕ, m) / (2 * m * (1 - m)) - alg.F(ϕ, m) / (2 * m) -
                     sin(2 * ϕ) / (4 * (1 - m) * √(1 - m * sin(ϕ)^2)),
                 ]
-                @test ForwardDiff.gradient(x -> _F(x[1], x[2]), [ϕ, m]) ≈ grad_both atol = 1e-5
+                @test ForwardDiff.gradient(x -> _F(x[1], x[2]), [ϕ, m]) ≈ grad_both atol =
+                    1e-5
                 for Tret in (Const, Duplicated, DuplicatedNoNeed),
                     Tϕ in (Const, Duplicated),
                     Tm in (Const, Duplicated)
@@ -416,15 +417,18 @@ end
         m = 0.0
         grad = [1.0, -π / 8]
         @test Zygote.gradient(x -> _E(x[1], x[2]), [ϕ, m])[1] ≈ grad
-        @test ForwardDiff.gradient(x -> _E(x[1], x[2]), [ϕ, m]) |> collect ≈ grad 
-        @test Enzyme.autodiff(Reverse, _E, Active, Active(ϕ), Active(m))[1] |> collect ≈ grad
+        @test ForwardDiff.gradient(x -> _E(x[1], x[2]), [ϕ, m]) |> collect ≈ grad
+        @test Enzyme.autodiff(Reverse, _E, Active, Active(ϕ), Active(m))[1] |> collect ≈
+              grad
         @test Enzyme.autodiff(
-            Forward,
-            _E,
-            BatchDuplicated,
-            BatchDuplicated(ϕ, (1.0,0.0)),
-            BatchDuplicated(m, (0.0,1.0)),
-        )[1] |> values |> collect ≈ grad
+                  Forward,
+                  _E,
+                  BatchDuplicated,
+                  BatchDuplicated(ϕ, (1.0, 0.0)),
+                  BatchDuplicated(m, (0.0, 1.0)),
+              )[1] |>
+              values |>
+              collect ≈ grad
 
 
         _F = alg.F
@@ -432,15 +436,18 @@ end
         m = 0.5
         grad = [1.414213562373095, 0.8472130847939789]
         @test Zygote.gradient(x -> _F(x[1], x[2]), [ϕ, m])[1] ≈ grad
-        @test ForwardDiff.gradient(x -> _F(x[1], x[2]), [ϕ, m]) |> collect ≈ grad 
-        @test Enzyme.autodiff(Reverse, _F, Active, Active(ϕ), Active(m))[1] |> collect ≈ grad
+        @test ForwardDiff.gradient(x -> _F(x[1], x[2]), [ϕ, m]) |> collect ≈ grad
+        @test Enzyme.autodiff(Reverse, _F, Active, Active(ϕ), Active(m))[1] |> collect ≈
+              grad
         @test Enzyme.autodiff(
-            Forward,
-            _F,
-            BatchDuplicated,
-            BatchDuplicated(ϕ, (1.0,0.0)),
-            BatchDuplicated(m, (0.0,1.0)),
-        )[1] |>values |> collect ≈ grad
+                  Forward,
+                  _F,
+                  BatchDuplicated,
+                  BatchDuplicated(ϕ, (1.0, 0.0)),
+                  BatchDuplicated(m, (0.0, 1.0)),
+              )[1] |>
+              values |>
+              collect ≈ grad
 
     end
 

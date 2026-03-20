@@ -471,7 +471,8 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ϕ::Annotation{<:Real},
         m::Annotation{<:Real},
     )
-        E, F, Pi = ($alg).E(ϕ.val, m.val), ($alg).F(ϕ.val, m.val), func.val(n.val, ϕ.val, m.val)
+        E, F, Pi =
+            ($alg).E(ϕ.val, m.val), ($alg).F(ϕ.val, m.val), func.val(n.val, ϕ.val, m.val)
         ∂Pi_∂n(n, ϕ, m) = begin
             if iszero(n)
                 if iszero(m)
@@ -480,19 +481,15 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
                 (F - E) / m
             else
                 (
-                    E +
-                    (m - n) * F / n +
-                    (n^2 - m) * Pi / n -
+                    E + (m - n) * F / n + (n^2 - m) * Pi / n -
                     n * √(1 - m * sin(ϕ)^2) * sin(2ϕ) / (2(1 - n * sin(ϕ)^2))
                 ) / (2 * (m - n) * (n - 1))
             end
         end
 
         ∂Pi_∂m(n, ϕ, m) =
-            (
-                E / (m - 1) + Pi -
-                m * sin(2 * ϕ) / (2 * (m - 1) * √(1 - m * sin(ϕ)^2))
-            ) / (2 * (n - m))
+            (E / (m - 1) + Pi - m * sin(2 * ϕ) / (2 * (m - 1) * √(1 - m * sin(ϕ)^2))) /
+            (2 * (n - m))
 
         ∂Pi_∂ϕ(n, ϕ, m) = 1 / (√(1 - m * sin(ϕ)^2) * (1 - n * sin(ϕ)^2))
 
@@ -595,19 +592,14 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
                 (F - E) / m
             else
                 (
-                    E +
-                    (m - n) * F / n +
-                    (n^2 - m) * Pi / n -
+                    E + (m - n) * F / n + (n^2 - m) * Pi / n -
                     n * sqrt_term * sin_2ϕ / (2 * (1 - n * sin_ϕ^2))
                 ) / (2 * (m - n) * (n - 1))
             end
         end
 
         ∂Pi_∂m(n, ϕ, m) =
-            (
-                E / (m - 1) + Pi -
-                m * sin_2ϕ / (2 * (m - 1) * sqrt_term)
-            ) / (2 * (n - m))
+            (E / (m - 1) + Pi - m * sin_2ϕ / (2 * (m - 1) * sqrt_term)) / (2 * (n - m))
 
         ∂Pi_∂ϕ(n, ϕ, m) = 1 / (sqrt_term * (1 - n * sin_ϕ^2))
 
@@ -758,7 +750,11 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         m::Annotation{T},
     ) where {T}
         s, d, c, e = tape
-        ∂cn_∂m = inv(2 * m.val * (1 - m.val)) * d * s * ((m.val - 1) * ϕ.val - m.val * (c / d) * s + e)
+        ∂cn_∂m =
+            inv(2 * m.val * (1 - m.val)) *
+            d *
+            s *
+            ((m.val - 1) * ϕ.val - m.val * (c / d) * s + e)
         ∂cn_∂ϕ = -d * s
 
         dϕ = if ϕ isa Const
@@ -885,7 +881,11 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         m::Annotation{T},
     ) where {T}
         s, d, c, e = tape
-        ∂sn_∂m = inv(2 * m.val * (1 - m.val)) * d * c * ((1 - m.val) * ϕ.val + m.val * (c / d) * s - e)
+        ∂sn_∂m =
+            inv(2 * m.val * (1 - m.val)) *
+            d *
+            c *
+            ((1 - m.val) * ϕ.val + m.val * (c / d) * s - e)
         ∂sn_∂ϕ = d * c
 
 
