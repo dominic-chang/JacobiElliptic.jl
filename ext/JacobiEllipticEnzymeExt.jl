@@ -16,8 +16,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         RT,
         m::Annotation{<:Real},
     )
-        ∂K_∂m(m) = ($alg).E(m) / (2 * m * (1 - m)) -
-                   ($alg).K(m) / 2 / m
+        ∂K_∂m(m) = ($alg).E(m) / (2 * m * (1 - m)) - ($alg).K(m) / 2 / m
         ∂K_∂ϕ(m) = 1 / √(1 - m)
 
         if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
@@ -69,8 +68,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         tape,
         m::Annotation{T},
     ) where {T}
-        ∂K_∂m(m) = ($alg).E(m) / (2 * m * (1 - m)) -
-                   ($alg).K(m) / 2 / m
+        ∂K_∂m(m) = ($alg).E(m) / (2 * m * (1 - m)) - ($alg).K(m) / 2 / m
         ∂K_∂ϕ(m) = 1 / √(1 - m)
 
         dm = if m isa Const
@@ -111,16 +109,11 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
                 end
                 (($alg).K(m) - ($alg).E(m)) / m
             else
-                (
-                    ($alg).E(m) +
-                    (m - n) * ($alg).K(m) / n +
-                    (n^2 - m) * ($alg).Pi(n, m) / n
-                ) / (2 * (m - n) * (n - 1))
+                (($alg).E(m) + (m - n) * ($alg).K(m) / n + (n^2 - m) * ($alg).Pi(n, m) / n) / (2 * (m - n) * (n - 1))
             end
         end
 
-        ∂Pi_∂m(n, m) = (($alg).E(m) / (m - 1) + ($alg).Pi(n, m)) /
-                   (2 * (n - m))
+        ∂Pi_∂m(n, m) = (($alg).E(m) / (m - 1) + ($alg).Pi(n, m)) / (2 * (n - m))
 
         if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
             if EnzymeRules.width(config) == 1
@@ -186,16 +179,11 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
                 end
                 (($alg).K(m) - ($alg).E(m)) / m
             else
-                (
-                    ($alg).E(m) +
-                    (m - n) * ($alg).K(m) / n +
-                    (n^2 - m) * ($alg).Pi(n, m) / n
-                ) / (2 * (m - n) * (n - 1))
+                (($alg).E(m) + (m - n) * ($alg).K(m) / n + (n^2 - m) * ($alg).Pi(n, m) / n) / (2 * (m - n) * (n - 1))
             end
         end
 
-        ∂Pi_∂m(n, m) = (($alg).E(m) / (m - 1) + ($alg).Pi(n, m)) /
-                   (2 * (n - m))
+        ∂Pi_∂m(n, m) = (($alg).E(m) / (m - 1) + ($alg).Pi(n, m)) / (2 * (n - m))
 
         dn = if n isa Const
             nothing
@@ -244,9 +232,9 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ϕ::Annotation{<:Real},
         m::Annotation{<:Real},
     )
-        ∂F_∂m(ϕ, m)= ($alg).E(ϕ, m) / (2 * m * (1 - m)) -
-                   ($alg).F(ϕ, m) / 2 / m -
-                   sin(2 * ϕ) / (4 * (1 - m) * √(1 - m * sin(ϕ)^2))
+        ∂F_∂m(ϕ, m) =
+            ($alg).E(ϕ, m) / (2 * m * (1 - m)) - ($alg).F(ϕ, m) / 2 / m -
+            sin(2 * ϕ) / (4 * (1 - m) * √(1 - m * sin(ϕ)^2))
 
         ∂F_∂ϕ(ϕ, m) = 1 / √(1 - m * sin(ϕ)^2)
 
@@ -307,9 +295,9 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ϕ::Annotation{T},
         m::Annotation{T},
     ) where {T}
-        ∂F_∂m(ϕ, m)= ($alg).E(ϕ, m) / (2 * m * (1 - m)) -
-                   ($alg).F(ϕ, m) / 2 / m -
-                   sin(2 * ϕ) / (4 * (1 - m) * √(1 - m * sin(ϕ)^2))
+        ∂F_∂m(ϕ, m) =
+            ($alg).E(ϕ, m) / (2 * m * (1 - m)) - ($alg).F(ϕ, m) / 2 / m -
+            sin(2 * ϕ) / (4 * (1 - m) * √(1 - m * sin(ϕ)^2))
 
         ∂F_∂ϕ(ϕ, m) = 1 / √(1 - m * sin(ϕ)^2)
 
@@ -361,8 +349,8 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ϕ::Annotation{<:Real},
         m::Annotation{<:Real},
     )
-        ∂E_∂m(ϕ, m) = iszero(m) ? (sin(2 * ϕ) - 2 * ϕ) / 8 :
-                           (($alg).E(ϕ, m) - ($alg).F(ϕ, m)) / (2m)
+        ∂E_∂m(ϕ, m) =
+            iszero(m) ? (sin(2 * ϕ) - 2 * ϕ) / 8 : (($alg).E(ϕ, m) - ($alg).F(ϕ, m)) / (2m)
 
         ∂E_∂ϕ(ϕ, m) = √(1 - m * sin(ϕ)^2)
 
@@ -425,8 +413,8 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ϕ::Annotation{T},
         m::Annotation{T},
     ) where {T}
-        ∂E_∂m(ϕ, m) = iszero(m) ? (sin(2 * ϕ) - 2 * ϕ) / 8 :
-                           (($alg).E(ϕ, m) - ($alg).F(ϕ, m)) / (2m)
+        ∂E_∂m(ϕ, m) =
+            iszero(m) ? (sin(2 * ϕ) - 2 * ϕ) / 8 : (($alg).E(ϕ, m) - ($alg).F(ϕ, m)) / (2m)
 
         ∂E_∂ϕ(ϕ, m) = √(1 - m * sin(ϕ)^2)
 
@@ -494,9 +482,9 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             end
         end
 
-        ∂Pi_∂m(n, ϕ, m) = (
-                ($alg).E(ϕ, m) / (m - 1) +
-                ($alg).Pi(n, ϕ, m) -
+        ∂Pi_∂m(n, ϕ, m) =
+            (
+                ($alg).E(ϕ, m) / (m - 1) + ($alg).Pi(n, ϕ, m) -
                 m * sin(2 * ϕ) / (2 * (m - 1) * √(1 - m * sin(ϕ)^2))
             ) / (2 * (n - m))
 
@@ -539,9 +527,18 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             else
                 return ntuple(
                     i ->
-                        (n isa Const ? zero(n.val) : ∂Pi_∂n(n.val, ϕ.val, m.val) * n.dval[i]) +
-                        (ϕ isa Const ? zero(ϕ.val) : ∂Pi_∂ϕ(n.val, ϕ.val, m.val) * ϕ.dval[i]) +
-                        (m isa Const ? zero(m.val) : ∂Pi_∂m(n.val, ϕ.val, m.val) * m.dval[i]),
+                        (
+                            n isa Const ? zero(n.val) :
+                            ∂Pi_∂n(n.val, ϕ.val, m.val) * n.dval[i]
+                        ) +
+                        (
+                            ϕ isa Const ? zero(ϕ.val) :
+                            ∂Pi_∂ϕ(n.val, ϕ.val, m.val) * ϕ.dval[i]
+                        ) +
+                        (
+                            m isa Const ? zero(m.val) :
+                            ∂Pi_∂m(n.val, ϕ.val, m.val) * m.dval[i]
+                        ),
                     Val(EnzymeRules.width(config)),
                 )
             end
@@ -590,9 +587,9 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             end
         end
 
-        ∂Pi_∂m(n, ϕ, m) = (
-                ($alg).E(ϕ, m) / (m - 1) +
-                ($alg).Pi(n, ϕ, m) -
+        ∂Pi_∂m(n, ϕ, m) =
+            (
+                ($alg).E(ϕ, m) / (m - 1) + ($alg).Pi(n, ϕ, m) -
                 m * sin(2 * ϕ) / (2 * (m - 1) * √(1 - m * sin(ϕ)^2))
             ) / (2 * (n - m))
 

@@ -37,11 +37,11 @@ end
                       grad
                 m = rand()
                 for Tret in (Const, Duplicated, DuplicatedNoNeed), Tm in (Const, Duplicated)
-                    test_forward(alg.K, Tret, (m, Tm); atol=enzyme_atol)
+                    test_forward(alg.K, Tret, (m, Tm); atol = enzyme_atol)
                 end
 
                 for Tret in (Const, Active), Tm in (Const, Active)
-                    test_reverse(alg.K, Tret, (m, Tm); atol=enzyme_atol)
+                    test_reverse(alg.K, Tret, (m, Tm); atol = enzyme_atol)
                 end
             end
 
@@ -55,10 +55,10 @@ end
                       grad
                 m = rand()
                 for Tret in (Const, Duplicated, DuplicatedNoNeed), Tm in (Const, Duplicated)
-                    test_forward(alg.E, Tret, (m, Tm); atol=enzyme_atol)
+                    test_forward(alg.E, Tret, (m, Tm); atol = enzyme_atol)
                 end
                 for Tret in (Const, Active), Tm in (Const, Active)
-                    test_reverse(alg.E, Tret, (m, Tm); atol=enzyme_atol)
+                    test_reverse(alg.E, Tret, (m, Tm); atol = enzyme_atol)
                 end
             end
 
@@ -74,10 +74,10 @@ end
                     Tn in (Const, Duplicated),
                     Tm in (Const, Duplicated)
 
-                    test_forward(alg.Pi, Tret, (n, Tn), (m, Tm); atol=enzyme_atol)
+                    test_forward(alg.Pi, Tret, (n, Tn), (m, Tm); atol = enzyme_atol)
                 end
                 for Tret in (Const, Active), Tn in (Const, Active), Tm in (Const, Active)
-                    test_reverse(alg.Pi, Tret, (n, Tn), (m, Tm); atol=enzyme_atol)
+                    test_reverse(alg.Pi, Tret, (n, Tn), (m, Tm); atol = enzyme_atol)
                 end
             end
 
@@ -118,10 +118,10 @@ end
                     Tϕ in (Const, Duplicated),
                     Tm in (Const, Duplicated)
 
-                    test_forward(alg.F, Tret, (ϕ, Tϕ), (m, Tm); atol=enzyme_atol)
+                    test_forward(alg.F, Tret, (ϕ, Tϕ), (m, Tm); atol = enzyme_atol)
                 end
                 for Tret in (Const, Active), Tϕ in (Const, Active), Tm in (Const, Active)
-                    test_reverse(alg.F, Tret, (ϕ, Tϕ), (m, Tm); atol=enzyme_atol)
+                    test_reverse(alg.F, Tret, (ϕ, Tϕ), (m, Tm); atol = enzyme_atol)
                 end
             end
 
@@ -159,10 +159,10 @@ end
                     Tϕ in (Const, Duplicated),
                     Tm in (Const, Duplicated)
 
-                    test_forward(alg.E, Tret, (ϕ, Tϕ), (m, Tm); atol=enzyme_atol)
+                    test_forward(alg.E, Tret, (ϕ, Tϕ), (m, Tm); atol = enzyme_atol)
                 end
                 for Tret in (Const, Active), Tϕ in (Const, Active), Tm in (Const, Active)
-                    test_reverse(alg.E, Tret, (ϕ, Tϕ), (m, Tm); atol=enzyme_atol)
+                    test_reverse(alg.E, Tret, (ϕ, Tϕ), (m, Tm); atol = enzyme_atol)
                 end
             end
             @testset "Incomplete Pi" begin
@@ -252,7 +252,7 @@ end
                         (n, Tn),
                         (ϕ, Tϕ),
                         (m, Tm);
-                        atol=enzyme_atol,
+                        atol = enzyme_atol,
                     )
                 end
                 for Tret in (Const, Active),
@@ -266,7 +266,7 @@ end
                         (n, Tn),
                         (ϕ, Tϕ),
                         (m, Tm);
-                        atol=enzyme_atol,
+                        atol = enzyme_atol,
                     )
                 end
 
