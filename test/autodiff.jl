@@ -422,7 +422,7 @@ end
             Forward,
             _E,
             BatchDuplicated,
-            BatchDuplicated(ϕ, (1.0,1.0)),
+            BatchDuplicated(ϕ, (1.0,0.0)),
             BatchDuplicated(m, (0.0,1.0)),
         )[1] |> values |> collect ≈ grad
 
