@@ -20,16 +20,17 @@ function _isequals(A, B)
 end
 
 # assumes 0 ≤ m ≤ 1
-function rawF(sinphi::A, m::B) where {A,B}
+@inline function rawF(sinphi::A, m::B) where {A,B}
     T = promote_type(A, B)
     _isequals(abs(sinphi), 1) && _isequals(m, 1) && return sign(sinphi) * T(Inf)
-    sinphi2 = sinphi^2
-    drf, ierr = DRF(_one(T) - sinphi2, _one(T) - m * sinphi2, _one(T))
+    oneT = _one(T)
+    sinphi2 = sinphi * sinphi
+    drf, ierr = DRF(oneT - sinphi2, muladd(-m, sinphi2, oneT), oneT)
     @assert ierr == 0
     sinphi * drf
 end
 
-function _F(phi::A, m::B) where {A,B}
+@inline function _F(phi::A, m::B) where {A,B}
     T = promote_type(A, B)
 
     (isnan(phi) || isnan(m)) && return T(NaN)
@@ -44,6 +45,7 @@ end
 
 function F(φ::A, m::B) where {A,B}
     T = promote_type(A, B)
+    oneT = one(T)
     if m > 1
         ## Abramowitz & Stegum*(17.4.15)
         m12 = _sqrt(m)
@@ -54,8 +56,9 @@ function F(φ::A, m::B) where {A,B}
     elseif m < 0
         # Abramowitz & Stegum*(17.4.17)
         n = -m
-        m12 = inv(_sqrt(1 + n))
-        m1m = n / (1 + n)
+        one_plus_n = oneT + n
+        m12 = inv(_sqrt(one_plus_n))
+        m1m = n / one_plus_n
         newφ = T(π / 2) - φ
         signφ = sign(newφ)
         absφ = abs(newφ)
@@ -67,17 +70,19 @@ function F(φ::A, m::B) where {A,B}
 end
 
 function K(m::T) where {T}
+    oneT = one(T)
     if isnan(m)
         return T(NaN)
     elseif m < zero(T)
         # Transformation for m < 0
         m_abs = -m
-        m_transformed = m_abs / (m_abs + one(T))
+        one_plus_m_abs = m_abs + oneT
+        m_transformed = m_abs / one_plus_m_abs
         k_trans = K(m_transformed)
-        sqrt_factor = _sqrt(m_abs + one(T))
+        sqrt_factor = _sqrt(one_plus_m_abs)
         k_result = k_trans / sqrt_factor
         return k_result
-    elseif m > one(T)
+    elseif m > oneT
         # Reciprocal modulus transformation for m > 1
         k = _sqrt(m)
         k_inv = inv(k)
@@ -85,11 +90,11 @@ function K(m::T) where {T}
         k_complete = K(m_inv)
         k_transformed = k_inv * k_complete
         return k_transformed
-    elseif m == one(T)
+    elseif m == oneT
         return T(Inf)
     else
         # 0 ≤ m < 1
-        drf, ierr = DRF(_zero(T), 1-m, _one(T))
+        drf, ierr = DRF(_zero(T), oneT - m, _one(T))
         @assert ierr == 0
         return drf
     end
@@ -106,21 +111,23 @@ function E(phi::A, m::B) where {A,B}
     _E(sin(phi), m)
 end
 
-function _E(sinphi::A, m::B) where {A,B}
+@inline function _E(sinphi::A, m::B) where {A,B}
     T = promote_type(A, B)
+    oneT = one(T)
+    inv3 = T(1 / 3)
     if m > one(T)
         minv = inv(m)
         m12 = _sqrt(m)
         sinalpha = m12 * sinphi
-        sinalpha2 = sinalpha^2
-        cosalpha2 = one(T) - sinalpha2
-        yalpha = one(T) - minv * sinalpha2
+        sinalpha2 = sinalpha * sinalpha
+        cosalpha2 = oneT - sinalpha2
+        yalpha = muladd(-minv, sinalpha2, oneT)
 
         drf, ierr1 = DRF(cosalpha2, yalpha, _one(T))
         drd, ierr2 = DRD(cosalpha2, yalpha, _one(T))
 
         if ierr1 == ierr2 == 0
-            return sinalpha * (drf - sinalpha2 * drd / 3) / m12
+            return sinalpha * muladd(-sinalpha2 * inv3, drd, drf) / m12
         elseif ierr1 == ierr2 == 2
             # 2 - (1+m)*sinphi2 < tol
             return sinphi
@@ -128,14 +135,14 @@ function _E(sinphi::A, m::B) where {A,B}
             return T(NaN)
         end
     else
-        sinphi2 = sinphi^2
-        cosphi2 = one(T) - sinphi2
-        y = one(T) - m * sinphi2
+        sinphi2 = sinphi * sinphi
+        cosphi2 = oneT - sinphi2
+        y = muladd(-m, sinphi2, oneT)
         drf, ierr1 = DRF(cosphi2, y, _one(T))
         drd, ierr2 = DRD(cosphi2, y, _one(T))
 
         if ierr1 == ierr2 == 0
-            return sinphi * (drf - m * sinphi2 * drd / 3)
+            return sinphi * muladd(-m * sinphi2 * inv3, drd, drf)
         elseif ierr1 == ierr2 == 2
             # 2 - (1+m)*sinphi2 < tol
             return sinphi
@@ -150,18 +157,20 @@ end
 returns `(K(m), E(m))` for scalar `0 ≤ m ≤ 1`
 """
 function ellipke(m::T) where {T}
+    oneT = one(T)
     if isnan(m)
         return (T(NaN), T(NaN))
     elseif m < zero(T)
         # Transformation for m < 0
         m_abs = -m
-        m_transformed = m_abs / (m_abs + one(T))
+        one_plus_m_abs = m_abs + oneT
+        m_transformed = m_abs / one_plus_m_abs
         k_trans, e_trans = ellipke(m_transformed)
-        sqrt_factor = _sqrt(m_abs + one(T))
+        sqrt_factor = _sqrt(one_plus_m_abs)
         k_result = k_trans / sqrt_factor
         e_result = e_trans * sqrt_factor
         return (k_result, e_result)
-    elseif m > one(T)
+    elseif m > oneT
         # Reciprocal modulus transformation for m > 1
         k = _sqrt(m)
         k_inv = inv(k)
@@ -170,15 +179,16 @@ function ellipke(m::T) where {T}
         k_transformed = k_inv * k_complete
         e_transformed = k * (e_complete - (1 - m_inv) * k_complete)
         return (k_transformed, e_transformed)
-    elseif m == one(T)
-        return (T(Inf), one(T))
+    elseif m == oneT
+        return (T(Inf), oneT)
     else
         # 0 ≤ m < 1
-        y = 1 - m
+        inv3 = T(1 / 3)
+        y = oneT - m
         drf, ierr1 = DRF(_zero(T), y, _one(T))
         drd, ierr2 = DRD(_zero(T), y, _one(T))
         @assert ierr1 == 0 && ierr2 == 0
-        return (drf, drf - m * drd / 3)
+        return (drf, muladd(-m * inv3, drd, drf))
     end
 end
 
@@ -186,18 +196,20 @@ E(m) = ellipke(m)[2]
 
 
 
-function _Pi(n::A, sinphi::B, m::C) where {A,B,C}
+@inline function _Pi(n::A, sinphi::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
     (isnan(n) || isnan(sinphi) || isnan(m)) && return T(NaN)
     #!(0 ≤ m ≤ 1) && throw(DomainError(m, "argument m not in [0,1]"))
     #sinphi = sin(phi)
-    sinphi2 = sinphi^2
-    cosphi2 = 1 - sinphi2
-    y = 1 - m * sinphi2
-    drf, ierr1, drj, ierr2 = DRFJ(cosphi2, y, _one(T), 1 - n * sinphi2)
+    oneT = _one(T)
+    sinphi2 = sinphi * sinphi
+    cosphi2 = oneT - sinphi2
+    y = muladd(-m, sinphi2, oneT)
+    p = muladd(-n, sinphi2, oneT)
+    drf, ierr1, drj, ierr2 = DRFJ(cosphi2, y, oneT, p)
 
     if ierr1 == 0 && ierr2 == 0
-        return sinphi * (drf + n * sinphi2 * drj / 3)
+        return sinphi * muladd(n * sinphi2 / 3, drj, drf)
     elseif ierr1 == 2 && ierr2 == 2
         # 2 - (1+m)*sinphi2 < tol
         return T(Inf)
@@ -207,45 +219,52 @@ function _Pi(n::A, sinphi::B, m::C) where {A,B,C}
     end
     return T(NaN)
 end
-function custom_atanh(a::T) where {T}
 
-    arg1 = abs(one(T) + a)
-    arg2 = abs(one(T) - a)
+@inline function custom_atanh(a::T) where {T}
+    oneT = one(T)
+    arg1 = abs(oneT + a)
+    arg2 = abs(oneT - a)
 
     ans = (log(arg1 / arg2)) / 2
     return ans
 end
 
-function FukushimaT(t::A, h::B) where {A,B}
+@inline function FukushimaT(t::A, h::B) where {A,B}
     T = promote_type(A, B)
     if h > zero(T)
-        return atan(t * _sqrt(h)) / _sqrt(h)
+        sqrt_h = _sqrt(h)
+        return atan(t * sqrt_h) / sqrt_h
     elseif h == zero(T)
         return t
     else
-        arg = t * _sqrt(-h)
+        sqrt_neg_h = _sqrt(-h)
+        arg = t * sqrt_neg_h
         ans = abs(arg) < one(T) ? atanh(arg) : custom_atanh(arg)
-        return ans / _sqrt(-h)
+        return ans / sqrt_neg_h
     end
 end
 
 function Pi(n::A, φ::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
+    oneT = one(T)
 
     if m < zero(T) # Imaginary modulus transformation https://dlmf.nist.gov/19.7#iii
-        mc = one(T) - m
+        mc = oneT - m
         imc = inv(mc)
         mN = -m * imc
-        sin_φ = sin(φ) # Avoid redundant sin calculation
-        φN = asin(_sqrt(mc / (one(T) − m * sin_φ^2)) * sin_φ)
+        sinφ = sin(φ)
+        sinφ2 = sinφ * sinφ
+        φN = asin(_sqrt(mc / muladd(-m, sinφ2, oneT)) * sinφ)
 
         nN = (n - m) * imc
 
         return _sqrt(imc) / nN * (mN * F(φN, mN) + imc * n * Pi(nN, φN, mN))
     end # https://link.springer.com/book/10.1007/978-3-642-65138-0 117.01
     if n > one(T)
-        nc = one(T) - n
-        t1 = tan(φ) / sqrt(one(T) − m * sin(φ)^2)
+        nc = oneT - n
+        sinφ, cosφ = sincos(φ)
+        sinφ2 = sinφ * sinφ
+        t1 = sinφ / (cosφ * _sqrt(muladd(-m, sinφ2, oneT)))
         h1 = nc * (n − m) / n
         n1 = m / n
         return (FukushimaT(t1, h1) - Pi(n1, φ, m) + F(φ, m))
@@ -270,12 +289,13 @@ end
 #https://doi.org/T(10).1016/j.cam.2011.1107
 function Pi(n::A, m::B) where {A,B}
     T = promote_type(A, B)
-    n > one(T) && return K(m) - Pi(m / n, m)
+    oneT = one(T)
+    n > oneT && return K(m) - Pi(m / n, m)
     n == zero(T) && return K(m)
-    m == zero(T) || m == one(T) && return T(Inf) #atanh(_sqrt(-1 + n)*tan(θ))/_sqrt(-1 + n)
-    kc = _sqrt(one(T) - m)
-    nc = one(T) - n
-    return cel(kc, nc, one(T), one(T))
+    m == zero(T) || m == oneT && return T(Inf) #atanh(_sqrt(-1 + n)*tan(θ))/_sqrt(-1 + n)
+    kc = _sqrt(oneT - m)
+    nc = oneT - n
+    return cel(kc, nc, oneT, oneT)
 end
 
 Π = Pi
@@ -285,9 +305,12 @@ function cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
     T = promote_type(A, B, C, D)
     #ca = T(1e-6)
     ca = eps(T)
+    oneT = one(T)
+    twoT = T(2)
+    pi_over_2 = T(π / 2)
     kc = abs(kc)
     e = kc
-    m = one(T)
+    m = oneT
 
     f, g, q = T(0), T(0), T(0)
     if p > T(0)
@@ -295,8 +318,8 @@ function cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
         b = b / p
     else
         f = kc^2
-        q = one(T) - f
-        g = one(T) - p
+        q = oneT - f
+        g = oneT - p
         f = f - p
         q = (b - a * p) * q
         p = _sqrt(f / g)
@@ -308,24 +331,23 @@ function cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
         invp = inv(p)
         a = muladd(invp, b, a)
         g = e * invp
-        b = 2 * muladd(f, g, b)
+        b = twoT * muladd(f, g, b)
         p = g + p
         g = m
         m = kc + m
         if abs(g - kc) < g * ca
             break
         end
-        kc = 2 * _sqrt(e)
+        kc = twoT * _sqrt(e)
         e = kc * m
     end
-    return T(π / 2) * muladd(a, m, b) / (m * (m + p))
+    return pi_over_2 * muladd(a, m, b) / (m * (m + p))
 end
 
 function ellipj(u, m)
     phi = am(u, m)
-    s = sin(phi)
-    c = cos(phi)
-    d = _sqrt(1 - m * s^2)
+    s, c = sincos(phi)
+    d = _sqrt(muladd(-m, s * s, 1))
     return (s, c, d)
 end
 

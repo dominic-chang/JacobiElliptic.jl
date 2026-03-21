@@ -27,15 +27,19 @@ export DRC, DRD, DRF, DRJ
 #             Lawrence Livermore National Laboratory
 #             Livermore, CA  94550
 
-function DRF(X::A, Y::B, Z::C) where {A,B,C}
+@inline function DRF(X::A, Y::B, Z::C) where {A,B,C}
     T = promote_type(A, B, C)
 
     ERRTOL = (4 * eps(T) / 2)^T(1 / 6)
     LOLIM = 5floatmin(T)
     UPLIM = floatmax(T) / 5
+    oneT = one(T)
+    inv3 = T(1 / 3)
+    inv4 = T(1 / 4)
     C1 = T(1 / 24)
     C2 = T(3 / 44)
     C3 = T(1 / 14)
+    C0 = T(1 / 10)
 
     ans = zero(T)
     min(X, Y, Z) < zero(T) && return (ans, 1)
@@ -51,8 +55,8 @@ function DRF(X::A, Y::B, Z::C) where {A,B,C}
     ZNDEV = 0
 
     while true
-        MU = (XN + YN + ZN) / 3
-        ninvMU = -1 / MU
+        MU = (XN + YN + ZN) * inv3
+        ninvMU = -inv(MU)
         XNDEV = muladd(ninvMU, (MU + XN), 2)
         YNDEV = muladd(ninvMU, (MU + YN), 2)
         ZNDEV = muladd(ninvMU, (MU + ZN), 2)
@@ -63,14 +67,14 @@ function DRF(X::A, Y::B, Z::C) where {A,B,C}
         ZNROOT = _sqrt(ZN)
         YNROOTZNROOT = YNROOT * ZNROOT
         LAMDA = muladd(XNROOT, (YNROOT + ZNROOT), YNROOTZNROOT)
-        XN = (XN + LAMDA) / 4
-        YN = (YN + LAMDA) / 4
-        ZN = (ZN + LAMDA) / 4
+        XN = (XN + LAMDA) * inv4
+        YN = (YN + LAMDA) * inv4
+        ZN = (ZN + LAMDA) * inv4
     end
     XNDEVYNDEV = XNDEV * YNDEV
     E2 = muladd(-ZNDEV, ZNDEV, XNDEVYNDEV)
     E3 = XNDEVYNDEV * ZNDEV
-    S = 1 + muladd(E2, muladd(-C2, E3, muladd(C1, E2, -T(1 / 10))), C3 * E3)
+    S = oneT + muladd(E2, muladd(-C2, E3, muladd(C1, E2, -C0)), C3 * E3)
     ans = S / _sqrt(MU)
 
     return (ans, 0)
@@ -101,7 +105,7 @@ end
 #             Lawrence Livermore National Laboratory
 #             Livermore, CA  94550
 
-function DRD(X::A, Y::B, Z::C) where {A,B,C}
+@inline function DRD(X::A, Y::B, Z::C) where {A,B,C}
     T = promote_type(A, B, C)
 
     ERRTOL = (eps(T) / 6)^T(1 / 6)
@@ -109,6 +113,12 @@ function DRD(X::A, Y::B, Z::C) where {A,B,C}
     TUPLIM = floatmin(T)^T(1 / 3)
     TUPLIM = (ERRTOL / 10)^T(1 / 3) / TUPLIM
     UPLIM = TUPLIM^2
+    oneT = one(T)
+    twoT = T(2)
+    threeT = T(3)
+    sixT = T(6)
+    inv4 = T(1 / 4)
+    inv5 = T(1 / 5)
     C1 = T(3 / 14)
     C2 = T(1 / 6)
     C3 = T(9 / 22)
@@ -130,7 +140,7 @@ function DRD(X::A, Y::B, Z::C) where {A,B,C}
     ZNDEV = zero(T)
 
     while true
-        MU = 2 * (XN + YN + 3 * ZN) / 10
+        MU = (XN + YN + threeT * ZN) * inv5
         invMU = inv(MU)
         XNDEV = (MU - XN) * invMU
         YNDEV = (MU - YN) * invMU
@@ -140,22 +150,23 @@ function DRD(X::A, Y::B, Z::C) where {A,B,C}
         XNROOT = _sqrt(XN)
         YNROOT = _sqrt(YN)
         ZNROOT = _sqrt(ZN)
-        LAMDA = XNROOT * (YNROOT + ZNROOT) + YNROOT * ZNROOT
-        SIGMA = SIGMA + POWER4 / (ZNROOT * (ZN + LAMDA))
-        POWER4 = POWER4 / 4
-        XN = (XN + LAMDA) / 4
-        YN = (YN + LAMDA) / 4
-        ZN = (ZN + LAMDA) / 4
+        ynrootznroot = YNROOT * ZNROOT
+        LAMDA = muladd(XNROOT, YNROOT + ZNROOT, ynrootznroot)
+        SIGMA = muladd(POWER4, inv(ZNROOT * (ZN + LAMDA)), SIGMA)
+        POWER4 *= inv4
+        XN = (XN + LAMDA) * inv4
+        YN = (YN + LAMDA) * inv4
+        ZN = (ZN + LAMDA) * inv4
     end
 
     EA = XNDEV * YNDEV
     EB = ZNDEV * ZNDEV
     EC = EA - EB
-    ED = EA - 6 * EB
+    ED = EA - sixT * EB
     EF = ED + EC + EC
-    S1 = ED * (-C1 + C3 * ED / 4 - 3C4 * ZNDEV * EF / 2)
+    S1 = ED * (-C1 + C3 * ED * inv4 - threeT * C4 * ZNDEV * EF / twoT)
     S2 = ZNDEV * (C2 * EF + ZNDEV * (-C3 * EC + ZNDEV * C4 * EA))
-    ans = 3 * SIGMA + POWER4 * (1 + S1 + S2) / (MU * _sqrt(MU))
+    ans = threeT * SIGMA + POWER4 * (oneT + S1 + S2) / (MU * _sqrt(MU))
 
     return (ans, 0)
 end
@@ -183,14 +194,20 @@ end
 #             Lawrence Livermore National Laboratory
 #             Livermore, CA  94550
 
-function DRC(X::A, Y::B) where {A,B}
+@inline function DRC(X::A, Y::B) where {A,B}
     T = promote_type(A, B)
 
     ERRTOL = (eps(T) / 32)^T(1 / 6)
     LOLIM = T(5) * floatmin(T)
     UPLIM = T(floatmax(T) / 5)
+    oneT = one(T)
+    twoT = T(2)
+    inv3 = T(1 / 3)
+    inv4 = T(1 / 4)
     C1 = T(1 / 7)
     C2 = T(9 / 22)
+    C3 = T(3 / 8)
+    C4 = T(3 / 10)
 
     ans = zero(T)
 
@@ -204,16 +221,17 @@ function DRC(X::A, Y::B) where {A,B}
     SN = zero(T)
 
     while true
-        MU = (XN + YN + YN) / 3
-        SN = (YN + MU) / MU - 2
+        MU = (XN + YN + YN) * inv3
+        invMU = inv(MU)
+        SN = muladd(invMU, YN + MU, -twoT)
         abs(SN) < ERRTOL && break
-        LAMDA = 2 * _sqrt(XN) * _sqrt(YN) + YN
-        XN = (XN + LAMDA) / 4
-        YN = (YN + LAMDA) / 4
+        LAMDA = muladd(twoT * _sqrt(XN), _sqrt(YN), YN)
+        XN = (XN + LAMDA) * inv4
+        YN = (YN + LAMDA) * inv4
     end
 
-    S = SN^2 * (muladd(SN, (muladd(SN, muladd(SN, C2, T(3 / 8)), C1)), T(3 / 10)))
-    ans = (1 + S) / _sqrt(MU)
+    S = SN^2 * muladd(SN, muladd(SN, muladd(SN, C2, C3), C1), C4)
+    ans = (oneT + S) / _sqrt(MU)
 
     return (ans, 0)
 end
@@ -323,6 +341,12 @@ end
     ERRTOL = (4 * eps(T) / 2)^T(1 / 6)
     LOLIM = 5floatmin(T)
     UPLIM = floatmax(T) / 5
+    oneT = one(T)
+    twoT = T(2)
+    inv3 = T(1 / 3)
+    inv4 = T(1 / 4)
+    inv5 = T(1 / 5)
+    c0 = T(1 / 10)
 
     ans = zero(T)
     ansJ = zero(T)
@@ -375,8 +399,8 @@ end
     while true
         XNYNZN = XN + YN + ZN
         if fflag
-            MU = XNYNZN / 3
-            ninvMU = -1 / MU
+            MU = XNYNZN * inv3
+            ninvMU = -inv(MU)
             XNDEV = muladd(ninvMU, (MU + XN), 2)
             YNDEV = muladd(ninvMU, (MU + YN), 2)
             ZNDEV = muladd(ninvMU, (MU + ZN), 2)
@@ -385,7 +409,7 @@ end
         end
 
         if jflag
-            MUJ = 2(XNYNZN + 2PN) / 10
+            MUJ = (XNYNZN + twoT * PN) * inv5
             invMUJ = inv(MUJ)
             XNDEVJ = (MUJ - XN) * invMUJ
             YNDEVJ = (MUJ - YN) * invMUJ
@@ -400,22 +424,24 @@ end
         YNROOT = _sqrt(YN)
         ZNROOT = _sqrt(ZN)
         YNROOTZNROOT = YNROOT * ZNROOT
+        rootsum = XNROOT + YNROOT + ZNROOT
         LAMDA = muladd(XNROOT, (YNROOT + ZNROOT), YNROOTZNROOT)
-        ALFA = (PN * (XNROOT + YNROOT + ZNROOT) + XNROOT * YNROOTZNROOT)^2
-        BETA = PN * (PN + LAMDA)^2
+        pn_plus_lamda = PN + LAMDA
+        ALFA = muladd(PN, rootsum, XNROOT * YNROOTZNROOT)^2
+        BETA = PN * pn_plus_lamda^2
         drc, IER = DRC(ALFA, BETA)
         SIGMA = muladd(POWER4, drc, SIGMA)
-        POWER4 = POWER4 / 4
+        POWER4 *= inv4
 
-        XN = (XN + LAMDA) / 4
-        YN = (YN + LAMDA) / 4
-        ZN = (ZN + LAMDA) / 4
-        PN = (PN + LAMDA) / 4
+        XN = (XN + LAMDA) * inv4
+        YN = (YN + LAMDA) * inv4
+        ZN = (ZN + LAMDA) * inv4
+        PN = pn_plus_lamda * inv4
     end
     XNDEVYNDEV = XNDEV * YNDEV
     E2 = muladd(-ZNDEV, ZNDEV, XNDEVYNDEV)
     E3 = XNDEVYNDEV * ZNDEV
-    S = 1 + muladd(E2, muladd(-C2, E3, muladd(C1, E2, -T(1 / 10))), C3 * E3)
+    S = oneT + muladd(E2, muladd(-C2, E3, muladd(C1, E2, -c0)), C3 * E3)
     ans = S / _sqrt(MU)
 
     YNDEVZNDEVJ = YNDEVJ * ZNDEVJ
@@ -423,9 +449,9 @@ end
     EBJ = XNDEVJ * YNDEVZNDEVJ
     ECJ = PNDEVJ * PNDEVJ
     E2J = EAJ - 3 * ECJ
-    E3J = EBJ + 2 * PNDEVJ * (EAJ - ECJ)
-    S1J = 1 + E2J * (-C1J + 3C3J / 4 * E2J - 3C4J / 2 * E3J)
-    S2J = EBJ * (C2J / 2 + PNDEVJ * (-C3J - C3J + PNDEVJ * C4J))
+    E3J = muladd(twoT * PNDEVJ, EAJ - ECJ, EBJ)
+    S1J = oneT + E2J * (-C1J + 3C3J / 4 * E2J - 3C4J / 2 * E3J)
+    S2J = EBJ * (C2J / twoT + PNDEVJ * (-C3J - C3J + PNDEVJ * C4J))
     S3J = PNDEVJ * EAJ * (C2J - PNDEVJ * C3J) - C2J * PNDEVJ * ECJ
     ansJ = 3SIGMA + POWER4 * (S1J + S2J + S3J) / (MUJ * _sqrt(MUJ))
 
