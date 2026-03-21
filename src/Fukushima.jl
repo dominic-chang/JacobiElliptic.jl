@@ -1981,15 +1981,16 @@ end
     sinφ2 = sinφ * sinφ
     sinφ2 ≤ yS && return asn(sinφ, m)
 
-    mc = 1 - m
+    oneT = one(T)
+    mc = oneT - m
 
-    c = √(1 - sinφ2)
+    c = √(oneT - sinφ2)
     x = c * c
-    d2 = mc + m * x
+    d2 = muladd(m, x, mc)
     #z = c/√(mc+m*c*c)
     x < yS * d2 && return *(K(m) - asn(c / √(d2), m))
 
-    v = mc * (1 - x)
+    v = mc * (oneT - x)
     v < x * d2 && return acn(c, m)
     return *(K(m) - acn(√(v / d2), m))
 
@@ -2025,6 +2026,7 @@ Returns the incomplete elliptic integral of the first kind.
 """
 function F(φ::A, m::B) where {A,B}
     T = promote_type(A, B)
+    oneT = one(T)
     (isnan(φ) || isnan(m)) && return T(NaN)
     if m > 1
         ## Abramowitz & Stegum*(17.4.15)
@@ -2036,8 +2038,9 @@ function F(φ::A, m::B) where {A,B}
     elseif m < 0
         # Abramowitz & Stegum*(17.4.17)
         n = -m
-        m12 = inv(sqrt(1 + n))
-        m1m = n / (1 + n)
+        one_plus_n = oneT + n
+        m12 = inv(sqrt(one_plus_n))
+        m1m = n / one_plus_n
         newφ = T(π / 2) - φ
         signφ = sign(newφ)
         absφ = abs(newφ)
@@ -2312,13 +2315,14 @@ Returns the complete elliptic integral of the third kind.
 """
 function Pi(n::A, m::B) where {A,B}
     T = promote_type(A, B)
+    oneT = one(T)
     (isnan(n) || isnan(m)) && return T(NaN)
-    n > one(T) && return K(m) - Pi(m / n, m)
+    n > oneT && return K(m) - Pi(m / n, m)
     n == zero(T) && return K(m)
-    m == zero(T) || m == one(T) && return T(Inf) #atanh(√(-1 + n)*tan(θ))/√(-1 + n)
-    kc = √(one(T) - m)
-    nc = one(T) - n
-    return cel(kc, nc, one(T), one(T))
+    m == zero(T) || m == oneT && return T(Inf) #atanh(√(-1 + n)*tan(θ))/√(-1 + n)
+    kc = √(oneT - m)
+    nc = oneT - n
+    return cel(kc, nc, oneT, oneT)
 end
 
 """
@@ -2334,31 +2338,41 @@ Returns the incomplete elliptic integral of the third kind.
 """
 function Pi(n::A, φ::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
+    oneT = one(T)
 
     (isnan(n) || isnan(φ) || isnan(m)) && return T(NaN)
 
     if m < 0 # Imaginary modulus transformation https://dlmf.nist.gov/19.7#iii
-        mc = 1 - m
+        mc = oneT - m
         imc = inv(mc)
         mN = -m * imc
-        φN = asin(sqrt(mc / (1 − m * sin(φ)^2)) * sin(φ))
+        sinφ = sin(φ)
+        sinφ2 = sinφ * sinφ
+        φN = asin(sqrt(mc / muladd(-m, sinφ2, oneT)) * sinφ)
 
         nN = (n - m) * imc
 
         return sqrt(imc) / nN * (mN * F(φN, mN) + imc * n * Pi(nN, φN, mN))
     end # https://link.springer.com/book/10.1007/978-3-642-65138-0 117.01
     if n > 1
-        nc = 1 - n
-        t1 = tan(φ) / sqrt(1 − m * sin(φ)^2)
+        nc = oneT - n
+        sinφ, cosφ = sincos(φ)
+        sinφ2 = sinφ * sinφ
+        t1 = sinφ / (cosφ * sqrt(muladd(-m, sinφ2, oneT)))
         h1 = nc * (n − m) / n
         n1 = m / n
         return (FukushimaT(t1, h1) - n1 * J(n1, φ, m))
     elseif n == 1
         φ == T(π/2) && return T(Inf)
         if m == 1
-            return 1/2*(log(sec(φ)*(1 + sin(φ))) + sec(φ)*tan(φ))
+            sinφ, cosφ = sincos(φ)
+            secφ = inv(cosφ)
+            return 1 / 2 * (log(secφ * (1 + sinφ)) + secφ * sinφ / cosφ)
         else
-            return F(φ, m) + (-E(φ, m) + sqrt(1 - m*sin(φ)^2)*tan(φ))/(1 - m)
+            sinφ, cosφ = sincos(φ)
+            sinφ2 = sinφ * sinφ
+            sqrt_term = sqrt(muladd(-m, sinφ2, oneT))
+            return F(φ, m) + (-E(φ, m) + sqrt_term * sinφ / cosφ) / (oneT - m)
         end
     elseif n == 0
         return F(φ, m)
@@ -2381,16 +2395,17 @@ Returns the associate incomplete elliptic integral of the third kind.
 """
 function J(n::A, φ::B, m::C) where {A,B,C} #Appendix A
     T = promote_type(A, B, C)
+    oneT = one(T)
     # Reduction of Amplitude
     φ == zero(T) && return zero(T)
     φ == T(π / 2) && return J(n, m)
 
-    if abs(φ) > T(π / 2) && m < one(T)
+    if abs(φ) > T(π / 2) && m < oneT
         j = floor(φ / T(π))
         newφ = φ - j * T(π)
         signφ = sign(newφ)
         if abs(newφ) > T(π / 2)
-            j += signφ * one(T)
+            j += signφ * oneT
             newφ = newφ - signφ * T(π)
         end
         signφ = sign(newφ)
@@ -2400,44 +2415,54 @@ function J(n::A, φ::B, m::C) where {A,B,C} #Appendix A
     φ < zero(T) && return -J(n, -φ, m)
 
     # Reduction of parameter
-    if zero(T) < φ < T(π / 2) && m * sin(φ)^2 ≤ one(T)
-        nc = one(T) - n
-        iszero(m) && !iszero(n) && return (FukushimaT(tan(φ), nc) - φ) / n
+    if zero(T) < φ < T(π / 2)
+        sinφ, cosφ = sincos(φ)
+        sinφ2 = sinφ * sinφ
+        m_sinφ2 = m * sinφ2
+        if m_sinφ2 ≤ oneT
+            nc = oneT - n
+            iszero(m) && !iszero(n) && return (FukushimaT(sinφ / cosφ, nc) - φ) / n
 
-        iszero(m) && iszero(n) && return φ / 2 - sin(2 * φ) / 4
+            iszero(m) && iszero(n) && return φ / 2 - sin(2 * φ) / 4
 
-        isone(m) && !isone(n) && return (atanh(sin(φ)) - FukushimaT(sin(φ), -n)) / nc
+            isone(m) && !isone(n) && return (atanh(sinφ) - FukushimaT(sinφ, -n)) / nc
 
-        isone(m) && isone(n) && return (sin(φ) / cos(φ)^2 - atanh(sin(φ))) / 2
+            isone(m) && isone(n) && return (sinφ / (cosφ * cosφ) - atanh(sinφ)) / 2
+        end
     end
 
-    if one(T) < m < inv(sin(φ)^2)
+    if oneT < m < inv(sin(φ)^2)
         φR = asin(√m * sin(φ))
         nR = n / m
         mR = inv(m)
         #return NaN
         return mR * √mR * J(nR, φR, mR)
     elseif m < zero(T)
-        mc = one(T) - m
-        φN = asin(sqrt(mc / (one(T) − m * sin(φ)^2)) * sin(φ))
+        mc = oneT - m
+        sinφ = sin(φ)
+        sinφ2 = sinφ * sinφ
+        φN = asin(sqrt(mc / muladd(-m, sinφ2, oneT)) * sinφ)
         nN = (n − m) / mc
         mN = -m / mc
         return mN * √mN * J(nN, φN, mN)
     end
     # Reduction of Characteristics
-    if zero(T) < φ < one(T) && zero(T) < m < one(T)
+    if zero(T) < φ < oneT && zero(T) < m < oneT
+        sinφ, cosφ = sincos(φ)
+        sinφ2 = sinφ * sinφ
+        sqrt_term = sqrt(muladd(-m, sinφ2, oneT))
         if n > one(T)
             # t = inv(x^2)
             # h = y - x
-            nc = one(T) - n
-            t1 = tan(φ) / sqrt(one(T) − m * sin(φ)^2)
+            nc = oneT - n
+            t1 = sinφ / (cosφ * sqrt_term)
             h1 = nc * (n − m) / n
             n1 = m / n
             return (-F(φ, m) + FukushimaT(t1, h1) - n1 * J(n1, φ, m)) / n
         elseif n < zero(T)
-            mc = one(T) - m
-            nc = one(T) - n
-            t2 = sin(φ) * cos(φ) / sqrt(one(T) − m * sin(φ)^2)
+            mc = oneT - m
+            nc = oneT - n
+            t2 = sinφ * cosφ / sqrt_term
             h2 = -n * (m - n) / nc
             n2 = (m − n) / nc
             #return NaN
@@ -2446,8 +2471,8 @@ function J(n::A, φ::B, m::C) where {A,B,C} #Appendix A
     end
 
     zero(T) < φ < T(π / 2) &&
-        zero(T) < m < one(T) &&
-        zero(T) < n < one(T) &&
+        zero(T) < m < oneT &&
+        zero(T) < n < oneT &&
         return rawJ(n, φ, m)
     return T(NaN)
 end
@@ -3064,25 +3089,27 @@ function JsI(n::A, y::B, m::C) where {A,B,C}
            )
 end
 
-function custom_atanh(a::T) where {T}
-
-    arg1 = abs(one(T) + a)
-    arg2 = abs(one(T) - a)
+@inline function custom_atanh(a::T) where {T}
+    oneT = one(T)
+    arg1 = abs(oneT + a)
+    arg2 = abs(oneT - a)
 
     ans = (log(arg1 / arg2)) / 2
     return ans
 end
 
-function FukushimaT(t::A, h::B) where {A,B}
+@inline function FukushimaT(t::A, h::B) where {A,B}
     T = promote_type(A, B)
     if h > zero(T)
-        return atan(t * √h) / √(h)
+        sqrt_h = √h
+        return atan(t * sqrt_h) / sqrt_h
     elseif h == zero(T)
         return t
     else
-        arg = t * √(-h)
+        sqrt_neg_h = √(-h)
+        arg = t * sqrt_neg_h
         ans = abs(arg) < one(T) ? atanh(arg) : custom_atanh(arg)
-        return ans / √(-h)
+        return ans / sqrt_neg_h
     end
 end
 
@@ -3091,9 +3118,12 @@ function cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
     T = promote_type(A, B, C, D)
     #ca = T(1e-6)
     ca = eps(T)
+    oneT = one(T)
+    twoT = T(2)
+    pi_over_2 = T(π / 2)
     kc = abs(kc)
     e = kc
-    m = one(T)
+    m = oneT
 
     f, g, q = T(0), T(0), T(0)
     if p > T(0)
@@ -3101,8 +3131,8 @@ function cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
         b = b / p
     else
         f = kc^2
-        q = one(T) - f
-        g = one(T) - p
+        q = oneT - f
+        g = oneT - p
         f = f - p
         q = (b - a * p) * q
         p = √(f / g)
@@ -3113,21 +3143,20 @@ function cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
     while count < 1000
         count+=1
         f = a
-        a = b / p + a
-        g = e / p
-        b = f * g + b
-        b = b + b
+        invp = inv(p)
+        a = muladd(invp, b, a)
+        g = e * invp
+        b = twoT * muladd(f, g, b)
         p = g + p
         g = m
         m = kc + m
         if abs(g - kc) < g * ca
             break
         end
-        kc = √e
-        kc = kc + kc
+        kc = twoT * √e
         e = kc * m
     end
-    return T(π / 2) * (a * m + b) / (m * (m + p))
+    return pi_over_2 * muladd(a, m, b) / (m * (m + p))
 end
 
 #https://doi-org.ezp-prod1.hul.harvard.edu/T(10).031007/s10569-008-9177-y
@@ -3145,9 +3174,15 @@ function _Kscreen(m::T) where {T}
     )
 end
 
+@inline function _dup_steps(u::T) where {T}
+    return u > zero(T) ? max(6 + floor(log2(u)), one(T)) : zero(T)
+end
+
 function _ΔXNloop(u::A, m::B, n::C) where {A,B,C}
     T = promote_type(A, B, C)
-    up = u * inv(T(2)^n)
+    oneT = one(T)
+    twoT = T(2)
+    up = u * inv(twoT^n)
     up2 = up * up
     sn =
         up * (
@@ -3158,10 +3193,10 @@ function _ΔXNloop(u::A, m::B, n::C) where {A,B,C}
                     (m / T(120) + T(7 / 60)) * m +
                     T(1 / 120)
                 ) - m / T(6) - T(1 / 6)
-            ) + one(T)
+            ) + oneT
         )
     cn =
-        one(T) +
+        oneT +
         up2 * (
             -(T(1 / 2)) +
             up2 * (
@@ -3183,144 +3218,158 @@ function _ΔXNloop(u::A, m::B, n::C) where {A,B,C}
             (up2 * (T(1 / 6) - up2 / T(45)) - T(0.5)) * up2
         ) + one(T)
     Δsn = up - sn
-    Δcn = one(T) - cn
-    Δdn = one(T) - dn
+    Δcn = oneT - cn
+    Δdn = oneT - dn
 
-    i = one(T)
+    i = oneT
     while i <= n
         sn2 = sn * sn
         sn4 = sn2 * sn2
 
-        den = inv(one(T) - m * sn4)
-        Δsn = T(2.0) * (Δsn * cn * dn + up * (Δcn * (one(T) - Δdn) + Δdn - m * sn4)) * den
-        Δcn = ((one(T) + cn) * Δcn + sn2 - 2 * m * sn4) * den
-        Δdn = ((one(T) + dn) * Δdn + m * (sn2 - 2 * sn4)) * den
+        den = inv(oneT - m * sn4)
+        Δsn = twoT * (Δsn * cn * dn + up * (Δcn * (oneT - Δdn) + Δdn - m * sn4)) * den
+        Δcn = ((oneT + cn) * Δcn + sn2 - twoT * m * sn4) * den
+        Δdn = ((oneT + dn) * Δdn + m * (sn2 - twoT * sn4)) * den
 
-        up += up
+        up *= twoT
         sn = up - Δsn
-        cn = one(T) - Δcn
-        dn = one(T) - Δdn
+        cn = oneT - Δcn
+        dn = oneT - Δdn
 
-        i += one(T)
+        i += oneT
     end
     return sn, cn, dn
 end
 
 function fold_0_25(u1::A, m::B, kp::C) where {A,B,C}
     T = promote_type(A, B, C)
-    u1 == 0 && return zero(T), one(T), one(T)
+    oneT = one(T)
+    u1 == 0 && return zero(T), oneT, oneT
 
-    sn, cn, dn =
-        _ΔXNloop(u1, m, u1 > zero(T) ? max(6 + (floor(log2(u1))), one(T)) : zero(T))
-    den = inv(one(T) + kp - m * sn * sn)
-    return den * √(one(T) + kp) * (cn * dn - kp * sn),
-    den * √(kp * (one(T) + kp)) * (cn + sn * dn),
-    den * √kp * ((one(T) + kp) * dn + m * sn * cn)
+    sn, cn, dn = _ΔXNloop(u1, m, _dup_steps(u1))
+    one_plus_kp = oneT + kp
+    den = inv(one_plus_kp - m * sn * sn)
+    sqrt_one_plus_kp = √(one_plus_kp)
+    sqrt_kp = √kp
+    return den * sqrt_one_plus_kp * (cn * dn - kp * sn),
+    den * sqrt_kp * sqrt_one_plus_kp * (cn + sn * dn),
+    den * sqrt_kp * (one_plus_kp * dn + m * sn * cn)
 end
 
 function fold_0_50(u1::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
     T = promote_type(A, B, C, D, E)
-    u1 == 0 && return zero(T), one(T), one(T)
+    oneT = one(T)
+    u1 == 0 && return zero(T), oneT, oneT
 
     if u1 > T(0.25) * Kscreen
         sn, cn, dn = fold_0_25(Kactual / 2 - u1, m, kp)
     else
-        sn, cn, dn =
-            _ΔXNloop(u1, m, u1 > zero(T) ? max(6 + (floor(log2(u1))), one(T)) : zero(T))
+        sn, cn, dn = _ΔXNloop(u1, m, _dup_steps(u1))
     end
-    return cn / dn, kp * sn / dn, kp / dn
+    invdn = inv(dn)
+    return cn * invdn, kp * sn * invdn, kp * invdn
 end
 
 function fold_1_00(u1::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
     T = promote_type(A, B, C, D, E)
-    u1 == 0 && return zero(T), one(T), one(T)
+    oneT = one(T)
+    u1 == 0 && return zero(T), oneT, oneT
 
     if u1 > Kscreen / 2
         sn, cn, dn = fold_0_50(Kactual - u1, m, Kscreen, Kactual, kp)
     elseif u1 > Kscreen / 4
         sn, cn, dn = fold_0_25(Kactual / 2 - u1, m, kp)
     else
-        sn, cn, dn =
-            _ΔXNloop(u1, m, u1 > zero(T) ? max(6 + (floor(log2(u1))), one(T)) : zero(T))
+        sn, cn, dn = _ΔXNloop(u1, m, _dup_steps(u1))
     end
-    return cn / dn, -kp * sn / dn, kp / dn
+    invdn = inv(dn)
+    return cn * invdn, -kp * sn * invdn, kp * invdn
 end
 
 function _SN(u::T, m) where {T}
     tempK = K(m)
-    if u > (4tempK)
-        return rawSN(u % (4tempK), m, tempK, tempK, √(one(T) - m))
+    kp = √(one(T) - m)
+    fourK = 4 * tempK
+    if u > fourK
+        return rawSN(u % fourK, m, tempK, tempK, kp)
     end
-    return rawSN(u, m, tempK, tempK, √(one(T) - m))
+    return rawSN(u, m, tempK, tempK, kp)
 end
 
 function rawSN(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
     T = promote_type(A, B, C, D, E)
+    oneT = one(T)
+    halfK = Kscreen / 2
+    quarterK = Kscreen / 4
     check = u ≥ 2 * Kscreen
     sign = check ? -1 : 1
     u = check ? u - 2 * Kactual : u
     u > Kscreen && return sign * fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[1]
-    u == Kscreen && return one(T)
-    u > Kscreen / 2 && return sign * fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[1]
-    u == Kscreen / 2 && return inv(√(one(T) + kp))
-    u ≥ Kscreen / 4 && return sign * fold_0_25(Kactual / 2 - u, m, kp)[1]
-    return sign *
-           _ΔXNloop(u, m, u > zero(T) ? max(6 + (floor(log2(u))), one(T)) : zero(T))[1]
+    u == Kscreen && return oneT
+    u > halfK && return sign * fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[1]
+    u == halfK && return inv(√(oneT + kp))
+    u ≥ quarterK && return sign * fold_0_25(Kactual / 2 - u, m, kp)[1]
+    return sign * _ΔXNloop(u, m, _dup_steps(u))[1]
 end
 
 function _CN(u, m)
     tempK = K(m)
-    if u > (4tempK)
-        return rawCN(u % (4tempK), m, tempK, tempK, √(1 - m))
+    kp = √(1 - m)
+    fourK = 4 * tempK
+    if u > fourK
+        return rawCN(u % fourK, m, tempK, tempK, kp)
     end
-    return rawCN(u, m, tempK, tempK, √(1 - m))
+    return rawCN(u, m, tempK, tempK, kp)
 end
 function rawCN(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
     T = promote_type(A, B, C, D, E)
+    halfK = Kscreen / 2
+    quarterK = Kscreen / 4
     check = u ≥ 2 * Kscreen
     sign = check ? -1 : 1
     u = check ? u - 2 * Kactual : u
     u > Kscreen && return sign * fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[2]
     u == Kscreen && return zero(T)
-    u > Kscreen / 2 && return sign * fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[2]
-    u == Kscreen / 2 && return √(kp / (one(T) + kp))
-    u ≥ Kscreen / 4 && return sign * fold_0_25(Kactual / 2 - u, m, kp)[2]
-    return sign *
-           _ΔXNloop(u, m, u > zero(T) ? max(6 + (floor(log2(u))), one(T)) : zero(T))[2]
+    u > halfK && return sign * fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[2]
+    u == halfK && return √(kp / (one(T) + kp))
+    u ≥ quarterK && return sign * fold_0_25(Kactual / 2 - u, m, kp)[2]
+    return sign * _ΔXNloop(u, m, _dup_steps(u))[2]
 end
 
 function _DN(u, m)
     tempK = K(m)
-    if u > 4tempK
-        return rawDN(u % (4tempK), m, tempK, tempK, √(1 - m))
+    kp = √(1 - m)
+    fourK = 4 * tempK
+    if u > fourK
+        return rawDN(u % fourK, m, tempK, tempK, kp)
     end
-    return rawDN(u, m, tempK, tempK, √(1 - m))
+    return rawDN(u, m, tempK, tempK, kp)
 end
 function rawDN(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
-    T = promote_type(A, B, C, D, E)
+    halfK = Kscreen / 2
+    quarterK = Kscreen / 4
     check = u ≥ 2 * Kscreen
     u = check ? u - 2 * Kactual : u
     u > Kscreen && return fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[3]
     u == Kscreen && return kp
-    u > Kscreen / 2 && return fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[3]
-    u == Kscreen / 2 && return √(kp)
-    u ≥ Kscreen / 4 && return fold_0_25(Kactual / 2 - u, m, kp)[3]
-    return _ΔXNloop(u, m, u > zero(T) ? max(6 + (floor(log2(u))), one(T)) : zero(T))[3]
+    u > halfK && return fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[3]
+    u == halfK && return √kp
+    u ≥ quarterK && return fold_0_25(Kactual / 2 - u, m, kp)[3]
+    return _ΔXNloop(u, m, _dup_steps(u))[3]
 end
 
 _sc_helper(jacobituple) = jacobituple[1] / jacobituple[2]
 function rawSC(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
     T = promote_type(A, B, C, D, E)
-    u = u ≥ 4 * Kscreen ? u % 4 * Kactual : u
+    fourK = 4 * Kscreen
+    u = u ≥ fourK ? u % (4 * Kactual) : u
     u = u ≥ 2 * Kscreen ? u - 2 * Kactual : u
     u > Kscreen && return _sc_helper(fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
     u == Kscreen && return T(Inf)
     u > Kscreen / 2 && return _sc_helper(fold_0_50(Kactual - u, m, Kscreen, Kactual, kp))
     u == Kscreen / 2 && return inv(√(kp))
     u ≥ Kscreen / 4 && return _sc_helper(fold_0_25(Kactual / 2 - u, m, kp))
-    return _sc_helper(
-        _ΔXNloop(u, m, u > zero(T) ? max(6 + (floor(log2(u))), one(T)) : zero(T)),
-    )
+    return _sc_helper(_ΔXNloop(u, m, _dup_steps(u)))
 end
 
 function _SC(u, m)
@@ -3329,17 +3378,15 @@ end
 
 _sd_helper(jacobituple) = jacobituple[1] / jacobituple[3]
 function rawSD(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
-    T = promote_type(A, B, C, D, E)
-    u = u ≥ 4 * Kscreen ? u % 4 * Kactual : u
+    fourK = 4 * Kscreen
+    u = u ≥ fourK ? u % (4 * Kactual) : u
     u = u ≥ 2 * Kscreen ? u - 2 * Kactual : u
     u > Kscreen && return _sd_helper(fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
     u == Kscreen && return inv(kp)
     u > Kscreen / 2 && return _sd_helper(fold_0_50(Kactual - u, m, Kscreen, Kactual, kp))
     u == Kscreen / 2 && return inv(√((1 + kp) * kp))
     u ≥ Kscreen / 4 && return _sd_helper(fold_0_25(Kactual / 2 - u, m, kp))
-    return _sd_helper(
-        _ΔXNloop(u, m, u > zero(T) ? max(6 + (floor(log2(u))), one(T)) : zero(T)),
-    )
+    return _sd_helper(_ΔXNloop(u, m, _dup_steps(u)))
 end
 
 function _SD(u, m)
