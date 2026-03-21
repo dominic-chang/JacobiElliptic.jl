@@ -675,23 +675,24 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ϕ::Annotation{<:Real},
         m::Annotation{<:Real},
     )
+        s = ($alg).sn(ϕ.val, m.val)
+        a = ($alg).am(ϕ.val, m.val)
+        d = ($alg).dn(ϕ.val, m.val)
+        c = ($alg).cn(ϕ.val, m.val)
+        e = ($alg).E(a, m)
         ∂cn_∂m(ϕ, m) = begin
-            s = ($alg).sn(ϕ, m)
-            a = ($alg).am(ϕ, m)
-            d = ($alg).dn(ϕ, m)
-            c = ($alg).cn(ϕ, m)
-            e = ($alg).E(a, m)
+            
             inv(2m * (1 - m)) * d * s * ((m - 1) * ϕ - m * (c / d) * s + e)
 
         end
 
-        ∂cn_∂ϕ(ϕ, m) = -($alg).dn(ϕ, m) * ($alg).sn(ϕ, m)
+        ∂cn_∂ϕ = -d * s
 
         if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
             if EnzymeRules.width(config) == 1
                 return Duplicated(
                     func.val(ϕ.val, m.val),
-                    (ϕ isa Const ? zero(ϕ.val) : ∂cn_∂ϕ(ϕ.val, m.val) * ϕ.dval) +
+                    (ϕ isa Const ? zero(ϕ.val) : ∂cn_∂ϕ * ϕ.dval) +
                     (m isa Const ? zero(m.val) : ∂cn_∂m(ϕ.val, m.val) * m.dval),
                 )
             else
@@ -699,7 +700,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
                     func.val(ϕ.val, m.val),
                     ntuple(
                         i ->
-                            (ϕ isa Const ? zero(ϕ.val) : ∂cn_∂ϕ(ϕ.val, m.val) * ϕ.dval[i]) +
+                            (ϕ isa Const ? zero(ϕ.val) : ∂cn_∂ϕ * ϕ.dval[i]) +
                             (m isa Const ? zero(m.val) : ∂cn_∂m(ϕ.val, m.val) * m.dval[i]),
                         Val(EnzymeRules.width(config)),
                     ),
@@ -707,13 +708,13 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             end
         elseif EnzymeRules.needs_shadow(config)
             if EnzymeRules.width(config) == 1
-                return (ϕ isa Const ? zero(ϕ.val) : ∂cn_∂ϕ(ϕ.val, m.val) * ϕ.dval) +
+                return (ϕ isa Const ? zero(ϕ.val) : ∂cn_∂ϕ * ϕ.dval) +
                        (m isa Const ? zero(m.val) : ∂cn_∂m(ϕ.val, m.val) * m.dval)
 
             else
                 return ntuple(
                     i ->
-                        (ϕ isa Const ? zero(ϕ.val) : ∂cn_∂ϕ(ϕ.val, m.val) * ϕ.dval[i]) +
+                        (ϕ isa Const ? zero(ϕ.val) : ∂cn_∂ϕ * ϕ.dval[i]) +
                         (m isa Const ? zero(m.val) : ∂cn_∂m(ϕ.val, m.val) * m.dval[i]),
                     Val(EnzymeRules.width(config)),
                 )
@@ -805,24 +806,24 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ϕ::Annotation{<:Real},
         m::Annotation{<:Real},
     )
-        ∂sn_∂m(ϕ, m) = begin
-            s = ($alg).sn(ϕ, m)
-            a = ($alg).am(ϕ, m)
-            d = ($alg).dn(ϕ, m)
-            c = ($alg).cn(ϕ, m)
-            e = ($alg).E(a, m)
-            inv(2m * (1 - m)) * d * c * ((1 - m) * ϕ + m * (c / d) * s - e)
+        s = ($alg).sn(ϕ.val, m.val)
+        a = ($alg).am(ϕ.val, m.val)
+        d = ($alg).dn(ϕ.val, m.val)
+        c = ($alg).cn(ϕ.val, m.val)
+        e = ($alg).E(a, m.val)
 
+        ∂sn_∂m(ϕ, m) = begin
+            inv(2m * (1 - m)) * d * c * ((1 - m) * ϕ + m * (c / d) * s - e)
         end
 
-        ∂sn_∂ϕ(ϕ, m) = ($alg).dn(ϕ, m) * ($alg).cn(ϕ, m)
+        ∂sn_∂ϕ = d * c
 
 
         if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
             if EnzymeRules.width(config) == 1
                 return Duplicated(
                     func.val(ϕ.val, m.val),
-                    (ϕ isa Const ? zero(ϕ.val) : ∂sn_∂ϕ(ϕ.val, m.val) * ϕ.dval) +
+                    (ϕ isa Const ? zero(ϕ.val) : ∂sn_∂ϕ * ϕ.dval) +
                     (m isa Const ? zero(m.val) : ∂sn_∂m(ϕ.val, m.val) * m.dval),
                 )
             else
@@ -830,7 +831,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
                     func.val(ϕ.val, m.val),
                     ntuple(
                         i ->
-                            (ϕ isa Const ? zero(ϕ.val) : ∂sn_∂ϕ(ϕ.val, m.val) * ϕ.dval[i]) +
+                            (ϕ isa Const ? zero(ϕ.val) : ∂sn_∂ϕ * ϕ.dval[i]) +
                             (m isa Const ? zero(m.val) : ∂sn_∂m(ϕ.val, m.val) * m.dval[i]),
                         Val(EnzymeRules.width(config)),
                     ),
@@ -838,13 +839,13 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             end
         elseif EnzymeRules.needs_shadow(config)
             if EnzymeRules.width(config) == 1
-                return (ϕ isa Const ? zero(ϕ.val) : ∂sn_∂ϕ(ϕ.val, m.val) * ϕ.dval) +
+                return (ϕ isa Const ? zero(ϕ.val) : ∂sn_∂ϕ * ϕ.dval) +
                        (m isa Const ? zero(m.val) : ∂sn_∂m(ϕ.val, m.val) * m.dval)
 
             else
                 return ntuple(
                     i ->
-                        (ϕ isa Const ? zero(ϕ.val) : ∂sn_∂ϕ(ϕ.val, m.val) * ϕ.dval[i]) +
+                        (ϕ isa Const ? zero(ϕ.val) : ∂sn_∂ϕ * ϕ.dval[i]) +
                         (m isa Const ? zero(m.val) : ∂sn_∂m(ϕ.val, m.val) * m.dval[i]),
                     Val(EnzymeRules.width(config)),
                 )
