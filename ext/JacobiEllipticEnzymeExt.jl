@@ -681,7 +681,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         c = ($alg).cn(ϕ.val, m.val)
         e = ($alg).E(a, m.val)
         ∂cn_∂m(ϕ, m) = begin
-            
+
             inv(2m * (1 - m)) * d * s * ((m - 1) * ϕ - m * (c / d) * s + e)
 
         end
