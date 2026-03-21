@@ -4,7 +4,7 @@ makedocs(sitename = "JacobiElliptic.jl")
 
 makedocs(;
     modules = [JacobiElliptic],
-    authors = "Dominic <dchang3419@hotmail.com> and contributors",
+    authors = "Dominic <dochang@g.harvard.edu.com> and contributors",
     repo = "https://github.com/dominic-chang/JacobiElliptic.jl/blob/{commit}{path}#{line}",
     sitename = "JacobiElliptic.jl",
     format = Documenter.HTML(;

@@ -53,13 +53,9 @@ function _am(u::A, m::B) where {A,B}
 end
 
 """
-    am(u::Real, m::Real, [tol::Real=eps(Float64)])
+    am(u::Real, m::Real)
 
 Returns amplitude, φ, such that u = F(φ | m)
-
-Landen sequence with convergence to `tol` used if `√(tol) ≤ m ≤ 1 - √(tol)`
-
-For ``m > 1``, the reciprocal modulus transformation is used.
 """
 function am(u::A, m::B) where {A,B}
     T = promote_type(A, B)
