@@ -6,8 +6,8 @@ function _am(u::A, m::B, tol::C) where {A,B,C}
 
     T = promote_type(A, B, C)
 
-    #Pre-allocate with SVector to avoid GPU allocations
-    _ambuf = StaticArrays.@MVector[
+    # Use an immutable local buffer so GPU backends can keep this in registers.
+    _ambuf = StaticArrays.@SVector[
         zero(T),
         zero(T),
         zero(T),
@@ -26,19 +26,22 @@ function _am(u::A, m::B, tol::C) where {A,B,C}
         # A&S 16.13.4
         return u - m * (u - sin(2 * u) / 2) / 4
     end
-    m1 = 1 - m
+    m1 = one(T) - m
     if m1 < sqrt_tol
         # A&S 16.15.4
         t = tanh(u)
-        return asin(t) + m1 * (t - u * (1 - t^2)) * cosh(u) / 4
+        return asin(t) + m1 * (t - u * (one(T) - t^2)) * cosh(u) / 4
     end
 
-    a, b, c, n = 1, sqrt(m1), sqrt(m), 0
-    while abs(c) > tol
-        @assert n < 10
+    a = one(T)
+    b = sqrt(m1)
+    c = sqrt(m)
+    n = 0
+    while abs(c) > tol && n < 10
         a, b, c, n = ((a + b) / 2, sqrt(a * b), (a - b) / 2, n + 1)
-        @inbounds _ambuf[n] = c / a
+        @inbounds _ambuf = Base.setindex(_ambuf, c / a, n)
     end
+    abs(c) > tol && return T(NaN)
 
     #phi = ldexp(a*u, n) # Doesn't work with Enzyme
     phi = a * u * (2^n)
