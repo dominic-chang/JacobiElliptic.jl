@@ -9,7 +9,6 @@ export ellipj, ellipke
     return Core.Intrinsics.sqrt_llvm(x)
 end
 
-
 include("jacobi.jl")
 include("slatec.jl")
 
@@ -194,8 +193,6 @@ end
 
 E(m) = ellipke(m)[2]
 
-
-
 @inline function _Pi(n::A, sinphi::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
     (isnan(n) || isnan(sinphi) || isnan(m)) && return T(NaN)
@@ -218,30 +215,6 @@ E(m) = ellipke(m)[2]
         return T(Inf)
     end
     return T(NaN)
-end
-
-@inline function custom_atanh(a::T) where {T}
-    oneT = one(T)
-    arg1 = abs(oneT + a)
-    arg2 = abs(oneT - a)
-
-    ans = (log(arg1 / arg2)) / 2
-    return ans
-end
-
-@inline function FukushimaT(t::A, h::B) where {A,B}
-    T = promote_type(A, B)
-    if h > zero(T)
-        sqrt_h = _sqrt(h)
-        return atan(t * sqrt_h) / sqrt_h
-    elseif h == zero(T)
-        return t
-    else
-        sqrt_neg_h = _sqrt(-h)
-        arg = t * sqrt_neg_h
-        ans = abs(arg) < one(T) ? atanh(arg) : custom_atanh(arg)
-        return ans / sqrt_neg_h
-    end
 end
 
 function Pi(n::A, φ::B, m::C) where {A,B,C}
@@ -299,50 +272,6 @@ function Pi(n::A, m::B) where {A,B}
 end
 
 Π = Pi
-
-#https://link-springer-com.ezp-prod1.hul.harvard.edu/article/T(10).1007/BF02165405
-function cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
-    T = promote_type(A, B, C, D)
-    #ca = T(1e-6)
-    ca = eps(T)
-    oneT = one(T)
-    twoT = T(2)
-    pi_over_2 = T(π / 2)
-    kc = abs(kc)
-    e = kc
-    m = oneT
-
-    f, g, q = T(0), T(0), T(0)
-    if p > T(0)
-        p = _sqrt(p)
-        b = b / p
-    else
-        f = kc^2
-        q = oneT - f
-        g = oneT - p
-        f = f - p
-        q = (b - a * p) * q
-        p = _sqrt(f / g)
-        a = (a - b) / g
-        b = -q * (g^2 * p) + a * p
-    end
-    while true
-        f = a
-        invp = inv(p)
-        a = muladd(invp, b, a)
-        g = e * invp
-        b = twoT * muladd(f, g, b)
-        p = g + p
-        g = m
-        m = kc + m
-        if abs(g - kc) < g * ca
-            break
-        end
-        kc = twoT * _sqrt(e)
-        e = kc * m
-    end
-    return pi_over_2 * muladd(a, m, b) / (m * (m + p))
-end
 
 function ellipj(u, m)
     phi = am(u, m)

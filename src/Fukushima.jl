@@ -1,6 +1,8 @@
 module FukushimaAlg
 using StaticArrays
 
+include(joinpath(@__DIR__, "common.jl"))
+
 export K, E, F, Pi, J
 export sn, cn, dn, sc, sd, asn, acn
 
@@ -3088,77 +3090,6 @@ function JsI(n::A, y::B, m::C) where {A,B,C}
                )
            )
 end
-
-@inline function custom_atanh(a::T) where {T}
-    oneT = one(T)
-    arg1 = abs(oneT + a)
-    arg2 = abs(oneT - a)
-
-    ans = (log(arg1 / arg2)) / 2
-    return ans
-end
-
-@inline function FukushimaT(t::A, h::B) where {A,B}
-    T = promote_type(A, B)
-    if h > zero(T)
-        sqrt_h = √h
-        return atan(t * sqrt_h) / sqrt_h
-    elseif h == zero(T)
-        return t
-    else
-        sqrt_neg_h = √(-h)
-        arg = t * sqrt_neg_h
-        ans = abs(arg) < one(T) ? atanh(arg) : custom_atanh(arg)
-        return ans / sqrt_neg_h
-    end
-end
-
-#https://link-springer-com.ezp-prod1.hul.harvard.edu/article/T(10).1007/BF02165405
-function cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
-    T = promote_type(A, B, C, D)
-    #ca = T(1e-6)
-    ca = eps(T)
-    oneT = one(T)
-    twoT = T(2)
-    pi_over_2 = T(π / 2)
-    kc = abs(kc)
-    e = kc
-    m = oneT
-
-    f, g, q = T(0), T(0), T(0)
-    if p > T(0)
-        p = √p
-        b = b / p
-    else
-        f = kc^2
-        q = oneT - f
-        g = oneT - p
-        f = f - p
-        q = (b - a * p) * q
-        p = √(f / g)
-        a = (a - b) / g
-        b = -q * (g^2 * p) + a * p
-    end
-    count = 0
-    while count < 1000
-        count+=1
-        f = a
-        invp = inv(p)
-        a = muladd(invp, b, a)
-        g = e * invp
-        b = twoT * muladd(f, g, b)
-        p = g + p
-        g = m
-        m = kc + m
-        if abs(g - kc) < g * ca
-            break
-        end
-        kc = twoT * √e
-        e = kc * m
-    end
-    return pi_over_2 * muladd(a, m, b) / (m * (m + p))
-end
-
 #https://doi-org.ezp-prod1.hul.harvard.edu/T(10).031007/s10569-008-9177-y
 #https://link.springer.com/article/T(10).1007/s10569-008-9177-y
 
@@ -3466,8 +3397,8 @@ function sd(u, m)
     return signu * _SC(u * sqrtm, inv(m)) * inv(sqrtm)
 end
 
-function am(u, m)
-    asin(sn(u, m))
+function cd(u, m)
+	return cn(u, m) / dn(u, m)
 end
 
 end

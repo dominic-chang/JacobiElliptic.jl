@@ -44,8 +44,6 @@ func_syms = [
     :ns,
     :cd,
 ]
-sym_list = []
-
 
 # Creates function func(::alg, args...) = algAlg.sym(args...)
 for alg in [:Fukushima, :Carlson]
@@ -55,10 +53,8 @@ for alg in [:Fukushima, :Carlson]
     end
 end
 
-default_sym_list = []
-
 # Sets default functions to Carlson Alg
-# func(::args...) = CarlsonAlg.func(args...)
+# func(args...) = CarlsonAlg.func(args...)
 alg = :Carlson
 for func in func_syms
     f = Symbol(alg, :Alg)
@@ -66,7 +62,6 @@ for func in func_syms
 end
 
 asn = FukushimaAlg.asn
-acn = FukushimaAlg.asn
+acn = FukushimaAlg.acn
 am = CarlsonAlg.am
-
 end

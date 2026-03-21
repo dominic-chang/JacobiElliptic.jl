@@ -279,8 +279,8 @@ end
 
             end
 
-            @testset "CN" begin
-                _cn = JacobiElliptic.cn
+			@testset "CN" begin
+				_cn = alg.cn
 
                 # 10. ∂ϕ(cn(ϕ, m)) == -dn(ϕ, m)*sn(ϕ, m)
                 grad1 = -dn(ϕ, m) * sn(ϕ, m)
@@ -339,12 +339,12 @@ end
                     0.5,
                 )
 
-                @test ForwardDiff.derivative(x -> JacobiElliptic.CarlsonAlg.cn(x, x), 0.5) ≈
-                      g1 + g2 atol = 1e-5
-            end
+				@test ForwardDiff.derivative(x -> alg.cn(x, x), 0.5) ≈
+					  g1 + g2 atol = 1e-5
+			end
 
-            @testset "SN" begin
-                _sn = JacobiElliptic.sn
+			@testset "SN" begin
+				_sn = alg.sn
 
                 # 12. ∂ϕ(sn(ϕ, m)) == dn(ϕ, m)*cn(ϕ, m)
                 grad1 = dn(ϕ, m) * cn(ϕ, m)
@@ -403,9 +403,9 @@ end
                     0.5,
                 )
 
-                @test ForwardDiff.derivative(x -> JacobiElliptic.CarlsonAlg.sn(x, x), 0.5) ≈
-                      g1 + g2 atol = 1e-5
-            end
+				@test ForwardDiff.derivative(x -> alg.sn(x, x), 0.5) ≈
+					  g1 + g2 atol = 1e-5
+			end
 
         end
 
@@ -449,7 +449,12 @@ end
               values |>
               collect ≈ grad
 
-    end
+		u = 0.5
+		m = 0.5
+		@test ForwardDiff.derivative(x -> alg.cn(x, m), u) ≈ -0.4439047160789285 atol = 1e-5
+		@test ForwardDiff.derivative(x -> alg.cn(u, x), m) ≈ 0.009235645582845396 atol = 1e-5
+		@test ForwardDiff.derivative(x -> alg.cn(x, x), m) ≈ -0.4346690704960831 atol = 1e-5
+	end
 
 
 end
