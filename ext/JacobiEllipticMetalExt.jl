@@ -44,7 +44,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         end
         abs(c) > tol && return T(NaN)
 
-        #phi = ldexp(a*u, n) # Doesn't work with Enzyme
+        #phi = ldexp(a*u, n) # Was slower on my benchmarks
         phi = a * u * (2^n)
         for i = n:-1:1
             @inbounds phi = (phi + asin(_ambuf[i] * sin(phi))) / 2
