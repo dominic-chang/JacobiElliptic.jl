@@ -49,10 +49,10 @@ export DRC, DRD, DRF, DRJ
     XN = X
     YN = Y
     ZN = Z
-    MU = 0
-    XNDEV = 0
-    YNDEV = 0
-    ZNDEV = 0
+    MU = zero(T)
+    XNDEV = zero(T)
+    YNDEV = zero(T)
+    ZNDEV = zero(T)
 
     while true
         MU = (XN + YN + ZN) * inv3
@@ -267,6 +267,9 @@ function DRJ(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
     ERRTOL = (eps(T) / 6)^T(1 / 6)
     LOLIM = (5floatmin(T))^T(1 / 3)
     UPLIM = T(3 / 10) * (floatmax(T) / 5)^T(1 / 3)
+    twoT = T(2)
+    inv4 = T(1 / 4)
+    inv5 = T(1 / 5)
 
     C1 = T(3 / 14)
     C2 = T(1 / 3)
@@ -294,7 +297,7 @@ function DRJ(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
 
     while true
         XNYNZN = XN + YN + ZN
-        MU = 2(XNYNZN + 2PN) / 10
+        MU = (XNYNZN + twoT * PN) * inv5
         invMU = inv(MU)
         XNDEV = (MU - XN) * invMU
         YNDEV = (MU - YN) * invMU
@@ -306,16 +309,19 @@ function DRJ(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
         YNROOT = _sqrt(YN)
         ZNROOT = _sqrt(ZN)
         YNROOTZNROOT = YNROOT * ZNROOT
+        rootsum = XNROOT + YNROOT + ZNROOT
         LAMDA = muladd(XNROOT, (YNROOT + ZNROOT), YNROOTZNROOT)
-        ALFA = (PN * (XNROOT + YNROOT + ZNROOT) + XNROOT * YNROOTZNROOT)^2
-        BETA = PN * (PN + LAMDA)^2
+        pn_plus_lamda = PN + LAMDA
+        alpha_base = muladd(PN, rootsum, XNROOT * YNROOTZNROOT)
+        ALFA = alpha_base * alpha_base
+        BETA = PN * pn_plus_lamda * pn_plus_lamda
         drc, IER = DRC(ALFA, BETA)
         SIGMA = muladd(POWER4, drc, SIGMA)
-        POWER4 = POWER4 / 4
-        XN = (XN + LAMDA) / 4
-        YN = (YN + LAMDA) / 4
-        ZN = (ZN + LAMDA) / 4
-        PN = (PN + LAMDA) / 4
+        POWER4 *= inv4
+        XN = (XN + LAMDA) * inv4
+        YN = (YN + LAMDA) * inv4
+        ZN = (ZN + LAMDA) * inv4
+        PN = pn_plus_lamda * inv4
     end
     YNDEVZNDEV = YNDEV * ZNDEV
     EA = muladd(XNDEV, (YNDEV + ZNDEV), YNDEVZNDEV)

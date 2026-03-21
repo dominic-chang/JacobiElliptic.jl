@@ -2318,10 +2318,12 @@ Returns the complete elliptic integral of the third kind.
 function Pi(n::A, m::B) where {A,B}
     T = promote_type(A, B)
     oneT = one(T)
+    zeroT = zero(T)
     (isnan(n) || isnan(m)) && return T(NaN)
+    m > oneT && return T(NaN) #Complex Branch
     n > oneT && return K(m) - Pi(m / n, m)
-    n == zero(T) && return K(m)
-    m == zero(T) || m == oneT && return T(Inf) #atanh(√(-1 + n)*tan(θ))/√(-1 + n)
+    n == zeroT && return K(m)
+    m == zeroT || m == oneT && return T(Inf) #atanh(√(-1 + n)*tan(θ))/√(-1 + n)
     kc = √(oneT - m)
     nc = oneT - n
     return cel(kc, nc, oneT, oneT)
