@@ -266,6 +266,8 @@ end
                           typ(1.0) atol = 1e-4
                 end
             end
+
+            @test isnan(alg.Pi(typ(0.2), typ(1.5)))
         end
     end
 

@@ -263,9 +263,11 @@ end
 function Pi(n::A, m::B) where {A,B}
     T = promote_type(A, B)
     oneT = one(T)
+    zeroT = zero(T)
+    m > oneT && return T(NaN) #Complex Branch
     n > oneT && return K(m) - Pi(m / n, m)
-    n == zero(T) && return K(m)
-    m == zero(T) || m == oneT && return T(Inf) #atanh(_sqrt(-1 + n)*tan(θ))/_sqrt(-1 + n)
+    n == zeroT && return K(m)
+    m == zeroT || m == oneT && return T(Inf) #atanh(_sqrt(-1 + n)*tan(θ))/_sqrt(-1 + n)
     kc = _sqrt(oneT - m)
     nc = oneT - n
     return cel(kc, nc, oneT, oneT)
