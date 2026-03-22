@@ -232,4 +232,66 @@ function CarlsonAlg.K(m::Reactant.AnyTracedRArray{Tc,N}) where {Tc,N}
     )
 end
 
+function _reactant_rawF(sinphi::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    sinphi = T(sinphi)
+    m = T(m)
+    oneT = one(T)
+    infT = T(Inf)
+    sinphi2 = sinphi * sinphi
+    drf, _ = _reactant_DRF(oneT - sinphi2, muladd(-m, sinphi2, oneT), oneT)
+    return Base.ifelse((abs(sinphi) == oneT) & (m == oneT), sign(sinphi) * infT, sinphi * drf)
+end
+
+function _reactant_internal_F(phi::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    phi = T(phi)
+    m = T(m)
+    halfpi = T(π / 2)
+    piT = T(π)
+    nanT = T(NaN)
+    ans = zero(T)
+
+    Reactant.@trace if isnan(phi) | isnan(m)
+        ans = nanT
+    elseif abs(phi) > halfpi
+        phi2 = phi + halfpi
+        ans = 2 * fld(phi2, piT) * K(m) - _reactant_rawF(cos(mod(phi2, piT)), m)
+    else
+        ans = _reactant_rawF(sin(phi), m)
+    end
+
+    return ans
+end
+
+function _reactant_F(phi::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    phi = T(phi)
+    m = T(m)
+    oneT = one(T)
+    halfpi = T(π / 2)
+    ans = zero(T)
+
+    Reactant.@trace if m > oneT
+        m12 = sqrt(m)
+        theta = asin(m12 * sin(phi))
+        ans = sign(theta) / m12 * _reactant_internal_F(abs(theta), inv(m))
+    elseif m < zero(T)
+        n = -m
+        one_plus_n = oneT + n
+        m12 = inv(sqrt(one_plus_n))
+        m1m = n / one_plus_n
+        newphi = halfpi - phi
+        ans = m12 * K(m1m) - sign(newphi) * m12 * _reactant_internal_F(abs(newphi), m1m)
+    else
+        ans = sign(phi) * _reactant_internal_F(abs(phi), m)
+    end
+
+    return ans
+end
+
+CarlsonAlg.F(φ::Reactant.TracedRNumber, m::Real) = _reactant_F(φ, m)
+CarlsonAlg.F(φ::Real, m::Reactant.TracedRNumber) = _reactant_F(φ, m)
+CarlsonAlg.F(φ::Reactant.TracedRNumber, m::Reactant.TracedRNumber) = _reactant_F(φ, m)
+
 end
