@@ -2,7 +2,146 @@ module JacobiEllipticReactantExt
 
 using JacobiElliptic
 using Reactant
-import JacobiElliptic: CarlsonAlg, ArithmeticGeometricMeanAlg
+import JacobiElliptic: CarlsonAlg, ArithmeticGeometricMeanAlg, StaticArrays
+
+function _am_buffer(::T) where T
+    zeroT = zero(T)
+    #return StaticArrays.@MVector
+    return [
+        zeroT,
+        zeroT,
+        zeroT,
+        zeroT,
+        zeroT,
+        zeroT,
+        zeroT,
+        zeroT,
+        zeroT,
+        zeroT,
+        zeroT,
+    ]
+end
+
+function _reactant_am_step(
+    a::A,
+    b::B,
+    c::C,
+    n::D,
+    tol::E,
+    _ambuf::G,
+    idx::H,
+) where {A,B,C,D,E,G,H}
+    T = promote_type(A, B, C, E)
+    zeroT = zero(T)
+    next_a = (a + b) / 2
+    next_b = sqrt(a * b)
+    next_c = (a - b) / 2
+    active = abs(c) > tol
+
+    a = Base.ifelse(active, next_a, a)
+    b = Base.ifelse(active, next_b, b)
+    c = Base.ifelse(active, next_c, c)
+    n = Base.ifelse(active, n + 1, n)
+    _ambuf[idx] = Base.ifelse(active, next_c / next_a, zeroT)
+
+    return a, b, c, n, _ambuf
+end
+
+function __reactant_am(u::A, m::B, tol::C) where {A,B,C}
+
+    T = promote_type(A, B, C)
+    zeroT = zero(T)
+
+    # Use an immutable local buffer so GPU backends can keep this in registers.
+    _ambuf = _am_buffer(zeroT)
+    ans = zeroT
+
+    sqrt_tol = sqrt(tol)
+    m1 = one(T) - m
+    t = tanh(u)
+    flag = true 
+    ans, flag = Base.ifelse(iszero(u), 
+        (zeroT, false), 
+        Base.ifelse(m < sqrt_tol, 
+            (u - m * (u - sin(2 * u) / 2) / 4, false),
+            Base.ifelse(m1 < sqrt_tol,
+            (asin(t) + m1 * (t - u * (one(T) - t^2)) * cosh(u) / 4, false),
+            (zeroT, true)
+            )
+        )
+    )
+
+    NaNT = T(NaN)
+    @trace if flag
+        a = one(T)
+        b = sqrt(m1)
+        c = sqrt(m)
+        n = 0
+
+        a, b, c, n, _ambuf = _reactant_am_step(a, b, c, n, tol, _ambuf, 1)
+        a, b, c, n, _ambuf = _reactant_am_step(a, b, c, n, tol, _ambuf, 2)
+        a, b, c, n, _ambuf = _reactant_am_step(a, b, c, n, tol, _ambuf, 3)
+        a, b, c, n, _ambuf = _reactant_am_step(a, b, c, n, tol, _ambuf, 4)
+        a, b, c, n, _ambuf = _reactant_am_step(a, b, c, n, tol, _ambuf, 5)
+        a, b, c, n, _ambuf = _reactant_am_step(a, b, c, n, tol, _ambuf, 6)
+        a, b, c, n, _ambuf = _reactant_am_step(a, b, c, n, tol, _ambuf, 7)
+        a, b, c, n, _ambuf = _reactant_am_step(a, b, c, n, tol, _ambuf, 8)
+        a, b, c, n, _ambuf = _reactant_am_step(a, b, c, n, tol, _ambuf, 9)
+        a, b, c, n, _ambuf = _reactant_am_step(a, b, c, n, tol, _ambuf, 10)
+    
+        ans = Base.ifelse(abs(c) > tol, NaNT, ans)
+
+        #phi = ldexp(a*u, n) # Was slower on my benchmarks
+        phi = a * u * (2^n)
+        for i in 10:-1:1
+            next_phi = (phi + asin(_ambuf[i] * sin(phi))) / 2
+            phi = Base.ifelse(n >= i, next_phi, phi)
+        end
+        ans = phi
+
+    end
+    return ans
+end
+
+function __reactant_am(u::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    return __reactant_am(u, m, eps(T))
+end
+
+"""
+    am(u::Real, m::Real)
+
+Returns amplitude, φ, such that u = F(φ | m)
+"""
+function _reactant_am(u::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    ans = zero(T)
+    piT = T(Base.π)
+    halfpiT = T(Base.π / 2)
+    @trace if m < 0
+        mu1 = inv(1 - m)
+        mu = -m * mu1
+        sqrtmu1 = sqrt(mu1)
+        v = u / sqrtmu1
+        phi = __reactant_am(v, mu)
+        s = sin(phi)
+        t = floor((phi + halfpiT) / piT)
+
+        ans = t * piT + cospi(t) * asin(sqrtmu1 * s / sqrt(1 - mu * s^2))
+    elseif m <= 1 # 0 <= m <= 1
+        ans = __reactant_am(u, m)
+    else # m > 1
+        k = sqrt(m)
+        ans = asin(inv(k) * sin(__reactant_am(k * u, inv(m))))
+    end
+    return ans
+end
+
+CarlsonAlg.am(u::Reactant.TracedRNumber, m::Real) = _reactant_am(u, m)
+CarlsonAlg.am(u::Real, m::Reactant.TracedRNumber) = _reactant_am(u, m)
+CarlsonAlg.am(u::Reactant.TracedRNumber, m::Reactant.TracedRNumber) = _reactant_am(u, m)
+
+
 
 function _reactant_DRF(y::Reactant.AnyTracedRArray{Tc,N}) where {Tc,N}
     zeroT = Tc(0)
@@ -411,7 +550,7 @@ function _reactant_F(phi::A, m::B) where {A,B}
     phi = T(phi)
     m = T(m)
     oneT = one(T)
-    halfpi = T(π / 2)
+    halfpi = T(Base.π / 2)
     ans = zero(T)
 
     Reactant.@trace if m > oneT
@@ -440,7 +579,7 @@ function CarlsonAlg.F(
     phi = T.(phi)
     mT = T(m)
     oneT = one(T)
-    halfpi = T(π / 2)
+    halfpi = T(Base.π / 2)
 
     if mT > oneT
         m12 = sqrt(mT)
@@ -467,7 +606,7 @@ function CarlsonAlg.F(
     mT = T(m)
     oneT = one(T)
     zeroT = zero(T)
-    halfpi = T(π / 2)
+    halfpi = T(Base.π / 2)
 
     gtmask = mT > oneT
     negmask = mT < zeroT
