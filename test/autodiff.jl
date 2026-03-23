@@ -11,6 +11,61 @@ using SpecialFunctions
     @test JacobiElliptic.CarlsonAlg._isequals(2.0, ForwardDiff.Dual(2.0, 1.0)) == true
 end
 
+@testset "alg:AGM" begin
+    alg = JacobiElliptic.ArithmeticGeometricMeanAlg
+    @testset "Zygote, ForwardDiff and Enzyme" begin
+
+        num_trials = 1
+        ms = rand(num_trials)
+        ϕs = rand(num_trials) .* 2π
+        ns = rand(num_trials)
+        enzyme_atol = alg === JacobiElliptic.CarlsonAlg ? 1e-9 : 1e-5
+
+        # Test several known derivative identities across a wide range of values of ϕ and m
+        # in order to verify that derivatives work correctly
+        @testset for (m, ϕ, n) in zip(ms, ϕs, ns)
+
+            # I. Tests for complete integrals, from https://en.wikipedia.org/wiki/Elliptic_integral
+            # 1. K'(m) = E(m) / (2m * (1 - m)) - K(m)/2m
+            @testset "Complete K" begin
+                grad = (alg.E(m) / (2m * (1 - m)) - alg.K(m) / (2m))
+                @test Zygote.gradient(alg.K, m)[1] ≈ grad
+                @test ForwardDiff.derivative(alg.K, m) ≈ grad
+                @test Enzyme.autodiff(Reverse, alg.K, Active, Active(m))[1][1] ≈ grad
+                @test Enzyme.autodiff(Forward, alg.K, Duplicated, Duplicated(m, 1.0))[1][1] ≈
+                      grad
+                m = rand()
+                for Tret in (Const, Duplicated, DuplicatedNoNeed), Tm in (Const, Duplicated)
+                    test_forward(alg.K, Tret, (m, Tm); atol = enzyme_atol)
+                end
+
+                for Tret in (Const, Active), Tm in (Const, Active)
+                    test_reverse(alg.K, Tret, (m, Tm); atol = enzyme_atol)
+                end
+            end
+
+            # 2. E'(m) = (E(m) - K(m))/2m
+            @testset "Complete E" begin
+                grad = (alg.E(m) - alg.K(m)) / 2m
+                @test Zygote.gradient(alg.E, m)[1] ≈ grad
+                @test ForwardDiff.derivative(alg.E, m) ≈ grad
+                @test Enzyme.autodiff(Reverse, alg.E, Active, Active(m))[1][1] ≈ grad
+                @test Enzyme.autodiff(Forward, alg.E, Duplicated, Duplicated(m, 1.0))[1][1] ≈
+                      grad
+                m = rand()
+                for Tret in (Const, Duplicated, DuplicatedNoNeed), Tm in (Const, Duplicated)
+                    test_forward(alg.E, Tret, (m, Tm); atol = enzyme_atol)
+                end
+                for Tret in (Const, Active), Tm in (Const, Active)
+                    test_reverse(alg.E, Tret, (m, Tm); atol = enzyme_atol)
+                end
+            end
+
+        end
+    end
+end
+
+
 @testset "alg:$alg" for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     @testset "Zygote, ForwardDiff and Enzyme" begin
 

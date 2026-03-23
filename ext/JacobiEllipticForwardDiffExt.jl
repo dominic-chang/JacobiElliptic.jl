@@ -25,6 +25,30 @@ function JacobiElliptic.CarlsonAlg._sqrt(x::ForwardDiff.Dual{T}) where {T}
     return ForwardDiff.Dual{T}(fval, ∂xf * x.partials)
 end
 
+begin 
+    alg = JacobiElliptic.ArithmeticGeometricMeanAlg
+    #----------------------------------------------------------------------------------------
+    # Elliptic K(ϕ)
+    #----------------------------------------------------------------------------------------
+    @eval function ($alg).K(x::ForwardDiff.Dual{T}) where {T}
+        xval = x.value
+        fval = ($alg).K(xval)
+        ∂xf = (($alg).E(xval) - (1 - xval) * ($alg).K(xval)) / (2 * (1 - xval) * xval)
+        ForwardDiff.Dual{T}(fval, ∂xf * x.partials)
+    end
+
+    #----------------------------------------------------------------------------------------
+    # Elliptic E(ϕ)
+    #----------------------------------------------------------------------------------------
+    @eval function ($alg).E(x::ForwardDiff.Dual{T}) where {T}
+        xval = x.value
+        fval = ($alg).E(xval)
+        ∂xf = (($alg).E(xval) - ($alg).K(xval)) / (2xval)
+        ForwardDiff.Dual{T}(fval, ∂xf * x.partials)
+    end
+
+end
+
 for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     #----------------------------------------------------------------------------------------
     # Elliptic K(ϕ)
