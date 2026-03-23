@@ -2,7 +2,7 @@ module JacobiEllipticReactantExt
 
 using JacobiElliptic
 using Reactant
-import JacobiElliptic: CarlsonAlg
+import JacobiElliptic: CarlsonAlg, ArithmeticGeometricMeanAlg
 
 function _reactant_DRF(y::Reactant.AnyTracedRArray{Tc,N}) where {Tc,N}
     zeroT = Tc(0)
@@ -222,13 +222,39 @@ CarlsonAlg.DRF(
     Z::Reactant.TracedRNumber,
 ) = _reactant_DRF(X, Y, Z)
 
+function _reactant_ellipke_base(m::T) where T
+    oneT = one(T)
+    twoT = T(2)
+    halfpi = T(π / 2)
+
+    a = oneT
+    b = sqrt(oneT - m)
+    sum_c2 = m / twoT
+    pow2 = oneT
+
+    # Arithmetic Geometric mean implementation
+    # https://www.math.emory.edu/~gliang7/AGM.pdf
+    # https://en.wikipedia.org/wiki/Arithmetic%E2%80%93geometric_mean
+    for _ in 1:8
+        c = (a - b) / twoT
+        next_a = (a + b) / twoT
+        next_b = sqrt(a * b)
+        sum_c2 += pow2 * c * c
+        pow2 += pow2
+        a = next_a
+        b = next_b
+    end
+
+    k = halfpi / a
+    e = k * (oneT - sum_c2)
+    return (k, e)
+end
 
 #----------------------------------------------------------------------------------------
 # Elliptic K(m)
 #----------------------------------------------------------------------------------------
 
-function CarlsonAlg.K(m::Reactant.TracedRNumber)
-    T = typeof(m)
+function _reactant_K(m::T) where T
     oneT = one(T)
     zeroT = zero(T)
     nanT = T(NaN)
@@ -241,55 +267,55 @@ function CarlsonAlg.K(m::Reactant.TracedRNumber)
         m_abs = -m
         one_plus_m_abs = m_abs + oneT
         m_transformed = m_abs / one_plus_m_abs
-        drf, _ = _reactant_DRF(zeroT, oneT - m_transformed, oneT)
-        ans = drf / sqrt(one_plus_m_abs)
+        k, _ = _reactant_ellipke_base(m_transformed)
+        ans = k / sqrt(one_plus_m_abs)
     elseif m > oneT
         m_inv = inv(m)
-        drf, _ = _reactant_DRF(zeroT, oneT - m_inv, oneT)
-        ans = inv(sqrt(m)) * drf
+        k, _ = _reactant_ellipke_base(m_inv)
+        ans = inv(sqrt(m)) * k
     elseif m == oneT
         ans = infT
     else
-        drf, _ = _reactant_DRF(zeroT, oneT - m, oneT)
-        ans = drf
+        k, _ = _reactant_ellipke_base(m)
+        ans = k
     end
     return ans
 end
 
-function CarlsonAlg.K(m::Reactant.AnyTracedRArray{Tc,N}) where {Tc,N}
-    zeroT = Tc(0)
-    oneT = Tc(1)
-    nanT = Tc(NaN)
-    infT = Tc(Inf)
-    safe_one = zeroT .* m .+ oneT
-    safe_half = zeroT .* m .+ Tc(0.5)
+ArithmeticGeometricMeanAlg.K(m::Reactant.TracedRNumber) = _reactant_K(m)
 
-    nanmask = isnan.(m)
-    negmask = m .< zeroT
-    gtmask = m .> oneT
-    eqmask = m .== oneT
+#----------------------------------------------------------------------------------------
+# Elliptic E(m)
+#----------------------------------------------------------------------------------------
+function _reactant_E(m::T) where T
+    oneT = one(T)
+    zeroT = zero(T)
+    nanT = T(NaN)
+    ans = zeroT
 
-    m_abs = .-m
-    one_plus_m_abs = m_abs .+ oneT
-    safe_m_transformed = ifelse.(negmask, m_abs ./ one_plus_m_abs, zeroT .* m)
-    safe_m_inv = ifelse.(gtmask, inv.(m), safe_one)
+    Reactant.@trace if isnan(m)
+        ans = nanT
+    elseif m < zeroT
+        m_abs = -m
+        one_plus_m_abs = m_abs + oneT
+        m_transformed = m_abs / one_plus_m_abs
+        _, e_trans = _reactant_ellipke_base(m_transformed)
+        ans = sqrt(one_plus_m_abs) * e_trans
+    elseif m > oneT
+        m_inv = inv(m)
+        k_complete, e_complete = _reactant_ellipke_base(m_inv)
+        ans = sqrt(m) * (e_complete - (oneT - m_inv) * k_complete)
+    elseif m == oneT
+        ans = oneT
+    else
+        _, ans = _reactant_ellipke_base(m)
+    end
 
-    drf_input = ifelse.(
-        negmask,
-        oneT .- safe_m_transformed,
-        ifelse.(gtmask, oneT .- safe_m_inv, ifelse.(nanmask .| eqmask, safe_half, oneT .- m)),
-    )
-    drf = _reactant_DRF(drf_input)
-
-    neg_res = drf ./ sqrt.(one_plus_m_abs)
-    gt_res = inv.(sqrt.(ifelse.(gtmask, m, safe_one))) .* drf
-
-    return ifelse.(
-        nanmask,
-        zeroT .* m .+ nanT,
-        ifelse.(eqmask, zeroT .* m .+ infT, ifelse.(negmask, neg_res, ifelse.(gtmask, gt_res, drf))),
-    )
+    return ans
 end
+
+ArithmeticGeometricMeanAlg.E(m::Reactant.TracedRNumber) = _reactant_E(m)
+ArithmeticGeometricMeanAlg.ellipke(m::Reactant.TracedRNumber) = (_reactant_K(m), _reactant_E(m))
 
 #----------------------------------------------------------------------------------------
 # Elliptic F(ϕ, m)
