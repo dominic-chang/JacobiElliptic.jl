@@ -17,6 +17,12 @@
         k_edge_r = @jit K.(k_edge_m_r)
         e_r = @jit E.(m_r)
         e_edge_r = @jit E.(k_edge_m_r)
+        incomplete_e_r = [reactant_jit(:(E($(u), 0.5))) for u in us]
+        incomplete_e_gt_one_r = [reactant_jit(:(E($(u), 1.5))) for u in gt_one_us]
+        incomplete_e_neg_r = [reactant_jit(:(E($(u), -0.5))) for u in us]
+        incomplete_e_m_r = [reactant_jit(:(E($(u), $(ms[3])))) for u in us]
+        incomplete_e_m_gt_one_r = [reactant_jit(:(E($(u), $(k_edge_ms[3])))) for u in gt_one_us]
+        incomplete_e_m_neg_r = [reactant_jit(:(E($(u), $(k_edge_ms[1])))) for u in us]
         f_r = reactant_jit(:(F.($u_r, 0.5)))
         f_gt_one_r = reactant_jit(:(F.($gt_one_u_r, 1.5)))
         f_neg_r = reactant_jit(:(F.($u_r, -0.5)))
@@ -38,6 +44,12 @@
         @test Array(k_edge_r) ≈ K.(k_edge_ms)
         @test Array(e_r) ≈ E.(ms)
         @test Array(e_edge_r) ≈ E.(k_edge_ms)
+        @test incomplete_e_r ≈ E.(us, 0.5)
+        @test incomplete_e_gt_one_r ≈ E.(gt_one_us, 1.5)
+        @test incomplete_e_neg_r ≈ E.(us, -0.5)
+        @test incomplete_e_m_r ≈ E.(us, ms[3])
+        @test incomplete_e_m_gt_one_r ≈ E.(gt_one_us, k_edge_ms[3])
+        @test incomplete_e_m_neg_r ≈ E.(us, k_edge_ms[1])
         @test Array(f_r) ≈ F.(us, 0.5)
         @test Array(f_gt_one_r) ≈ F.(gt_one_us, 1.5)
         @test Array(f_neg_r) ≈ F.(us, -0.5)

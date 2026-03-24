@@ -312,6 +312,184 @@ function _reactant_DRF(
     return S ./ sqrt.(MU)
 end
 
+function _reactant_DRD(
+    X::Reactant.AnyTracedRArray{Tx,N},
+    Y::Reactant.AnyTracedRArray{Ty,N},
+    Z::Union{Real,Reactant.TracedRNumber},
+) where {Tx,Ty,N}
+    T = promote_type(Tx, Ty, typeof(Z))
+    Tc = Reactant.unwrapped_eltype(T)
+    zeroT = T(0)
+    oneT = T(1)
+    threeT = T(3)
+    sixT = T(6)
+    inv4 = T(1 / 4)
+    inv5 = T(1 / 5)
+    ERRTOL = T((eps(Tc) / 6)^Tc(1 / 6))
+    C1 = T(3 / 14)
+    C2 = T(1 / 6)
+    C3 = T(9 / 22)
+    C4 = T(3 / 26)
+
+    XN = T.(X)
+    YN = T.(Y)
+    ZN = zeroT .* XN .+ T(Z)
+    SIGMA = zeroT .* XN
+    POWER4 = zeroT .* XN .+ oneT
+
+    MU = (XN .+ YN .+ threeT .* ZN) .* inv5
+    invMU = inv.(MU)
+    XNDEV = (MU .- XN) .* invMU
+    YNDEV = (MU .- YN) .* invMU
+    ZNDEV = (MU .- ZN) .* invMU
+    EPSLON = max.(abs.(XNDEV), max.(abs.(YNDEV), abs.(ZNDEV)))
+    active = EPSLON .>= ERRTOL
+
+    Reactant.@trace while sum(active) > 0
+        XNROOT = sqrt.(XN)
+        YNROOT = sqrt.(YN)
+        ZNROOT = sqrt.(ZN)
+        YNROOTZNROOT = YNROOT .* ZNROOT
+        LAMDA = muladd.(XNROOT, YNROOT .+ ZNROOT, YNROOTZNROOT)
+        next_SIGMA = muladd.(POWER4, inv.(ZNROOT .* (ZN .+ LAMDA)), SIGMA)
+        next_POWER4 = POWER4 .* inv4
+        next_XN = (XN .+ LAMDA) .* inv4
+        next_YN = (YN .+ LAMDA) .* inv4
+        next_ZN = (ZN .+ LAMDA) .* inv4
+
+        SIGMA = ifelse.(active, next_SIGMA, SIGMA)
+        POWER4 = ifelse.(active, next_POWER4, POWER4)
+        XN = ifelse.(active, next_XN, XN)
+        YN = ifelse.(active, next_YN, YN)
+        ZN = ifelse.(active, next_ZN, ZN)
+
+        MU = (XN .+ YN .+ threeT .* ZN) .* inv5
+        invMU = inv.(MU)
+        XNDEV = (MU .- XN) .* invMU
+        YNDEV = (MU .- YN) .* invMU
+        ZNDEV = (MU .- ZN) .* invMU
+        EPSLON = max.(abs.(XNDEV), max.(abs.(YNDEV), abs.(ZNDEV)))
+        active = EPSLON .>= ERRTOL
+    end
+
+    EA = XNDEV .* YNDEV
+    EB = ZNDEV .* ZNDEV
+    EC = EA .- EB
+    ED = EA .- sixT .* EB
+    EF = ED .+ EC .+ EC
+    S1 = ED .* (-C1 .+ C3 .* ED .* inv4 .- threeT .* C4 .* ZNDEV .* EF ./ 2)
+    S2 = ZNDEV .* (C2 .* EF .+ ZNDEV .* (-C3 .* EC .+ ZNDEV .* C4 .* EA))
+    return threeT .* SIGMA .+ POWER4 .* (oneT .+ S1 .+ S2) ./ (MU .* sqrt.(MU))
+end
+
+function _reactant_DRD_ifbody(X::A, Y::B, Z::C) where {A,B,C}
+    T = promote_type(A, B, C)
+    oneT = one(T)
+    threeT = T(3)
+    sixT = T(6)
+    inv4 = T(1 / 4)
+    inv5 = T(1 / 5)
+    ERRTOL = T((eps(Reactant.unwrapped_eltype(T)) / 6)^Reactant.unwrapped_eltype(T)(1 / 6))
+    C1 = T(3 / 14)
+    C2 = T(1 / 6)
+    C3 = T(9 / 22)
+    C4 = T(3 / 26)
+
+    XN = X
+    YN = Y
+    ZN = Z
+    SIGMA = zero(T)
+    POWER4 = oneT
+    MU = (XN + YN + threeT * ZN) * inv5
+    invMU = inv(MU)
+    XNDEV = (MU - XN) * invMU
+    YNDEV = (MU - YN) * invMU
+    ZNDEV = (MU - ZN) * invMU
+    active = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV)) >= ERRTOL
+
+    Reactant.@trace while active
+        XNROOT = sqrt(XN)
+        YNROOT = sqrt(YN)
+        ZNROOT = sqrt(ZN)
+        YNROOTZNROOT = YNROOT * ZNROOT
+        LAMDA = muladd(XNROOT, YNROOT + ZNROOT, YNROOTZNROOT)
+        SIGMA = muladd(POWER4, inv(ZNROOT * (ZN + LAMDA)), SIGMA)
+        POWER4 *= inv4
+        XN = (XN + LAMDA) * inv4
+        YN = (YN + LAMDA) * inv4
+        ZN = (ZN + LAMDA) * inv4
+
+        MU = (XN + YN + threeT * ZN) * inv5
+        invMU = inv(MU)
+        XNDEV = (MU - XN) * invMU
+        YNDEV = (MU - YN) * invMU
+        ZNDEV = (MU - ZN) * invMU
+        active = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV)) >= ERRTOL
+    end
+
+    EA = XNDEV * YNDEV
+    EB = ZNDEV * ZNDEV
+    EC = EA - EB
+    ED = EA - sixT * EB
+    EF = ED + EC + EC
+    S1 = ED * (-C1 + C3 * ED * inv4 - threeT * C4 * ZNDEV * EF / 2)
+    S2 = ZNDEV * (C2 * EF + ZNDEV * (-C3 * EC + ZNDEV * C4 * EA))
+    return threeT * SIGMA + POWER4 * (oneT + S1 + S2) / (MU * sqrt(MU))
+end
+
+function _reactant_DRD(X::A, Y::B, Z::C) where {A,B,C}
+    T = promote_type(A, B, C)
+    X = T(X)
+    Y = T(Y)
+    Z = T(Z)
+    zeroT = zero(T)
+
+    LOLIM = T(2 / (floatmax(T))^T(2 / 3))
+    ERRTOL = (eps(T) / 6)^T(1 / 6)
+    TUPLIM = T((ERRTOL / 10)^T(1 / 3) / floatmin(T)^T(1 / 3))
+    UPLIM = TUPLIM^2
+
+    ans = zeroT
+    err = Base.ifelse(
+        min(X, Y) < zeroT,
+        1,
+        Base.ifelse(max(X, Y, Z) > UPLIM, 3, Base.ifelse(min(X + Y, Z) < LOLIM, 2, 0)),
+    )
+
+    @trace if err == 0
+        ans = _reactant_DRD_ifbody(X, Y, Z)
+    end
+
+    return (ans, err)
+end
+
+CarlsonAlg.DRD(X::Reactant.TracedRNumber, Y::Real, Z::Real) =
+    _reactant_DRD(X, Y, Z)
+CarlsonAlg.DRD(X::Real, Y::Reactant.TracedRNumber, Z::Real) =
+    _reactant_DRD(X, Y, Z)
+CarlsonAlg.DRD(X::Real, Y::Real, Z::Reactant.TracedRNumber) =
+    _reactant_DRD(X, Y, Z)
+CarlsonAlg.DRD(
+    X::Reactant.TracedRNumber,
+    Y::Reactant.TracedRNumber,
+    Z::Real,
+) = _reactant_DRD(X, Y, Z)
+CarlsonAlg.DRD(
+    X::Reactant.TracedRNumber,
+    Y::Real,
+    Z::Reactant.TracedRNumber,
+) = _reactant_DRD(X, Y, Z)
+CarlsonAlg.DRD(
+    X::Real,
+    Y::Reactant.TracedRNumber,
+    Z::Reactant.TracedRNumber,
+) = _reactant_DRD(X, Y, Z)
+CarlsonAlg.DRD(
+    X::Reactant.TracedRNumber,
+    Y::Reactant.TracedRNumber,
+    Z::Reactant.TracedRNumber,
+) = _reactant_DRD(X, Y, Z)
+
 function _reactant_DRF_whilebody(XN::A, YN::B, ZN::C, ERRTOL::D) where {A,B,C,D}
     T = promote_type(A, B, C, D)
     inv3 = T(1 / 3)
@@ -527,6 +705,8 @@ function _reactant_rawF(sinphi::A, m::B) where {A,B}
     return Base.ifelse((abs(sinphi) == oneT) & (m == oneT), sign(sinphi) * infT, sinphi * drf)
 end
 
+_reactant_DRF_value(X, Y, Z) = first(_reactant_DRF(X, Y, Z))
+
 function _reactant_rawF(
     sinphi::Reactant.AnyTracedRArray{Tp,N},
     m::Real,
@@ -537,7 +717,8 @@ function _reactant_rawF(
     oneT = one(T)
     infT = T(Inf)
     sinphi2 = sinphi .* sinphi
-    drf = _reactant_DRF(oneT .- sinphi2, muladd.(-mT, sinphi2, oneT), oneT)
+    y = muladd.(-mT, sinphi2, oneT)
+    drf = _reactant_DRF_value.(oneT .- sinphi2, y, oneT)
     infmask = (abs.(sinphi) .== oneT) .& (mT == oneT)
     return ifelse.(infmask, sign.(sinphi) .* infT, sinphi .* drf)
 end
@@ -552,7 +733,8 @@ function _reactant_rawF(
     oneT = one(T)
     infT = T(Inf)
     sinphi2 = sinphi .* sinphi
-    drf = _reactant_DRF(oneT .- sinphi2, muladd.(-mT, sinphi2, oneT), oneT)
+    y = muladd.(-mT, sinphi2, oneT)
+    drf = _reactant_DRF_value.(oneT .- sinphi2, y, oneT)
     infmask = (abs.(sinphi) .== oneT) .& (mT == oneT)
     return ifelse.(infmask, sign.(sinphi) .* infT, sinphi .* drf)
 end
@@ -685,5 +867,110 @@ end
 CarlsonAlg.F(φ::Reactant.TracedRNumber, m::Real) = _reactant_F(φ, m)
 CarlsonAlg.F(φ::Real, m::Reactant.TracedRNumber) = _reactant_F(φ, m)
 CarlsonAlg.F(φ::Reactant.TracedRNumber, m::Reactant.TracedRNumber) = _reactant_F(φ, m)
+
+#----------------------------------------------------------------------------------------
+# Incomplete Elliptic E(ϕ, m)
+#----------------------------------------------------------------------------------------
+
+function _reactant_rawE(sinphi::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    sinphi = T(sinphi)
+    m = T(m)
+    oneT = one(T)
+    inv3 = T(1 / 3)
+    nanT = T(NaN)
+    ans = zero(T)
+
+    Reactant.@trace if m > oneT
+        minv = inv(m)
+        m12 = sqrt(m)
+        sinalpha = m12 * sinphi
+        sinalpha2 = sinalpha * sinalpha
+        cosalpha2 = oneT - sinalpha2
+        yalpha = muladd(-minv, sinalpha2, oneT)
+        drf, ierr1 = _reactant_DRF(cosalpha2, yalpha, oneT)
+        drd, ierr2 = _reactant_DRD(cosalpha2, yalpha, oneT)
+
+        ans = Base.ifelse(
+            (ierr1 == 0) & (ierr2 == 0),
+            sinalpha * muladd(-sinalpha2 * inv3, drd, drf) / m12,
+            Base.ifelse((ierr1 == 2) & (ierr2 == 2), sinphi, nanT),
+        )
+    else
+        sinphi2 = sinphi * sinphi
+        cosphi2 = oneT - sinphi2
+        y = muladd(-m, sinphi2, oneT)
+        drf, ierr1 = _reactant_DRF(cosphi2, y, oneT)
+        drd, ierr2 = _reactant_DRD(cosphi2, y, oneT)
+
+        ans = Base.ifelse(
+            (ierr1 == 0) & (ierr2 == 0),
+            sinphi * muladd(-m * sinphi2 * inv3, drd, drf),
+            Base.ifelse((ierr1 == 2) & (ierr2 == 2), sinphi, nanT),
+        )
+    end
+
+    return ans
+end
+
+function _reactant_internal_E(phi::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    phi = T(phi)
+    m = T(m)
+    halfpi = T(Base.π / 2)
+    piT = T(Base.π)
+    nanT = T(NaN)
+    ans = zero(T)
+
+    Reactant.@trace if isnan(phi) | isnan(m)
+        ans = nanT
+    elseif 2 * abs(phi) > piT
+        phi2 = phi + halfpi
+        ans = 2 * fld(phi2, piT) * E(m) - _reactant_rawE(cos(mod(phi2, piT)), m)
+    elseif (m == one(T)) & (abs(phi) == halfpi)
+        ans = sin(phi)
+    elseif phi == halfpi
+        ans = E(m)
+    elseif phi == -halfpi
+        ans = -E(m)
+    else
+        ans = _reactant_rawE(sin(phi), m)
+    end
+
+    return ans
+end
+
+function _reactant_internal_E(
+    phi::Reactant.AnyTracedRArray{Tp,N},
+    m::Real,
+) where {Tp,N}
+    return _reactant_internal_E.(phi, m)
+end
+
+function CarlsonAlg.E(φ::Reactant.TracedRNumber, m::Real)
+    return _reactant_internal_E(φ, m)
+end
+
+function CarlsonAlg.E(φ::Real, m::Reactant.TracedRNumber)
+    return _reactant_internal_E(φ, m)
+end
+
+function CarlsonAlg.E(φ::Reactant.TracedRNumber, m::Reactant.TracedRNumber)
+    return _reactant_internal_E(φ, m)
+end
+
+function CarlsonAlg.E(
+    phi::Reactant.AnyTracedRArray{Tp,N},
+    m::Real,
+) where {Tp,N}
+    return _reactant_internal_E.(phi, m)
+end
+
+function CarlsonAlg.E(
+    phi::Reactant.AnyTracedRArray{Tp,N},
+    m::Reactant.TracedRNumber,
+) where {Tp,N}
+    return _reactant_internal_E.(phi, m)
+end
 
 end
