@@ -141,7 +141,63 @@ CarlsonAlg.am(u::Reactant.TracedRNumber, m::Real) = _reactant_am(u, m)
 CarlsonAlg.am(u::Real, m::Reactant.TracedRNumber) = _reactant_am(u, m)
 CarlsonAlg.am(u::Reactant.TracedRNumber, m::Reactant.TracedRNumber) = _reactant_am(u, m)
 
+for (f, a, b, c) in (
+    (:sn, :(sin(phi)), :(sqrtmu1 * s), :(sqrt(mu) * sin(phi))),
+    (:cn, :(cos(phi)), :(cos(phi)), :(sqrt(1 - mu * sin(phi)^2))),
+    (:dn, :(sqrt(1 - m * sin(phi)^2)), :(one(T)), :(cos(phi))),
+)
+    reactant_f = Symbol(:_reactant_, f)
+    @eval begin
+        function $reactant_f(u::A, m::B) where {A,B}
+            T = promote_type(A, B)
+            ans = T(NaN)
 
+            @trace if m < 0
+                mu1 = inv(1 - m)
+                mu = -m * mu1
+                sqrtmu1 = sqrt(mu1)
+                v = u / sqrtmu1
+                phi = __reactant_am(v, mu)
+                s = sin(phi)
+                ans = ($b) / sqrt(1 - mu * s^2)
+            elseif m > 1
+                mu = inv(m)
+                v = u * sqrt(m)
+                phi = __reactant_am(v, mu)
+                ans = $c
+            else
+                phi = __reactant_am(u, m)
+                ans = $a
+            end
+
+            return ans
+        end
+
+        CarlsonAlg.$f(u::Reactant.TracedRNumber, m::Real) = $reactant_f(u, m)
+        CarlsonAlg.$f(u::Real, m::Reactant.TracedRNumber) = $reactant_f(u, m)
+        CarlsonAlg.$f(u::Reactant.TracedRNumber, m::Reactant.TracedRNumber) = $reactant_f(u, m)
+    end
+end
+
+xn = ((:s, :(sn(u, m))), (:c, :(cn(u, m))), (:d, :(dn(u, m))), (:n, 1))
+for (p, num) in xn, (q, den) in xn
+    f = Symbol(p, q)
+
+    if p == q
+        @eval begin
+            CarlsonAlg.$f(::Reactant.TracedRNumber{T}, ::S) where {T,S<:Real} = one(promote_type(T, S))
+            CarlsonAlg.$f(::S, ::Reactant.TracedRNumber{T}) where {S<:Real,T} = one(promote_type(S, T))
+            CarlsonAlg.$f(::Reactant.TracedRNumber{T1}, ::Reactant.TracedRNumber{T2}) where {T1,T2} =
+                one(promote_type(T1, T2))
+        end
+    elseif q != :n
+        @eval begin
+            CarlsonAlg.$f(u::Reactant.TracedRNumber, m::Real) = ($num) / ($den)
+            CarlsonAlg.$f(u::Real, m::Reactant.TracedRNumber) = ($num) / ($den)
+            CarlsonAlg.$f(u::Reactant.TracedRNumber, m::Reactant.TracedRNumber) = ($num) / ($den)
+        end
+    end
+end
 
 function _reactant_DRF(y::Reactant.AnyTracedRArray{Tc,N}) where {Tc,N}
     zeroT = Tc(0)
