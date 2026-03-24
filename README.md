@@ -1,5 +1,5 @@
 # JacobiElliptic
-JacobiElliptic is an implementation of Toshio Fukushima's & Billie C. Carlson's for calculating [Elliptic Integrals and Jacobi Elliptic Functions](https://ieeexplore.ieee.org/document/7203795). 
+JacobiElliptic is an implementation of and Arithmetic-goemetric mean, Toshio Fukushima's & Billie C. Carlson's algorithms for calculating [Elliptic Integrals and Jacobi Elliptic Functions](https://ieeexplore.ieee.org/document/7203795). 
 The default algorithms are set to the Carlson algorithms.
 
 ## Features
