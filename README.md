@@ -20,7 +20,6 @@ The default algorithms are set to the Carlson algorithms.
 | `F(φ, m)` | $F(\phi\|m)$: Incomplete elliptic integral of the first kind|
 | `E(φ, m)` |  $E(\phi\|m)$: Incomplete elliptic integral of the second kind |
 | `Pi(n, φ, m)` | $\Pi(n;\\,\phi\|\\, m)$: Incomplete elliptic integral of the third kind|
-| `J(n, φ, m)` | $J (n;\\, \phi \|\\,m)=\frac{\Pi(n;\\,\phi\|\\, m) - F(\phi,m)}{n}$: Associated incomplete elliptic integral of the third kind|
 
 ## Complete Elliptic Integrals
 |Function | Definition |
@@ -28,7 +27,6 @@ The default algorithms are set to the Carlson algorithms.
 | `K(m)` | $K(m)$: Complete elliptic integral of the first kind|
 | `E(m)` |  $E(m)$: Complete elliptic integral of the second kind |
 | `Pi(n, m)` | $\Pi(n\|\\, m)$: Complete elliptic integral of the third kind|
-| `J(n, m)` | $J (n\|\\,m)=\frac{\Pi(n\|\\, m) - K(m)}{n}$: Associated incomplete elliptic integral of the third kind|
 
 ## Jacobi Elliptic Functions
 |Function | Definition |
