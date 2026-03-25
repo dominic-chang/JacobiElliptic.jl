@@ -5,11 +5,13 @@
     reactant_ext = Base.get_extension(JacobiElliptic, :JacobiEllipticReactantExt)
 
     ms = Float64[0.01, 0.1, 0.5, 0.9]
+    pi_ns = Float64[0.0, 0.2, 0.8, 1.7]
     k_edge_ms = Float64[-0.5, 0.01, 1.5]
     us = Float64[0.1, 0.4, 0.8, 1.2]
     gt_one_us = Float64[0.1, 0.4, 0.8]
     wide_us = Float64[1.8, 2.4]
     m_r = Reactant.to_rarray(ms)
+    n_r = Reactant.to_rarray(pi_ns)
     k_edge_m_r = Reactant.to_rarray(k_edge_ms)
     u_r = Reactant.to_rarray(us)
     gt_one_u_r = Reactant.to_rarray(gt_one_us)
@@ -46,10 +48,11 @@
         am_m_r = reactant_jit(:(am.($u_r, $m_r[3])))
         am_m_gt_one_r = reactant_jit(:(am.($gt_one_u_r, $k_edge_m_r[3])))
         am_m_neg_r = reactant_jit(:(am.($u_r, $k_edge_m_r[1])))
-        #pi_r = reactant_jit(:(Pi.(0.2, $u_r, 0.5)))
-        #pi_scalar_r = reactant_jit(:(Pi(0.2, $u_r[3], 0.5)))
-        #pi_neg_m_r = reactant_jit(:(Pi(0.2, $u_r, -0.5)))
-        #pi_gt_one_m_r = reactant_jit(:(Pi(0.2, $u_r, 1.5)))
+        complete_pi_r = reactant_jit(:(Pi.($n_r, 0.5)))
+        complete_pi_scalar_r = reactant_jit(:(Pi($(pi_ns[2]), $(ms[3]))))
+        complete_pi_zero_n_r = reactant_jit(:(Pi($(pi_ns[1]), $(ms[3]))))
+        complete_pi_neg_m_r = reactant_jit(:(Pi.($n_r, $(k_edge_m_r[1]))))
+        complete_pi_gt_one_m_r = reactant_jit(:(Pi.($n_r, $(k_edge_m_r[3]))))
 
         @test Array(k_r) ≈ K.(ms)
         @test Array(k_edge_r) ≈ K.(k_edge_ms)
@@ -80,14 +83,15 @@
         @test Array(am_m_r) ≈ am.(us, ms[3])
         @test Array(am_m_gt_one_r) ≈ am.(gt_one_us, k_edge_ms[3])
         @test Array(am_m_neg_r) ≈ am.(us, k_edge_ms[1])
-        #@test Array(pi_r) ≈ Pi.(0.2, us, 0.5)
-        #@test pi_scalar_r ≈ Pi(0.2, us[3], 0.5)
-        #@test Array(pi_neg_m_r) ≈ Pi.(0.2, us, -0.5)
-        #pi_gt_one_expected = Pi.(0.2, us, 1.5)
-        #@test all(
-        #    ((isnan(a) && isnan(b)) || isapprox(a, b)) for
-        #    (a, b) in zip(Array(pi_gt_one_m_r), pi_gt_one_expected)
-        #)
+        @test Array(complete_pi_r) ≈ Pi.(pi_ns, 0.5)
+        @test complete_pi_scalar_r ≈ Pi(pi_ns[2], ms[3])
+        @test complete_pi_zero_n_r ≈ Pi(pi_ns[1], ms[3])
+        @test Array(complete_pi_neg_m_r) ≈ Pi.(pi_ns, k_edge_ms[1])
+        complete_pi_gt_one_expected = Pi.(pi_ns, k_edge_ms[3])
+        @test all(
+            ((isnan(a) && isnan(b)) || isapprox(a, b)) for
+            (a, b) in zip(Array(complete_pi_gt_one_m_r), complete_pi_gt_one_expected)
+        )
     end
 
     @testset "Jacobi API" begin

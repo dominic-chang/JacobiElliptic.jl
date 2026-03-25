@@ -1,6 +1,10 @@
 module ArithmeticGeometricMeanAlg
 export K, E
 
+# Arithmetic Geometric mean implementation
+# https://en.wikipedia.org/wiki/Arithmetic%E2%80%93geometric_mean
+# https://www.math.emory.edu/~gliang7/AGM.pdf
+# Theorem 2.1' and Equation 6
 """
 `ellipke(m::Real)`
 returns `(K(m), E(m))` for scalar `0 ≤ m ≤ 1`

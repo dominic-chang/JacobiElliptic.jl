@@ -400,6 +400,66 @@ CarlsonAlg.DRF(
     Z::Reactant.TracedRNumber,
 ) = _reactant_DRF(X, Y, Z)
 
+function _reactant_cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
+    T = promote_type(A, B, C, D)
+    ca = eps(Reactant.unwrapped_eltype(T))
+    oneT = one(T)
+    twoT = T(2)
+    zeroT = zero(T)
+    pi_over_2 = T(π / 2)
+
+    kc = abs(T(kc))
+    p = T(p)
+    a = T(a)
+    b = T(b)
+
+    e = kc
+    m = oneT
+    f = zeroT
+    g = zeroT
+    q = zeroT
+
+    Reactant.@trace if p > zeroT
+        p = sqrt(p)
+        b = b / p
+    else
+        f = kc^2
+        q = oneT - f
+        g = oneT - p
+        f = f - p
+        q = (b - a * p) * q
+        p = sqrt(f / g)
+        a = (a - b) / g
+        b = -q * (g^2 * p) + a * p
+    end
+
+    active = true
+    for _ in 1:64
+        current_f = a
+        invp = inv(p)
+        next_a = muladd(invp, b, a)
+        next_g = e * invp
+        next_b = twoT * muladd(current_f, next_g, b)
+        next_p = next_g + p
+        current_m = m
+        next_m = kc + m
+        converged = abs(current_m - kc) < current_m * ca
+        continue_active = active & !converged
+        next_kc = twoT * sqrt(e)
+        next_e = next_kc * next_m
+
+        a = Base.ifelse(active, next_a, a)
+        b = Base.ifelse(active, next_b, b)
+        p = Base.ifelse(active, next_p, p)
+        m = Base.ifelse(active, next_m, m)
+        kc = Base.ifelse(continue_active, next_kc, kc)
+        e = Base.ifelse(continue_active, next_e, e)
+        active = continue_active
+    end
+
+    return pi_over_2 * muladd(a, m, b) / (m * (m + p))
+end
+
 function _reactant_ellipke_base(m::T) where T
     oneT = one(T)
     twoT = T(2)
@@ -652,5 +712,52 @@ function CarlsonAlg.E(
 ) where {Tp,N}
     return _reactant_internal_E.(phi, m)
 end
+
+#----------------------------------------------------------------------------------------
+# Complete Elliptic Pi(n, m)
+#----------------------------------------------------------------------------------------
+
+function _reactant_complete_Pi_core(n::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    n = T(n)
+    m = T(m)
+    oneT = one(T)
+    zeroT = zero(T)
+    infT = T(Inf)
+    ans = zeroT
+
+    Reactant.@trace if n == zeroT
+        ans = K(m)
+    elseif (m == zeroT) | (m == oneT)
+        ans = infT
+    else
+        ans = _reactant_cel(sqrt(oneT - m), oneT - n, oneT, oneT)
+    end
+
+    return ans
+end
+
+function _reactant_complete_Pi(n::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    n = T(n)
+    m = T(m)
+    oneT = one(T)
+    nanT = T(NaN)
+    ans = zero(T)
+
+    Reactant.@trace if m > oneT
+        ans = nanT
+    elseif n > oneT
+        ans = K(m) - _reactant_complete_Pi_core(m / n, m)
+    else
+        ans = _reactant_complete_Pi_core(n, m)
+    end
+
+    return ans
+end
+
+CarlsonAlg.Pi(n::Reactant.TracedRNumber, m::Real) = _reactant_complete_Pi(n, m)
+CarlsonAlg.Pi(n::Real, m::Reactant.TracedRNumber) = _reactant_complete_Pi(n, m)
+CarlsonAlg.Pi(n::Reactant.TracedRNumber, m::Reactant.TracedRNumber) = _reactant_complete_Pi(n, m)
 
 end
