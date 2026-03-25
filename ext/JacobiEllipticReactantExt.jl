@@ -217,14 +217,12 @@ function _reactant_DRD_ifbody(X::A, Y::B, Z::C) where {A,B,C}
     ZN = Z
     SIGMA = zero(T)
     POWER4 = oneT
-    MU = (XN + YN + threeT * ZN) * inv5
-    invMU = inv(MU)
-    XNDEV = (MU - XN) * invMU
-    YNDEV = (MU - YN) * invMU
-    ZNDEV = (MU - ZN) * invMU
-    active = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV)) >= ERRTOL
+    MU = zero(T)
+    XNDEV = zero(T)
+    YNDEV = zero(T)
+    ZNDEV = zero(T)
 
-    Reactant.@trace while active
+    for _ in 1:12
         XNROOT = sqrt(XN)
         YNROOT = sqrt(YN)
         ZNROOT = sqrt(ZN)
@@ -235,14 +233,13 @@ function _reactant_DRD_ifbody(X::A, Y::B, Z::C) where {A,B,C}
         XN = (XN + LAMDA) * inv4
         YN = (YN + LAMDA) * inv4
         ZN = (ZN + LAMDA) * inv4
-
-        MU = (XN + YN + threeT * ZN) * inv5
-        invMU = inv(MU)
-        XNDEV = (MU - XN) * invMU
-        YNDEV = (MU - YN) * invMU
-        ZNDEV = (MU - ZN) * invMU
-        active = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV)) >= ERRTOL
     end
+
+    MU = (XN + YN + threeT * ZN) * inv5
+    invMU = inv(MU)
+    XNDEV = (MU - XN) * invMU
+    YNDEV = (MU - YN) * invMU
+    ZNDEV = (MU - ZN) * invMU
 
     EA = XNDEV * YNDEV
     EB = ZNDEV * ZNDEV
@@ -256,14 +253,15 @@ end
 
 function _reactant_DRD(X::A, Y::B, Z::C) where {A,B,C}
     T = promote_type(A, B, C)
+    Tc = Reactant.unwrapped_eltype(T)
     X = T(X)
     Y = T(Y)
     Z = T(Z)
     zeroT = zero(T)
 
-    LOLIM = T(2 / (floatmax(T))^T(2 / 3))
-    ERRTOL = (eps(T) / 6)^T(1 / 6)
-    TUPLIM = T((ERRTOL / 10)^T(1 / 3) / floatmin(T)^T(1 / 3))
+    ERRTOL = T((eps(Tc) / 6)^Tc(1 / 6))
+    LOLIM = T(2 / (floatmax(Tc))^Tc(2 / 3))
+    TUPLIM = T((ERRTOL / 10)^Tc(1 / 3) / floatmin(Tc)^Tc(1 / 3))
     UPLIM = TUPLIM^2
 
     ans = zeroT
@@ -307,36 +305,14 @@ CarlsonAlg.DRD(
     Z::Reactant.TracedRNumber,
 ) = _reactant_DRD(X, Y, Z)
 
-function _reactant_DRF_whilebody(XN::A, YN::B, ZN::C, ERRTOL::D) where {A,B,C,D}
-    T = promote_type(A, B, C, D)
-    inv3 = T(1 / 3)
-    inv4 = T(1 / 4)
-
-    MU = (XN + YN + ZN) * inv3
-    ninvMU = -inv(MU)
-    XNDEV = muladd(ninvMU, MU + XN, 2)
-    YNDEV = muladd(ninvMU, MU + YN, 2)
-    ZNDEV = muladd(ninvMU, MU + ZN, 2)
-    EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV))
-
-    XNROOT = sqrt(XN)
-    YNROOT = sqrt(YN)
-    ZNROOT = sqrt(ZN)
-    YNROOTZNROOT = YNROOT * ZNROOT
-    LAMDA = muladd(XNROOT, YNROOT + ZNROOT, YNROOTZNROOT)
-    next_XN = (XN + LAMDA) * inv4
-    next_YN = (YN + LAMDA) * inv4
-    next_ZN = (ZN + LAMDA) * inv4
-
-    return (next_XN, next_YN, next_ZN, XNDEV, YNDEV, ZNDEV, MU, EPSLON >= ERRTOL)
-end
-
 function _reactant_DRF_ifbody(X::A, Y::B, Z::C, ERRTOL::D) where {A,B,C,D}
     T = promote_type(A, B, C, D)
     C1 = T(1 / 24)
     C2 = T(3 / 44)
     C3 = T(1 / 14)
     C0 = T(1 / 10)
+    inv3 = T(1 / 3)
+    inv4 = T(1 / 4)
 
     XN = X
     YN = Y
@@ -345,11 +321,23 @@ function _reactant_DRF_ifbody(X::A, Y::B, Z::C, ERRTOL::D) where {A,B,C,D}
     XNDEV = zero(T)
     YNDEV = zero(T)
     ZNDEV = zero(T)
-    active = true
 
-    Reactant.@trace while active
-        XN, YN, ZN, XNDEV, YNDEV, ZNDEV, MU, active = _reactant_DRF_whilebody(XN, YN, ZN, ERRTOL)
+    for _ in 1:10
+        XNROOT = sqrt(XN)
+        YNROOT = sqrt(YN)
+        ZNROOT = sqrt(ZN)
+        YNROOTZNROOT = YNROOT * ZNROOT
+        LAMDA = muladd(XNROOT, YNROOT + ZNROOT, YNROOTZNROOT)
+        XN = (XN + LAMDA) * inv4
+        YN = (YN + LAMDA) * inv4
+        ZN = (ZN + LAMDA) * inv4
     end
+
+    MU = (XN + YN + ZN) * inv3
+    ninvMU = -inv(MU)
+    XNDEV = muladd(ninvMU, MU + XN, 2)
+    YNDEV = muladd(ninvMU, MU + YN, 2)
+    ZNDEV = muladd(ninvMU, MU + ZN, 2)
 
     XNDEVYNDEV = XNDEV * YNDEV
     E2 = muladd(-ZNDEV, ZNDEV, XNDEVYNDEV)
@@ -632,7 +620,6 @@ function _reactant_internal_E(phi::A, m::B) where {A,B}
     elseif 2 * abs(phi) > piT
         phi2 = phi + halfpi
         ans = 2 * fld(phi2, piT) * E(m) - _reactant_rawE(cos(mod(phi2, piT)), m)
-        ans = -E(m)
     else
         ans = _reactant_rawE(sin(phi), m)
     end

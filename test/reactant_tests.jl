@@ -2,16 +2,18 @@
 @testset "Reactant" begin
 
     reactant_jit(expr::Expr) = Core.eval(@__MODULE__, :(Reactant.@jit $expr))
+    reactant_ext = Base.get_extension(JacobiElliptic, :JacobiEllipticReactantExt)
 
     ms = Float64[0.01, 0.1, 0.5, 0.9]
     k_edge_ms = Float64[-0.5, 0.01, 1.5]
     us = Float64[0.1, 0.4, 0.8, 1.2]
     gt_one_us = Float64[0.1, 0.4, 0.8]
+    wide_us = Float64[1.8, 2.4]
     m_r = Reactant.to_rarray(ms)
     k_edge_m_r = Reactant.to_rarray(k_edge_ms)
     u_r = Reactant.to_rarray(us)
     gt_one_u_r = Reactant.to_rarray(gt_one_us)
-
+    wide_u_r = Reactant.to_rarray(wide_us)
     @testset "Default API" begin
         k_r = @jit K.(m_r)
         k_edge_r = @jit K.(k_edge_m_r)
@@ -23,6 +25,15 @@
         incomplete_e_m_r = [reactant_jit(:(E($(u), $(ms[3])))) for u in us]
         incomplete_e_m_gt_one_r = [reactant_jit(:(E($(u), $(k_edge_ms[3])))) for u in gt_one_us]
         incomplete_e_m_neg_r = [reactant_jit(:(E($(u), $(k_edge_ms[1])))) for u in us]
+        incomplete_e_r = reactant_jit(:(E.($(u_r), 0.5)))
+        incomplete_e_gt_one_r = reactant_jit(:(E.($(gt_one_u_r), 1.5)))
+        incomplete_e_neg_r = reactant_jit(:(E.($(u_r), -0.5)))
+        incomplete_e_m_r = reactant_jit(:(E.($(u_r), $(m_r[3]))))
+        incomplete_e_m_gt_one_r = reactant_jit(:(E.($(gt_one_u_r), $(k_edge_m_r[3]))))
+        incomplete_e_m_neg_r = reactant_jit(:(E.($(u_r), $(k_edge_m_r[1]))))
+        incomplete_e_wide_r = reactant_jit(:(E.($(wide_u_r), 0.5)))
+        incomplete_e_wide_gt_one_r = reactant_jit(:(E.($(wide_u_r), 1.5)))
+        incomplete_e_wide_neg_r = reactant_jit(:(E.($(wide_u_r), -0.5)))
         f_r = reactant_jit(:(F.($u_r, 0.5)))
         f_gt_one_r = reactant_jit(:(F.($gt_one_u_r, 1.5)))
         f_neg_r = reactant_jit(:(F.($u_r, -0.5)))
@@ -50,6 +61,13 @@
         @test incomplete_e_m_r ≈ E.(us, ms[3])
         @test incomplete_e_m_gt_one_r ≈ E.(gt_one_us, k_edge_ms[3])
         @test incomplete_e_m_neg_r ≈ E.(us, k_edge_ms[1])
+        @test incomplete_e_wide_r ≈ E.(wide_us, 0.5)
+        wide_gt_one_expected = E.(wide_us, 1.5)
+        @test all(
+            ((isnan(a) && isnan(b)) || isapprox(a, b)) for
+            (a, b) in zip(incomplete_e_wide_gt_one_r, wide_gt_one_expected)
+        )
+        @test incomplete_e_wide_neg_r ≈ E.(wide_us, -0.5)
         @test Array(f_r) ≈ F.(us, 0.5)
         @test Array(f_gt_one_r) ≈ F.(gt_one_us, 1.5)
         @test Array(f_neg_r) ≈ F.(us, -0.5)
