@@ -27,7 +27,7 @@ using DelimitedFiles: readdlm
             alg == JacobiElliptic.CarlsonAlg && @test alg.ellipke(NaN) === (NaN, NaN)
         end
     end
-    
+
     # test negative arguments
     @testset "Negative arguments" begin
         for m = 1.0:10.0
@@ -795,7 +795,7 @@ alg = JacobiElliptic.ArithmeticGeometricMeanAlg
         m = sind(alpha)^2
         @test alg.K(m) ≈ k atol = tol
         @test alg.E(m) ≈ e atol = tol
-        a,b = alg.ellipke(m)
+        a, b = alg.ellipke(m)
         @test a ≈ k atol=tol
         @test b ≈ e atol=tol
     end
@@ -806,7 +806,7 @@ alg = JacobiElliptic.ArithmeticGeometricMeanAlg
         k = table17p2[i, 3]
         e = table17p2[i, 5]
         m = sind(alpha)^2
-        a,b = alg.ellipke(m)
+        a, b = alg.ellipke(m)
         if k == Inf
             @test alg.K(m) == k
             @test a == k
@@ -818,4 +818,3 @@ alg = JacobiElliptic.ArithmeticGeometricMeanAlg
         @test b ≈ e atol=tol
     end
 end
-

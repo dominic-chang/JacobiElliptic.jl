@@ -30,7 +30,8 @@
         incomplete_e_gt_one_r = [reactant_jit(:(E($(u), 1.5))) for u in gt_one_us]
         incomplete_e_neg_r = [reactant_jit(:(E($(u), -0.5))) for u in us]
         incomplete_e_m_r = [reactant_jit(:(E($(u), $(ms[3])))) for u in us]
-        incomplete_e_m_gt_one_r = [reactant_jit(:(E($(u), $(k_edge_ms[3])))) for u in gt_one_us]
+        incomplete_e_m_gt_one_r =
+            [reactant_jit(:(E($(u), $(k_edge_ms[3])))) for u in gt_one_us]
         incomplete_e_m_neg_r = [reactant_jit(:(E($(u), $(k_edge_ms[1])))) for u in us]
         incomplete_e_r = reactant_jit(:(E.($(u_r), 0.5)))
         incomplete_e_gt_one_r = reactant_jit(:(E.($(gt_one_u_r), 1.5)))
