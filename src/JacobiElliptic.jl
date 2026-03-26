@@ -62,7 +62,7 @@ E(alg::AGM, m) = ArithmeticGeometricMeanAlg.E(m)
 # func(args...) = CarlsonAlg.func(args...)
 alg = :Carlson
 for func in func_syms
-    f = Symbol(alg, :Alg) 
+    f = Symbol(alg, :Alg)
     @eval $func(args...) = $f.$func(args...)
 end
 

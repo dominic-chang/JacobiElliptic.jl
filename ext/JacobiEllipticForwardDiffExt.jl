@@ -25,7 +25,7 @@ function JacobiElliptic.CarlsonAlg._sqrt(x::ForwardDiff.Dual{T}) where {T}
     return ForwardDiff.Dual{T}(fval, ∂xf * x.partials)
 end
 
-begin 
+begin
     alg = JacobiElliptic.ArithmeticGeometricMeanAlg
     #----------------------------------------------------------------------------------------
     # Elliptic K(ϕ)
