@@ -5,10 +5,6 @@ export K, E
 # https://en.wikipedia.org/wiki/Arithmetic%E2%80%93geometric_mean
 # https://www.math.emory.edu/~gliang7/AGM.pdf
 # Theorem 2.1' and Equation 6
-"""
-`ellipke(m::Real)`
-returns `(K(m), E(m))` for scalar `0 ≤ m ≤ 1`
-"""
 @inline function _ellipke_agm_base(m::T) where {T}
     oneT = one(T)
     twoT = T(2)
@@ -36,6 +32,10 @@ returns `(K(m), E(m))` for scalar `0 ≤ m ≤ 1`
     return (k, e)
 end
 
+"""
+`ellipke(m::Real)`
+returns `(K(m), E(m))` for scalar `0 ≤ m ≤ 1`
+"""
 function ellipke(m::T) where {T}
     oneT = one(T)
     if isnan(m)
@@ -66,7 +66,25 @@ function ellipke(m::T) where {T}
         return _ellipke_agm_base(m)
     end
 end
+"""
+``K(m) = \\int_0^{\\pi/2}\\frac{d\\theta}{\\sqrt{1-k^2\\sin(\\theta)^2}}.``
 
+Returns the complete elliptic integral of the first kind.
+    
+# Arguments
+
+- `m` : Elliptic modulus
+"""
 K(m) = ellipke(m)[1]
+
+"""
+``E(m) = \\int_0^{\\pi/2}\\sqrt{1-k^2\\sin(\\theta)^2}d\\theta.``
+
+Returns the complete elliptic integral of the second kind.
+
+# Arguments
+
+- `m` : Elliptic modulus
+"""
 E(m) = ellipke(m)[2]
 end

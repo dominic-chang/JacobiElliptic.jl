@@ -11,15 +11,6 @@ const ONE_DIV_PI = inv(π)
 ############################################################################
 # Complete Elliptic Integrals (https://doi.org/10.1007/s10569-009-9228-z)
 ############################################################################
-"""
-``K(m) = \\int_0^{\\pi/2}\\frac{d\\theta}{\\sqrt{1-k^2\\sin(\\theta)^2}}.``
-
-Returns the complete elliptic integral of the first kind.
-    
-# Arguments
-
-- `m` : Elliptic modulus
-"""
 function K(m::T) where {T}
     isnan(m) && return T(NaN)
     m == one(T) && return T(Inf)
@@ -976,15 +967,7 @@ function K(m::T) where {T}
     return t
 end
 
-"""
-``E(m) = \\int_0^{\\pi/2}\\sqrt{1-k^2\\sin(\\theta)^2}d\\theta.``
 
-Returns the complete elliptic integral of the second kind.
-
-# Arguments
-
-- `m` : Elliptic modulus
-"""
 function E(m::T) where {T}
     isnan(m) && return T(NaN)
     m == zero(T) && return T(π / 2)
@@ -2016,16 +1999,6 @@ function _F(φ::A, m::B) where {A,B}
     return 2j * K(m) + signφ * rawF(sin(abs(newφ)), m)
 end
 
-"""
-``F(\\varphi |\\, m) = \\int_0^{\\varphi}\\frac{d\\theta}{\\sqrt{1-m\\sin(\\theta)^2}}.``
-
-Returns the incomplete elliptic integral of the first kind.
-
-# Arguments
-
-- `φ` : Amplitude
-- `m` : Elliptic modulus
-"""
 function F(φ::A, m::B) where {A,B}
     T = promote_type(A, B)
     oneT = one(T)
@@ -2279,17 +2252,6 @@ end
 # Elliptic E
 #----------------------------------------------------------------------------------------
 
-"""
-``E(\\varphi|\\, m) = \\int_0^{\\varphi}d\\theta \\sqrt{1-m\\sin(\\theta)^2}.``
-
-Returns the incomplete elliptic integral of the second kind.
-
-# Arguments
-
-- `φ` : Amplitude
-- `m` : Elliptic modulus
-
-"""
 function E(φ::A, m::B) where {A,B}
     T = promote_type(A, B)
     (isnan(φ) || isnan(m)) && return T(NaN)
@@ -2305,16 +2267,7 @@ end
 Π(n, m) = Pi(n, m)
 Π(n, φ, m) = Pi(n, φ, m)
 #https://doi.org/T(10).1016/j.cam.2011.1107
-"""
-``\\Pi(n|\\,m)=\\int_{0}^{1 }{\\frac{1}{1-nt^{2}}}{\\frac{dt}{\\sqrt{\\left(1-mt^{2}\\right)\\left(1-t^{2}\\right)}}}.``
 
-Returns the complete elliptic integral of the third kind.
-
-# Arguments
-
-- `n` : Characteristic
-- `m` : Elliptic modulus
-"""
 function Pi(n::A, m::B) where {A,B}
     T = promote_type(A, B)
     oneT = one(T)
@@ -2329,17 +2282,6 @@ function Pi(n::A, m::B) where {A,B}
     return cel(kc, nc, oneT, oneT)
 end
 
-"""
-``\\Pi (n;\\varphi \\,|\\,m)=\\int _{0}^{\\sin \\varphi }{\\frac {1}{1-nt^{2}}}{\\frac {dt}{\\sqrt {\\left(1-mt^{2}\\right)\\left(1-t^{2}\\right)}}}.``
-
-Returns the incomplete elliptic integral of the third kind.
-
-# Arguments
-
-- `n` : Characteristic
-- `φ` : Amplitude
-- `m` : Elliptic modulus
-"""
 function Pi(n::A, φ::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
     oneT = one(T)
