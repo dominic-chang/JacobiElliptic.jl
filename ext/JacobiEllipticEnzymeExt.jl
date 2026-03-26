@@ -4,6 +4,94 @@ using JacobiElliptic, Enzyme
 import .EnzymeRules: forward, reverse, augmented_primal
 using .EnzymeRules
 
+begin # ArithmeticGeometricMeanAlg
+    alg = JacobiElliptic.ArithmeticGeometricMeanAlg
+    #----------------------------------------------------------------------------------------
+    # Elliptic K(m)
+    #----------------------------------------------------------------------------------------
+    @eval function forward(
+        # https://enzymead.github.io/Enzyme.jl/stable/#Forward-mode
+        # Of note, when we seed both arguments at once the tangent return is the sum of both.
+        config::EnzymeRules.FwdConfig,
+        func::Const{typeof(($alg).K)},
+        RT,
+        m::Annotation{<:Real},
+    )
+        ∂K_∂m(m) = ($alg).E(m) / (2 * m * (1 - m)) - ($alg).K(m) / 2 / m
+
+        if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
+            if EnzymeRules.width(config) == 1
+                return Duplicated(
+                    func.val(m.val),
+                    (m isa Const ? zero(m.val) : ∂K_∂m(m.val) * m.dval),
+                )
+            else
+                return BatchDuplicated(
+                    func.val(m.val),
+                    ntuple(
+                        i -> (m isa Const ? zero(m.val) : ∂K_∂m(m.val) * m.dval[i]),
+                        Val(EnzymeRules.width(config)),
+                    ),
+                )
+            end
+        elseif EnzymeRules.needs_shadow(config)
+            if EnzymeRules.width(config) == 1
+                return (m isa Const ? zero(m.val) : ∂K_∂m(m.val) * m.dval)
+            else
+                return ntuple(
+                    i -> (m isa Const ? zero(m.val) : ∂K_∂m(m.val) * m.dval[i]),
+                    Val(EnzymeRules.width(config)),
+                )
+            end
+        elseif EnzymeRules.needs_primal(config)
+            return func.val(m.val)
+        else
+            return nothing
+        end
+    end
+
+    @eval function augmented_primal(
+        config::RevConfigWidth,
+        func::Const{typeof(($alg).K)},
+        ::Type,
+        m::Annotation{<:Real},
+    )
+        K = func.val(m.val)
+        E = ($alg).E(m.val)
+        primal = EnzymeRules.needs_primal(config) ? K : nothing
+        return EnzymeRules.AugmentedReturn(primal, nothing, (E, K))
+    end
+
+    @eval function reverse(
+        config::RevConfigWidth,
+        func::Const{typeof(($alg).K)},
+        dret,
+        tape,
+        m::Annotation{T},
+    ) where {T}
+        E, K = tape
+        ∂K_∂m(m) = E / (2 * m * (1 - m)) - K / 2 / m
+
+        dm = if m isa Const
+            nothing
+        elseif EnzymeRules.width(config) == 1
+            if dret isa Type{<:Const}
+                zero(m.val)
+            else
+                ∂K_∂m(m.val) * dret.val
+            end
+        else
+            if dret isa Type{<:Const}
+                ntuple(i -> zero(m.val), Val(EnzymeRules.width(config)))
+            else
+                ntuple(i -> ∂K_∂m(m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+            end
+        end
+        return (dm,)
+    end
+end
+
+
 for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     #----------------------------------------------------------------------------------------
     # Elliptic K(m)

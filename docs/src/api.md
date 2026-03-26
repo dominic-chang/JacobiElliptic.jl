@@ -7,10 +7,12 @@ api.md
 
 ## Elliptic Integrals
 ```@docs
-JacobiElliptic.FukushimaAlg.K
-JacobiElliptic.FukushimaAlg.E
-JacobiElliptic.FukushimaAlg.F
-JacobiElliptic.FukushimaAlg.Pi
+JacobiElliptic.ArithmeticGeometricMeanAlg.K
+JacobiElliptic.ArithmeticGeometricMeanAlg.E
+JacobiElliptic.ArithmeticGeometricMeanAlg.ellipke
+JacobiElliptic.CarlsonAlg.F
+JacobiElliptic.CarlsonAlg.Pi
+JacobiElliptic.CarlsonAlg.E
 JacobiElliptic.FukushimaAlg.J
 ```
 
