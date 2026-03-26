@@ -220,7 +220,7 @@ E(m) = ellipke(m)[2]
     #!(0 ≤ m ≤ 1) && throw(DomainError(m, "argument m not in [0,1]"))
     #sinphi = sin(phi)
     oneT = _one(T)
-    sinphi2 = sinphi * sinphi
+    sinphi2 = sinphi ^2
     cosphi2 = oneT - sinphi2
     y = muladd(-m, sinphi2, oneT)
     p = muladd(-n, sinphi2, oneT)
@@ -322,6 +322,107 @@ function ellipj(u, m)
     s, c = sincos(phi)
     d = _sqrt(muladd(-m, s * s, 1))
     return (s, c, d)
+end
+
+function _J(n, sinphi, m)
+    oneT = one(typeof(sinphi))
+    sinphi2 = sinphi ^2
+    cosphi2 = oneT - sinphi2
+    y = muladd(-m, sinphi2, oneT)
+    p = muladd(-n, sinphi2, oneT)
+    return sinphi * (sinphi2 / 3) * DRJ(cosphi2, y, oneT, p)[1]
+end
+
+function J(n::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    n > one(T) && return m / n * J(m / n, m)
+    kc = √(1 - m)
+    nc = 1 - n
+    return cel(kc, nc, zero(T), one(T))
+end
+
+function J(n::A, φ::B, m::C) where {A,B,C}
+    T = promote_type(A, B, C)
+    oneT = one(T)
+    #Reduction of Amplitude
+    φ == zero(T) && return zero(T)
+    φ == T(π / 2) && return J(n, m)
+    φ < zero(T) && return -J(n, -φ, m)
+    
+    if abs(φ) > T(π / 2) && m < oneT
+        j = floor(φ / T(π))
+        newφ = φ - j * T(π)
+        signφ = sign(newφ)
+        if abs(newφ) > T(π / 2)
+            j += signφ * oneT
+            newφ = newφ - signφ * T(π)
+        end
+        signφ = sign(newφ)
+    
+        return 2 * j * J(n, m) + signφ * J(n, abs(newφ), m)
+    end
+    
+    # Reduction of parameter
+    if zero(T) < φ < T(π / 2)
+        sinφ, cosφ = sincos(φ)
+        sinφ2 = sinφ^2
+        m_sinφ2 = m * sinφ2
+        if m_sinφ2 ≤ oneT
+            nc = oneT - n
+            iszero(m) && !iszero(n) && return (FukushimaT(sinφ / cosφ, nc) - φ) / n
+    
+            iszero(m) && iszero(n) && return φ / 2 - sin(2 * φ) / 4
+    
+            isone(m) && !isone(n) && return (atanh(sinφ) - FukushimaT(sinφ, -n)) / nc
+    
+            isone(m) && isone(n) && return (sinφ / (cosφ * cosφ) - atanh(sinφ)) / 2
+        end
+    end
+    
+    if oneT < m < inv(sin(φ)^2)
+        φR = asin(√m * sin(φ))
+        nR = n / m
+        mR = inv(m)
+        #return NaN
+        return mR * √mR * J(nR, φR, mR)
+    elseif m < zero(T)
+        mc = oneT - m
+        sinφ = sin(φ)
+        sinφ2 = sinφ * sinφ
+        φN = asin(sqrt(mc / muladd(-m, sinφ2, oneT)) * sinφ)
+        nN = (n − m) / mc
+        mN = -m / mc
+        return mN * √mN * J(nN, φN, mN)
+    end
+    # Reduction of Characteristics
+    if zero(T) < φ < oneT && zero(T) < m < oneT
+        sinφ, cosφ = sincos(φ)
+        sinφ2 = sinφ * sinφ
+        sqrt_term = sqrt(muladd(-m, sinφ2, oneT))
+        if n > one(T)
+            # t = inv(x^2)
+            # h = y - x
+            nc = oneT - n
+            t1 = sinφ / (cosφ * sqrt_term)
+            h1 = nc * (n − m) / n
+            n1 = m / n
+            return (-F(φ, m) + FukushimaT(t1, h1) - n1 * J(n1, φ, m)) / n
+        elseif n < zero(T)
+            mc = oneT - m
+            nc = oneT - n
+            t2 = sinφ * cosφ / sqrt_term
+            h2 = -n * (m - n) / nc
+            n2 = (m − n) / nc
+            #return NaN
+            return (F(φ, m) - FukushimaT(t2, h2) - (mc / nc) * J(n2, φ, m)) / nc
+        end
+    end
+    
+    zero(T) < φ < T(π / 2) &&
+        zero(T) < m < oneT &&
+        zero(T) < n < oneT &&
+        return _J(n, sin(φ), m)
+    return T(NaN)
 end
 
 end # module
