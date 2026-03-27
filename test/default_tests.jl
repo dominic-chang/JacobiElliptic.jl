@@ -271,7 +271,7 @@ end
         end
     end
 
-    
+
 
     #Taken from Elliptic.jl
     #https://github.com/nolta/Elliptic.jl/blob/main/test/jacobi_tests.jl
@@ -338,106 +338,104 @@ end
 
 end
 
-CarlsonAlg = JacobiElliptic.CarlsonAlg 
+CarlsonAlg = JacobiElliptic.CarlsonAlg
 FukushimaAlg = JacobiElliptic.FukushimaAlg
 @testset "Elliptic J" begin
-        @testset "$typ" for typ in [Float32, Float64]
-            @testset "Standard Domain" begin
-                @testset "φ : $φ" for φ in range(1e-3, π / 2, length = 100)
-                    @testset "n : $n" for n in range(
-                        1e-3,
-                        typ == Float32 ? 0.99 : 0.999,
-                        length = 10,
-                    )
-                        @testset "Standard m" begin
-                            @testset "m : $m" for m in range(
-                                0.1,
-                                typ == Float32 ? 0.99 : 0.999,
-                                length = 10,
-                            )
-                                @test CarlsonAlg.J(typ(n), typ(φ), typ(m)) /
-                                      typ((_elliptic_pi(typ(n), typ(φ), typ(m)) - _elliptic_f(typ(φ), typ(m)))/n) ≈ typ(1.0) atol =
-                                    1e-4
-                            end
-                        end
-                        @testset "small m" begin
-                            @testset "m :$m" for m in [3.874e-4, 4.25e-3, 6.83e-2]
-                                @test CarlsonAlg.J(typ(n), typ(φ), typ(m)) /
-                                      FukushimaAlg.J(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol =
-                                    1e-4
-                            end
-                        end
-                        @testset "large m" begin
-                            @testset "m :$m" for m in
-                                                 [1 - 3.874e-4, 1 - 4.25e-3, 1 - 6.83e-2]
-                                @test CarlsonAlg.J(typ(n), typ(φ), typ(m)) /
-                                      FukushimaAlg.J(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol =
-                                    1e-4
-                            end
-                        end
-                        @testset "negative m" begin
-                            @testset "m :$m" for m in [-3.874e-4, -4.25e-3, -6.83e-2]
-                                @test CarlsonAlg.J(typ(n), typ(φ), typ(m)) /
-                                      FukushimaAlg.J(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol =
-                                    1e-4
-                            end
-                        end
-                    end
-                end
-            end
-            @testset "|m sin(φ)| ≤ 1 && |m| > 1" begin
-                @testset "m = $(typ(m))" for m in
-                                             [-100, -10, -5, -2, -1.1, 1.1, 2, 5, 10, 100]
-                    @testset "n : $n" for n in range(
-                        1e-3,
-                        typ == Float32 ? 0.99 : 0.999,
-                        length = 10,
-                    )
-                        mmax = asin(1 / √abs(m))
-                        @testset "φ = $(i*mmax)" for i = -1:0.1:1.0
-                            φ = i * (mmax * (1 - 1e-3))
-                            if φ != zero(typ)
-                                @test CarlsonAlg.J(typ(n), typ(φ), typ(m)) /
-                                      FukushimaAlg.J(typ(n), typ(φ), typ(m)) ≈ one(typ) atol =
-                                    1e-4
-                            end
-                        end
-                    end
-                end
-            end
-            @testset "φ > π/2" begin
-                @testset "φ : $φ" for φ in range(π / 2, 3π, length = 10)
-                    @testset "n : $n" for n in range(
-                        1e-3,
-                        typ == Float32 ? 0.99 : 0.999,
-                        length = 10,
-                    )
+    @testset "$typ" for typ in [Float32, Float64]
+        @testset "Standard Domain" begin
+            @testset "φ : $φ" for φ in range(1e-3, π / 2, length = 100)
+                @testset "n : $n" for n in range(
+                    1e-3,
+                    typ == Float32 ? 0.99 : 0.999,
+                    length = 10,
+                )
+                    @testset "Standard m" begin
                         @testset "m : $m" for m in range(
-                            1e-3,
+                            0.1,
                             typ == Float32 ? 0.99 : 0.999,
-                            length = 20,
+                            length = 10,
                         )
+                            @test CarlsonAlg.J(typ(n), typ(φ), typ(m)) / typ(
+                                (
+                                    _elliptic_pi(typ(n), typ(φ), typ(m)) -
+                                    _elliptic_f(typ(φ), typ(m))
+                                )/n,
+                            ) ≈ typ(1.0) atol = 1e-4
+                        end
+                    end
+                    @testset "small m" begin
+                        @testset "m :$m" for m in [3.874e-4, 4.25e-3, 6.83e-2]
+                            @test CarlsonAlg.J(typ(n), typ(φ), typ(m)) /
+                                  FukushimaAlg.J(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol =
+                                1e-4
+                        end
+                    end
+                    @testset "large m" begin
+                        @testset "m :$m" for m in [1 - 3.874e-4, 1 - 4.25e-3, 1 - 6.83e-2]
+                            @test CarlsonAlg.J(typ(n), typ(φ), typ(m)) /
+                                  FukushimaAlg.J(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol =
+                                1e-4
+                        end
+                    end
+                    @testset "negative m" begin
+                        @testset "m :$m" for m in [-3.874e-4, -4.25e-3, -6.83e-2]
+                            @test CarlsonAlg.J(typ(n), typ(φ), typ(m)) /
+                                  FukushimaAlg.J(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol =
+                                1e-4
+                        end
+                    end
+                end
+            end
+        end
+        @testset "|m sin(φ)| ≤ 1 && |m| > 1" begin
+            @testset "m = $(typ(m))" for m in [-100, -10, -5, -2, -1.1, 1.1, 2, 5, 10, 100]
+                @testset "n : $n" for n in range(
+                    1e-3,
+                    typ == Float32 ? 0.99 : 0.999,
+                    length = 10,
+                )
+                    mmax = asin(1 / √abs(m))
+                    @testset "φ = $(i*mmax)" for i = -1:0.1:1.0
+                        φ = i * (mmax * (1 - 1e-3))
+                        if φ != zero(typ)
+                            @test CarlsonAlg.J(typ(n), typ(φ), typ(m)) /
+                                  FukushimaAlg.J(typ(n), typ(φ), typ(m)) ≈ one(typ) atol =
+                                1e-4
+                        end
+                    end
+                end
+            end
+        end
+        @testset "φ > π/2" begin
+            @testset "φ : $φ" for φ in range(π / 2, 3π, length = 10)
+                @testset "n : $n" for n in range(
+                    1e-3,
+                    typ == Float32 ? 0.99 : 0.999,
+                    length = 10,
+                )
+                    @testset "m : $m" for m in range(
+                        1e-3,
+                        typ == Float32 ? 0.99 : 0.999,
+                        length = 20,
+                    )
+                        @test CarlsonAlg.J(typ(n), typ(φ), typ(m)) /
+                              FukushimaAlg.J(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol = 1e-5
+                    end
+                    @testset "large m" begin
+                        @testset "m :$m)" for m in [
+                            1 - 1e-5,
+                            1 - 3.874e-4,
+                            1 - 4.25e-3,
+                            1 - 6.83e-2,
+                            1 - 1.32e-1,
+                        ]
                             @test CarlsonAlg.J(typ(n), typ(φ), typ(m)) /
                                   FukushimaAlg.J(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol =
                                 1e-5
-                        end
-                        @testset "large m" begin
-                            @testset "m :$m)" for m in [
-                                1 - 1e-5,
-                                1 - 3.874e-4,
-                                1 - 4.25e-3,
-                                1 - 6.83e-2,
-                                1 - 1.32e-1,
-                            ]
-                                @test CarlsonAlg.J(typ(n), typ(φ), typ(m)) /
-                                      FukushimaAlg.J(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol =
-                                    1e-5
-                            end
                         end
                     end
                 end
             end
         end
     end
-
-
+end

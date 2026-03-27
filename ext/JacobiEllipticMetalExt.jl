@@ -3,7 +3,7 @@ module JacobiEllipticMetalExt
 using JacobiElliptic, Metal
 
 for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
-    @eval function ($alg)._am(u::T, m::T, tol::T) where {T <: Float32}
+    @eval function ($alg)._am(u::T, m::T, tol::T) where {T<:Float32}
         zeroT = zero(T)
 
         # Use an immutable local buffer so GPU backends can keep this in registers.

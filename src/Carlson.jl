@@ -220,7 +220,7 @@ E(m) = ellipke(m)[2]
     #!(0 ≤ m ≤ 1) && throw(DomainError(m, "argument m not in [0,1]"))
     #sinphi = sin(phi)
     oneT = _one(T)
-    sinphi2 = sinphi ^2
+    sinphi2 = sinphi ^ 2
     cosphi2 = oneT - sinphi2
     y = muladd(-m, sinphi2, oneT)
     p = muladd(-n, sinphi2, oneT)
@@ -326,7 +326,7 @@ end
 
 function _J(n, sinphi, m)
     oneT = one(typeof(sinphi))
-    sinphi2 = sinphi ^2
+    sinphi2 = sinphi ^ 2
     cosphi2 = oneT - sinphi2
     y = muladd(-m, sinphi2, oneT)
     p = muladd(-n, sinphi2, oneT)
@@ -348,7 +348,7 @@ function J(n::A, φ::B, m::C) where {A,B,C}
     φ == zero(T) && return zero(T)
     φ == T(π / 2) && return J(n, m)
     φ < zero(T) && return -J(n, -φ, m)
-    
+
     if abs(φ) > T(π / 2) && m < oneT
         j = floor(φ / T(π))
         newφ = φ - j * T(π)
@@ -358,10 +358,10 @@ function J(n::A, φ::B, m::C) where {A,B,C}
             newφ = newφ - signφ * T(π)
         end
         signφ = sign(newφ)
-    
+
         return 2 * j * J(n, m) + signφ * J(n, abs(newφ), m)
     end
-    
+
     # Reduction of parameter
     if zero(T) < φ < T(π / 2)
         sinφ, cosφ = sincos(φ)
@@ -370,15 +370,15 @@ function J(n::A, φ::B, m::C) where {A,B,C}
         if m_sinφ2 ≤ oneT
             nc = oneT - n
             iszero(m) && !iszero(n) && return (FukushimaT(sinφ / cosφ, nc) - φ) / n
-    
+
             iszero(m) && iszero(n) && return φ / 2 - sin(2 * φ) / 4
-    
+
             isone(m) && !isone(n) && return (atanh(sinφ) - FukushimaT(sinφ, -n)) / nc
-    
+
             isone(m) && isone(n) && return (sinφ / (cosφ * cosφ) - atanh(sinφ)) / 2
         end
     end
-    
+
     if oneT < m < inv(sin(φ)^2)
         φR = asin(√m * sin(φ))
         nR = n / m
@@ -417,7 +417,7 @@ function J(n::A, φ::B, m::C) where {A,B,C}
             return (F(φ, m) - FukushimaT(t2, h2) - (mc / nc) * J(n2, φ, m)) / nc
         end
     end
-    
+
     zero(T) < φ < T(π / 2) &&
         zero(T) < m < oneT &&
         zero(T) < n < oneT &&
