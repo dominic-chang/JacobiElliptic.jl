@@ -3,24 +3,23 @@ module JacobiEllipticMetalExt
 using JacobiElliptic, Metal
 
 for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
-    @eval function ($alg)._am(u::A, m::B, tol::C) where {A,B,C}
-
-        T = promote_type(A, B, C)
+    @eval function ($alg)._am(u::T, m::T, tol::T) where {T <: Float32}
+        zeroT = zero(T)
 
         # Use an immutable local buffer so GPU backends can keep this in registers.
         _ambuf = JacobiElliptic.StaticArrays.@SVector[
-            zero(T),
-            zero(T),
-            zero(T),
-            zero(T),
-            zero(T),
-            zero(T),
-            zero(T),
-            zero(T),
-            zero(T),
-            zero(T),
+            zeroT,
+            zeroT,
+            zeroT,
+            zeroT,
+            zeroT,
+            zeroT,
+            zeroT,
+            zeroT,
+            zeroT,
+            zeroT,
         ]
-        u == 0 && return zero(T)
+        u == 0 && return zeroT
 
         sqrt_tol = sqrt(tol)
         if m < sqrt_tol
