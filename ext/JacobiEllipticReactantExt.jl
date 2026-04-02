@@ -84,7 +84,7 @@ function __reactant_am(u::A, m::B, tol::C) where {A,B,C}
 
         #phi = ldexp(a*u, n) # Was slower on my benchmarks
         phi = a * u * (2^n)
-        for i = 10:-1:1
+        Reactant.@trace for i = 10:-1:1
             next_phi = (phi + asin(_ambuf[i] * sin(phi))) / 2
             phi = Base.ifelse(n >= i, next_phi, phi)
         end
@@ -219,7 +219,7 @@ function _reactant_DRD_ifbody(X::A, Y::B, Z::C) where {A,B,C}
     YNDEV = zero(T)
     ZNDEV = zero(T)
 
-    for _ = 1:12
+    Reactant.@trace for _ = 1:12
         XNROOT = sqrt(XN)
         YNROOT = sqrt(YN)
         ZNROOT = sqrt(ZN)
@@ -266,7 +266,7 @@ function _reactant_DRC_ifbody(X::A, Y::B) where {A,B}
     SN = zero(T)
     active = true
 
-    for _ = 1:8
+    Reactant.@trace for _ = 1:8
         next_MU = (XN + YN + YN) * inv3
         invMU = inv(next_MU)
         next_SN = muladd(invMU, YN + next_MU, -twoT)
@@ -380,7 +380,7 @@ function _reactant_DRJ_ifbody(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
     IER = zero(Int)
     active = true
 
-    for _ = 1:10
+    Reactant.@trace for _ = 1:10
         XNYNZN = XN + YN + ZN
         next_MU = (XNYNZN + twoT * PN) * inv5
         invMU = inv(next_MU)
@@ -480,7 +480,7 @@ function _reactant_DRF_ifbody(X::A, Y::B, Z::C, ERRTOL::D) where {A,B,C,D}
     YNDEV = zero(T)
     ZNDEV = zero(T)
 
-    for _ = 1:10
+    Reactant.@trace for _ = 1:10
         XNROOT = sqrt(XN)
         YNROOT = sqrt(YN)
         ZNROOT = sqrt(ZN)
@@ -609,7 +609,7 @@ function _reactant_cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
     end
 
     active = true
-    for _ = 1:32
+    Reactant.@trace for _ = 1:32
         current_f = a
         invp = inv(p)
         next_a = muladd(invp, b, a)
@@ -648,7 +648,7 @@ function _reactant_ellipke_base(m::T) where {T}
     # Arithmetic Geometric mean implementation
     # https://www.math.emory.edu/~gliang7/AGM.pdf
     # https://en.wikipedia.org/wiki/Arithmetic%E2%80%93geometric_mean
-    for _ = 1:8
+    Reactant.@trace for _ = 1:8
         c = (a - b) / twoT
         next_a = (a + b) / twoT
         next_b = sqrt(a * b)
