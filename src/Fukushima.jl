@@ -2305,7 +2305,7 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
         sinφ, cosφ = sincos(φ)
         sinφ2 = sinφ * sinφ
         t1 = sinφ / (cosφ * sqrt(muladd(-m, sinφ2, oneT)))
-        h1 = nc * (n − m) / n
+        h1 = nc * (n−m) / n
         n1 = m / n
         return (FukushimaT(t1, h1) - n1 * J(n1, φ, m))
     elseif n == 1
@@ -2388,7 +2388,7 @@ function J(n::A, φ::B, m::C) where {A,B,C} #Appendix A
         sinφ = sin(φ)
         sinφ2 = sinφ * sinφ
         φN = asin(sqrt(mc / muladd(-m, sinφ2, oneT)) * sinφ)
-        nN = (n − m) / mc
+        nN = (n−m) / mc
         mN = -m / mc
         return mN * √mN * J(nN, φN, mN)
     end
@@ -2402,7 +2402,7 @@ function J(n::A, φ::B, m::C) where {A,B,C} #Appendix A
             # h = y - x
             nc = oneT - n
             t1 = sinφ / (cosφ * sqrt_term)
-            h1 = nc * (n − m) / n
+            h1 = nc * (n−m) / n
             n1 = m / n
             return (-F(φ, m) + FukushimaT(t1, h1) - n1 * J(n1, φ, m)) / n
         elseif n < zero(T)
@@ -2410,7 +2410,7 @@ function J(n::A, φ::B, m::C) where {A,B,C} #Appendix A
             nc = oneT - n
             t2 = sinφ * cosφ / sqrt_term
             h2 = -n * (m - n) / nc
-            n2 = (m − n) / nc
+            n2 = (m−n) / nc
             #return NaN
             return (F(φ, m) - FukushimaT(t2, h2) - (mc / nc) * J(n2, φ, m)) / nc
         end
