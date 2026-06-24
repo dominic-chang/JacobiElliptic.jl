@@ -103,13 +103,13 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         sqrt_term = sqrt(1 - yval * sin_x^2)
         ∂xf = inv(sqrt_term)
         if iszero(yval)
-            ∂yf = (2x - sin(2x)) / 8
+            ∂yf = (2xval - sin_2x) / 8
         elseif isone(yval)
-            sec_x = sec(x)
-            tan_x = tan(x)
+            sec_x = sec(xval)
+            tan_x = tan(xval)
             ∂yf = 0.25 * (sec_x * tan_x - log(abs(sec_x + tan_x)))
         else
-            ∂yf = ($alg).E(x, yval) / (2 * yval * (1 - yval)) - fval / (2 * yval) - sin(2 * x) / (4 * (1 - yval) * sqrt(1 - yval * sin(x)^2))
+            ∂yf = ($alg).E(xval, yval) / (2 * yval * (1 - yval)) - fval / (2 * yval) - sin_2x / (4 * (1 - yval) * sqrt_term)
         end
         ForwardDiff.Dual{T}(fval, ∂xf * x.partials + ∂yf * y.partials)
     end
