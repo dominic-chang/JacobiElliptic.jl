@@ -580,30 +580,9 @@ JacobiElliptic.E(
 ) where {Tp,N} = _reactant_internal_E.(phi, m)
 
 
-xn = ((:s, :(sn(u, m))), (:c, :(cn(u, m))), (:d, :(dn(u, m))), (:n, 1))
-for (p, num) in xn, (q, den) in xn
-    f = Symbol(p, q)
-
-    if p == q
-        @eval begin
-            CarlsonAlg.$f(::Reactant.TracedRNumber{T}, ::S) where {T,S<:Real} =
-                one(promote_type(T, S))
-            CarlsonAlg.$f(::S, ::Reactant.TracedRNumber{T}) where {S<:Real,T} =
-                one(promote_type(S, T))
-            CarlsonAlg.$f(
-                ::Reactant.TracedRNumber{T1},
-                ::Reactant.TracedRNumber{T2},
-            ) where {T1,T2} = one(promote_type(T1, T2))
-        end
-    elseif q != :n
-        @eval begin
-            CarlsonAlg.$f(u::Reactant.TracedRNumber, m::Real) = ($num) / ($den)
-            CarlsonAlg.$f(u::Real, m::Reactant.TracedRNumber) = ($num) / ($den)
-            CarlsonAlg.$f(u::Reactant.TracedRNumber, m::Reactant.TracedRNumber) =
-                ($num) / ($den)
-        end
-    end
-end
+#----------------------------------------------------------------------------------------
+# Incomplete Elliptic Pi(n, ϕ, m)
+#----------------------------------------------------------------------------------------
 
 function _reactant_DRC_ifbody(X::A, Y::B) where {A,B}
     T = promote_type(A, B)
@@ -615,29 +594,25 @@ function _reactant_DRC_ifbody(X::A, Y::B) where {A,B}
     C2 = T(9 / 22)
     C3 = T(3 / 8)
     C4 = T(3 / 10)
-    ERRTOL = T((eps(Reactant.unwrapped_eltype(T)) / 32)^Reactant.unwrapped_eltype(T)(1 / 6))
+    ERRTOL = (eps(T) / 32)^T(1 / 6)
 
     XN = X
     YN = Y
     MU = zero(T)
     SN = zero(T)
-    active = true
 
-    for _ = 1:8
-        next_MU = (XN + YN + YN) * inv3
-        invMU = inv(next_MU)
-        next_SN = muladd(invMU, YN + next_MU, -twoT)
-        converged = abs(next_SN) < ERRTOL
+    MU = (XN + YN + YN) * inv3
+    invMU = inv(MU)
+    SN = muladd(invMU, YN + MU, -twoT)
+
+    @trace while abs(SN) >= ERRTOL 
         LAMDA = muladd(twoT * sqrt(XN), sqrt(YN), YN)
-        next_XN = (XN + LAMDA) * inv4
-        next_YN = (YN + LAMDA) * inv4
-        continue_active = active & !converged
+        XN = (XN + LAMDA) * inv4
+        YN = (YN + LAMDA) * inv4
 
-        MU = Base.ifelse(active, next_MU, MU)
-        SN = Base.ifelse(active, next_SN, SN)
-        XN = Base.ifelse(continue_active, next_XN, XN)
-        YN = Base.ifelse(continue_active, next_YN, YN)
-        active = continue_active
+        MU = (XN + YN + YN) * inv3
+        invMU = inv(MU)
+        SN = muladd(invMU, YN + MU, -twoT)
     end
 
     S = SN^2 * muladd(SN, muladd(SN, muladd(SN, C2, C3), C1), C4)
@@ -674,63 +649,61 @@ function _reactant_DRJ_ifbody(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
     threeT = T(3)
     inv4 = T(1 / 4)
     inv5 = T(1 / 5)
-    ERRTOL = T((eps(Reactant.unwrapped_eltype(T)) / 6)^Reactant.unwrapped_eltype(T)(1 / 6))
+    ERRTOL = (eps((T)) / 6)^T(1 / 6)
     C1 = T(3 / 14)
     C2 = T(1 / 3)
     C3 = T(3 / 22)
     C4 = T(3 / 26)
 
-    XN = X
-    YN = Y
-    ZN = Z
-    PN = P
+    XN = copy(X)
+    YN = copy(Y)
+    ZN = copy(Z)
+    PN = copy(P)
     SIGMA = zero(T)
-    POWER4 = oneT
+    POWER4 = one(T)
     MU = zero(T)
     XNDEV = zero(T)
     YNDEV = zero(T)
     ZNDEV = zero(T)
     PNDEV = zero(T)
     IER = zero(Int)
-    active = true
 
-    for _ = 1:10
-        XNYNZN = XN + YN + ZN
-        next_MU = (XNYNZN + twoT * PN) * inv5
-        invMU = inv(next_MU)
-        next_XNDEV = (next_MU - XN) * invMU
-        next_YNDEV = (next_MU - YN) * invMU
-        next_ZNDEV = (next_MU - ZN) * invMU
-        next_PNDEV = (next_MU - PN) * invMU
-        EPSLON = max(abs(next_XNDEV), abs(next_YNDEV), abs(next_ZNDEV), abs(next_PNDEV))
-        converged = EPSLON < ERRTOL
+    XNYNZN = XN + YN + ZN
+    MU = (XNYNZN + twoT * PN) * inv5
+    invMU = inv(MU)
+    XNDEV = (MU - XN) * invMU
+    YNDEV = (MU - YN) * invMU
+    ZNDEV = (MU - ZN) * invMU
+    PNDEV = (MU - PN) * invMU
+    EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV), abs(PNDEV))
 
+    @trace while EPSLON >= ERRTOL
         XNROOT = sqrt(XN)
         YNROOT = sqrt(YN)
         ZNROOT = sqrt(ZN)
         YNROOTZNROOT = YNROOT * ZNROOT
         rootsum = XNROOT + YNROOT + ZNROOT
-        LAMDA = muladd(XNROOT, YNROOT + ZNROOT, YNROOTZNROOT)
+        LAMDA = muladd(XNROOT, (YNROOT + ZNROOT), YNROOTZNROOT)
         pn_plus_lamda = PN + LAMDA
         alpha_base = muladd(PN, rootsum, XNROOT * YNROOTZNROOT)
         ALFA = alpha_base * alpha_base
         BETA = PN * pn_plus_lamda * pn_plus_lamda
-        drc, next_IER = _reactant_DRC(ALFA, BETA)
-        continue_active = active & !converged
+        drc, IER = _reactant_DRC(ALFA, BETA)
+        SIGMA = muladd(POWER4, drc, SIGMA)
+        POWER4 *= inv4
+        XN = (XN + LAMDA) * inv4
+        YN = (YN + LAMDA) * inv4
+        ZN = (ZN + LAMDA) * inv4
+        PN = pn_plus_lamda * inv4
 
-        MU = Base.ifelse(active, next_MU, MU)
-        XNDEV = Base.ifelse(active, next_XNDEV, XNDEV)
-        YNDEV = Base.ifelse(active, next_YNDEV, YNDEV)
-        ZNDEV = Base.ifelse(active, next_ZNDEV, ZNDEV)
-        PNDEV = Base.ifelse(active, next_PNDEV, PNDEV)
-        SIGMA = Base.ifelse(continue_active, muladd(POWER4, drc, SIGMA), SIGMA)
-        POWER4 = Base.ifelse(continue_active, POWER4 * inv4, POWER4)
-        XN = Base.ifelse(continue_active, (XN + LAMDA) * inv4, XN)
-        YN = Base.ifelse(continue_active, (YN + LAMDA) * inv4, YN)
-        ZN = Base.ifelse(continue_active, (ZN + LAMDA) * inv4, ZN)
-        PN = Base.ifelse(continue_active, pn_plus_lamda * inv4, PN)
-        IER = Base.ifelse(continue_active, next_IER, IER)
-        active = continue_active
+        XNYNZN = XN + YN + ZN
+        MU = (XNYNZN + twoT * PN) * inv5
+        invMU = inv(MU)
+        XNDEV = (MU - XN) * invMU
+        YNDEV = (MU - YN) * invMU
+        ZNDEV = (MU - ZN) * invMU
+        PNDEV = (MU - PN) * invMU
+        EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV), abs(PNDEV))
     end
 
     YNDEVZNDEV = YNDEV * ZNDEV
@@ -809,16 +782,16 @@ function _reactant_cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
     zeroT = zero(T)
     pi_over_2 = T(π / 2)
 
-    kc = abs(T(kc))
+    kc = abs(kc)
     p = T(p)
     a = T(a)
     b = T(b)
 
-    e = kc
-    m = oneT
-    f = zeroT
-    g = zeroT
-    q = zeroT
+    e = copy(kc)
+    m = one(T)
+    f = zero(T)
+    g = zero(T)
+    q = zero(T)
 
     Reactant.@trace if p > zeroT
         p = sqrt(p)
@@ -834,36 +807,33 @@ function _reactant_cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
         b = -q * (g^2 * p) + a * p
     end
 
-    active = true
-    Reactant.@trace for _ = 1:32
-        current_f = a
-        invp = inv(p)
-        next_a = muladd(invp, b, a)
-        next_g = e * invp
-        next_b = twoT * muladd(current_f, next_g, b)
-        next_p = next_g + p
-        current_m = m
-        next_m = kc + m
-        converged = abs(current_m - kc) < current_m * ca
-        continue_active = active & !converged
-        next_kc = twoT * sqrt(e)
-        next_e = next_kc * next_m
+    count = 0
+    f = copy(a)
+    invp = inv(p)
+    a = muladd(invp, b, a)
+    g = e * invp
+    b = twoT * muladd(f, g, b)
+    p = g + p
+    g = copy(m)
+    m = kc + m
 
-        a = Base.ifelse(active, next_a, a)
-        b = Base.ifelse(active, next_b, b)
-        p = Base.ifelse(active, next_p, p)
-        m = Base.ifelse(active, next_m, m)
-        kc = Base.ifelse(continue_active, next_kc, kc)
-        e = Base.ifelse(continue_active, next_e, e)
-        active = continue_active
+    Reactant.@trace while (abs(g - kc) >= g * ca) & (count < 1000)
+        kc = twoT * √e
+        e = kc * m
+
+        f = copy(a)
+        invp = inv(p)
+        a = muladd(invp, b, a)
+        g = e * invp
+        b = twoT * muladd(f, g, b)
+        p = g + p
+        g = copy(m)
+        m = kc + m
+        count += 1 
     end
 
     return pi_over_2 * muladd(a, m, b) / (m * (m + p))
 end
-
-#----------------------------------------------------------------------------------------
-# Incomplete Elliptic Pi(n, ϕ, m)
-#----------------------------------------------------------------------------------------
 
 function _reactant_rawPi(n::A, sinphi::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
@@ -1051,3 +1021,36 @@ CarlsonAlg.Pi(n::Reactant.TracedRNumber, m::Reactant.TracedRNumber) =
     _reactant_complete_Pi(n, m)
 
 end
+
+
+
+#----------------------------------------------------------------------------------------
+# Jacobi Elliptic Functions
+#----------------------------------------------------------------------------------------
+
+
+xn = ((:s, :(sn(u, m))), (:c, :(cn(u, m))), (:d, :(dn(u, m))), (:n, 1))
+for (p, num) in xn, (q, den) in xn
+    f = Symbol(p, q)
+
+    if p == q
+        @eval begin
+            CarlsonAlg.$f(::Reactant.TracedRNumber{T}, ::S) where {T,S<:Real} =
+                one(promote_type(T, S))
+            CarlsonAlg.$f(::S, ::Reactant.TracedRNumber{T}) where {S<:Real,T} =
+                one(promote_type(S, T))
+            CarlsonAlg.$f(
+                ::Reactant.TracedRNumber{T1},
+                ::Reactant.TracedRNumber{T2},
+            ) where {T1,T2} = one(promote_type(T1, T2))
+        end
+    elseif q != :n
+        @eval begin
+            CarlsonAlg.$f(u::Reactant.TracedRNumber, m::Real) = ($num) / ($den)
+            CarlsonAlg.$f(u::Real, m::Reactant.TracedRNumber) = ($num) / ($den)
+            CarlsonAlg.$f(u::Reactant.TracedRNumber, m::Reactant.TracedRNumber) =
+                ($num) / ($den)
+        end
+    end
+end
+
