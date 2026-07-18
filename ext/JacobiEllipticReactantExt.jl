@@ -167,7 +167,7 @@ function _reactant_DRF(X::A, Y::B, Z::C) where {A,B,C}
     minxyz = min(X, Y, Z) < zeroT
     maxxyz = max(X, Y, Z) > UPLIM
     mxyxzyz = min(X + Y, X + Z, Y + Z) < LOLIM
-    err = Base.ifelse(minxyz, 1, Base.ifelse(maxxyz, 3,Base.ifelse(mxyxzyz, 2, 0),),)
+    err = Base.ifelse(minxyz, 1, Base.ifelse(maxxyz, 3, Base.ifelse(mxyxzyz, 2, 0)))
 
     @trace if err == 0
         ans = _reactant_DRF_ifbody(X, Y, Z, ERRTOL)
@@ -287,16 +287,16 @@ function __reactant_am(u::A, m::B, tol::C) where {A,B,C}
     b = sqrt(m1)
     c = sqrt(m)
     n = zero(T)
-    @trace track_numbers=true while  (n < 10)
+    @trace track_numbers=true while (n < 10)
         a, b, c, n = ((a + b) / 2, sqrt(a * b), (a - b) / 2, n + 1)
-        Reactant.@allowscalar _ambuf[unsafe_trunc(Int,n)] = c / a
+        Reactant.@allowscalar _ambuf[unsafe_trunc(Int, n)] = c / a
     end
     ans = Base.ifelse(abs(c) > tol, T(NaN), ans)
 
     phi = a * u * (2^n)
     @trace track_numbers=true while (n > 0) & flag
-        temp = Reactant.@allowscalar _ambuf[unsafe_trunc(Int,n)]
-        phi = (phi + asin(temp  * sin(phi))) / 2
+        temp = Reactant.@allowscalar _ambuf[unsafe_trunc(Int, n)]
+        phi = (phi + asin(temp * sin(phi))) / 2
         n -= 1
     end
 
@@ -457,7 +457,7 @@ function _reactant_DRD(X::A, Y::B, Z::C) where {A,B,C}
     minxy = min(X, Y) < zeroT
     maxxyz = max(X, Y, Z) > UPLIM
     maxypz = min(X + Y, Z) < LOLIM
-    err = Base.ifelse(minxy, 1, Base.ifelse(maxxyz, 3,Base.ifelse(maxypz, 2, 0),),)
+    err = Base.ifelse(minxy, 1, Base.ifelse(maxxyz, 3, Base.ifelse(maxypz, 2, 0)))
 
     ans = Base.ifelse(err == 0, _reactant_DRD_ifbody(X, Y, Z), ans)
 
@@ -605,7 +605,7 @@ function _reactant_DRC_ifbody(X::A, Y::B) where {A,B}
     invMU = inv(MU)
     SN = muladd(invMU, YN + MU, -twoT)
 
-    @trace while abs(SN) >= ERRTOL 
+    @trace while abs(SN) >= ERRTOL
         LAMDA = muladd(twoT * sqrt(XN), sqrt(YN), YN)
         XN = (XN + LAMDA) * inv4
         YN = (YN + LAMDA) * inv4
@@ -829,7 +829,7 @@ function _reactant_cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
         p = g + p
         g = copy(m)
         m = kc + m
-        count += 1 
+        count += 1
     end
 
     return pi_over_2 * muladd(a, m, b) / (m * (m + p))
@@ -1028,7 +1028,9 @@ CarlsonAlg.Pi(n::Reactant.TracedRNumber, m::Reactant.TracedRNumber) =
 #----------------------------------------------------------------------------------------
 
 
-for (p, num) in ((:s, :(sn(u, m))), (:c, :(cn(u, m))), (:d, :(dn(u, m))), (:n, 1)), (q, den) in ((:s, :(sn(u, m))), (:c, :(cn(u, m))), (:d, :(dn(u, m))), (:n, 1))
+for (p, num) in ((:s, :(sn(u, m))), (:c, :(cn(u, m))), (:d, :(dn(u, m))), (:n, 1)),
+    (q, den) in ((:s, :(sn(u, m))), (:c, :(cn(u, m))), (:d, :(dn(u, m))), (:n, 1))
+
     f = Symbol(p, q)
 
     if p == q
@@ -1052,4 +1054,3 @@ for (p, num) in ((:s, :(sn(u, m))), (:c, :(cn(u, m))), (:d, :(dn(u, m))), (:n, 1
     end
 end
 end
-
