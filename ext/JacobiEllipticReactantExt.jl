@@ -1020,7 +1020,6 @@ CarlsonAlg.Pi(n::Real, m::Reactant.TracedRNumber) = _reactant_complete_Pi(n, m)
 CarlsonAlg.Pi(n::Reactant.TracedRNumber, m::Reactant.TracedRNumber) =
     _reactant_complete_Pi(n, m)
 
-end
 
 
 
@@ -1029,8 +1028,7 @@ end
 #----------------------------------------------------------------------------------------
 
 
-xn = ((:s, :(sn(u, m))), (:c, :(cn(u, m))), (:d, :(dn(u, m))), (:n, 1))
-for (p, num) in xn, (q, den) in xn
+for (p, num) in ((:s, :(sn(u, m))), (:c, :(cn(u, m))), (:d, :(dn(u, m))), (:n, 1)), (q, den) in ((:s, :(sn(u, m))), (:c, :(cn(u, m))), (:d, :(dn(u, m))), (:n, 1))
     f = Symbol(p, q)
 
     if p == q
@@ -1052,5 +1050,6 @@ for (p, num) in xn, (q, den) in xn
                 ($num) / ($den)
         end
     end
+end
 end
 
