@@ -504,6 +504,36 @@ end
         @test ForwardDiff.derivative(x -> alg.cn(u, x), m) ≈ 0.009235645582845396 atol =
             1e-5
         @test ForwardDiff.derivative(x -> alg.cn(x, x), m) ≈ -0.4346690704960831 atol = 1e-5
+
+        @testset "Jacobi endpoint derivatives" begin
+            u = π / 3
+
+            s, c = sincos(u)
+            sn_grad = [c, -c * (u - s * c) / 4]
+            cn_grad = [-s, s * (u - s * c) / 4]
+            dn_grad = [0.0, -s^2 / 2]
+
+            for (f, expected) in ((alg.sn, sn_grad), (alg.cn, cn_grad), (alg.dn, dn_grad))
+                @test ForwardDiff.derivative(x -> f(x, 0.0), u) ≈ expected[1]
+                @test ForwardDiff.derivative(m -> f(u, m), 0.0) ≈ expected[2]
+                @test ForwardDiff.gradient(x -> f(x[1], x[2]), [u, 0.0]) ≈ expected
+                @test ForwardDiff.derivative(x -> f(u + x, x), 0.0) ≈ sum(expected)
+            end
+
+            s = tanh(u)
+            c = sech(u)
+            ∂m_sn = -(s - u * c^2) / 4
+            sn_grad = [c^2, ∂m_sn]
+            cn_grad = [-s * c, -s * ∂m_sn / c]
+            dn_grad = [-s * c, -(s^2 + 2s * ∂m_sn) / (2c)]
+
+            for (f, expected) in ((alg.sn, sn_grad), (alg.cn, cn_grad), (alg.dn, dn_grad))
+                @test ForwardDiff.derivative(x -> f(x, 1.0), u) ≈ expected[1]
+                @test ForwardDiff.derivative(m -> f(u, m), 1.0) ≈ expected[2]
+                @test ForwardDiff.gradient(x -> f(x[1], x[2]), [u, 1.0]) ≈ expected
+                @test ForwardDiff.derivative(x -> f(u + x, 1 + x), 0.0) ≈ sum(expected)
+            end
+        end
     end
 
 
