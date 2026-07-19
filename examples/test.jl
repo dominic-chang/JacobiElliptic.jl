@@ -148,11 +148,9 @@ ForwardDiff.derivative(test, m)# ≈ (E(m) - K(m))/k * dk_dm
 @btime Pi(rand(), rand(), rand())
 @time ∂φF, ∂mF = autodiff(Reverse, F, Active, Active(φ), Active(m))[1]
 #@test ∂φF ≈ typ(1)#/(1/sqrt(1 - m*sin(φ)^2)) ≈ typ(1) 
-∂mF / (
-    -(
-        (
-            E((φ), (m)) + (-1 + m) * F((φ), (m)) -
-            (m * cos((φ)) * sin((φ))) / sqrt(1 - m * sin((φ))^2)
-        ) / (2 * (-1 + m) * m)
-    )
-) ≈ 1.0
+∂mF / (-(
+    (
+        E((φ), (m)) + (-1 + m) * F((φ), (m)) -
+        (m * cos((φ)) * sin((φ))) / sqrt(1 - m * sin((φ))^2)
+    ) / (2 * (-1 + m) * m)
+)) ≈ 1.0
