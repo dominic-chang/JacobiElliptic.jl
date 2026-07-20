@@ -183,10 +183,10 @@ end
                 end
 
                 # Special case m = 1:
-                ϕ = 0.5; m = 1.0
-                @test ForwardDiff.derivative(x -> _F(ϕ + x, m), 0.0) ≈ 1.139493927324549 atol = 1e-9 # Number retrieved from ForwardDiff and checked against finite diff
-                @test ForwardDiff.derivative(x -> _F(ϕ, m + x), 0.0) ≈ 0.025067566595210033 atol = 1e-9 # Number retrieved from ForwardDiff and checked against finite diff
-                @test ForwardDiff.derivative(x -> _F(ϕ + x, m + x), 0.0) ≈ 1.164561493919759 atol = 1e-9 # Number retrieved from ForwardDiff and checked against finite diff
+                ϕ_here = 0.5; m_here = 1.0
+                @test ForwardDiff.derivative(x -> _F(ϕ_here + x, m_here), 0.0) ≈ 1.139493927324549 atol = 1e-9 # Number retrieved from ForwardDiff and checked against finite diff
+                @test ForwardDiff.derivative(x -> _F(ϕ_here, m_here + x), 0.0) ≈ 0.025067566595210033 atol = 1e-9 # Number retrieved from ForwardDiff and checked against finite diff
+                @test ForwardDiff.derivative(x -> _F(ϕ_here + x, m_here + x), 0.0) ≈ 1.164561493919759 atol = 1e-9 # Number retrieved from ForwardDiff and checked against finite diff
             end
 
             @testset "Incomplete E" begin
