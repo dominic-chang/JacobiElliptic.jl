@@ -17,6 +17,32 @@ for (T1, T2) in zip(_types, _types)
     end
 end
 
+function _sn_parameter_derivative(E, am, cd, u, m, s, c, d)
+    if iszero(m)
+        return -c * (u - s * c) / 4
+    elseif isone(m)
+        return -(s - u * c^2) / 4
+    end
+
+    return d * c * ((1 - m) * u - E(am(u, m), m) + m * cd(u, m) * s) / (2 * (1 - m) * m)
+end
+
+function _cn_parameter_derivative(E, am, cd, u, m, s, c, d)
+    if iszero(m)
+        return s * (u - s * c) / 4
+    elseif isone(m)
+        return s * (s - u * c^2) / (4c)
+    end
+
+    return d * s * ((m - 1) * u + E(am(u, m), m) - m * cd(u, m) * s) / (2 * (1 - m) * m)
+end
+
+function _dn_parameter_derivative(E, am, cd, u, m, s, c, d)
+    iszero(m) && return -s^2 / 2
+    ∂m_sn = _sn_parameter_derivative(E, am, cd, u, m, s, c, d)
+    return -(s^2 + 2m * s * ∂m_sn) / (2d)
+end
+
 #ForwardDiff.DiffRules.@define_diffrule JacobiElliptic.CarlsonAlg._sqrt(x) = :(inv(2 * JacobiElliptic.CarlsonAlg._sqrt($x)))
 function JacobiElliptic.CarlsonAlg._sqrt(x::ForwardDiff.Dual{T}) where {T}
     xval = x.value
@@ -145,45 +171,33 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     end
 
     #----------------------------------------------------------------------------------------
-    # Elliptic cn(ϕ, m)
+    # Elliptic cn(u, m)
     #----------------------------------------------------------------------------------------
     @eval function ($alg).cn(x::ForwardDiff.Dual{T}, y::U) where {T,U}
-        xval = x.value
+        xval = ForwardDiff.value(x)
         fval = ($alg).cn(xval, y)
-        ∂xf = -JacobiElliptic.dn(xval, y) * JacobiElliptic.sn(xval, y)
-
-        ForwardDiff.Dual{T}(fval, ∂xf * x.partials)
+        ∂xf = -($alg).dn(xval, y) * ($alg).sn(xval, y)
+        ForwardDiff.Dual{T}(fval, ∂xf * ForwardDiff.partials(x))
     end
 
     @eval function ($alg).cn(x::U, y::ForwardDiff.Dual{T}) where {T,U}
-        yval = y.value
+        yval = ForwardDiff.value(y)
         fval = ($alg).cn(x, yval)
-        ∂yf =
-            inv(2 * (1 - yval) * yval) *
-            JacobiElliptic.dn(x, yval) *
-            JacobiElliptic.sn(x, yval) *
-            (
-                (yval - 1) * x + ($alg).E(JacobiElliptic.am(x, yval), yval) -
-                yval * JacobiElliptic.cd(x, yval) * JacobiElliptic.sn(x, yval)
-            )
-        ForwardDiff.Dual{T}(fval, ∂yf * y.partials)
+        s = ($alg).sn(x, yval)
+        d = ($alg).dn(x, yval)
+        ∂yf = _cn_parameter_derivative(($alg).E, ($alg).am, ($alg).cd, x, yval, s, fval, d)
+        ForwardDiff.Dual{T}(fval, ∂yf * ForwardDiff.partials(y))
     end
 
     @eval function ($alg).cn(x::ForwardDiff.Dual{T}, y::ForwardDiff.Dual{T}) where {T}
         xval = ForwardDiff.value(x)
         yval = ForwardDiff.value(y)
-
-        fval = JacobiElliptic.cn(xval, yval)
-        dn_val = JacobiElliptic.dn(xval, yval)
-        sn_val = JacobiElliptic.sn(xval, yval)
-        dn_sn = dn_val * sn_val
-        ∂xf = -dn_sn
-        am_val = JacobiElliptic.am(xval, yval)
-        E_am = ($alg).E(am_val, yval)
-        cd_val = JacobiElliptic.cd(xval, yval)
-        cd_sn = cd_val * sn_val
-        expr = (yval - 1) * xval + E_am - yval * cd_sn
-        ∂yf = inv(2 * (1 - yval) * yval) * dn_sn * expr
+        fval = ($alg).cn(xval, yval)
+        s = ($alg).sn(xval, yval)
+        d = ($alg).dn(xval, yval)
+        ∂xf = -d * s
+        ∂yf =
+            _cn_parameter_derivative(($alg).E, ($alg).am, ($alg).cd, xval, yval, s, fval, d)
         ForwardDiff.Dual{T}(
             fval,
             ∂xf * ForwardDiff.partials(x) + ∂yf * ForwardDiff.partials(y),
@@ -191,48 +205,71 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     end
 
     #----------------------------------------------------------------------------------------
-    # Elliptic sn(ϕ, m)
+    # Elliptic sn(u, m)
     #----------------------------------------------------------------------------------------
     @eval function ($alg).sn(x::ForwardDiff.Dual{T}, y::U) where {T,U}
-        xval = x.value
+        xval = ForwardDiff.value(x)
         fval = ($alg).sn(xval, y)
         ∂xf = ($alg).dn(xval, y) * ($alg).cn(xval, y)
-
-        ForwardDiff.Dual{T}(fval, ∂xf * x.partials)
+        ForwardDiff.Dual{T}(fval, ∂xf * ForwardDiff.partials(x))
     end
 
     @eval function ($alg).sn(x::U, y::ForwardDiff.Dual{T}) where {T,U}
-        yval = y.value
+        yval = ForwardDiff.value(y)
         fval = ($alg).sn(x, yval)
-        ∂yf =
-            inv(2 * (1 - yval) * yval) *
-            ($alg).dn(x, yval) *
-            ($alg).cn(x, yval) *
-            (
-                (1 - yval) * x - ($alg).E(($alg).am(x, yval), yval) +
-                yval * ($alg).cd(x, yval) * ($alg).sn(x, yval)
-            )
-        ForwardDiff.Dual{T}(fval, ∂yf * y.partials)
+        c = ($alg).cn(x, yval)
+        d = ($alg).dn(x, yval)
+        ∂yf = _sn_parameter_derivative(($alg).E, ($alg).am, ($alg).cd, x, yval, fval, c, d)
+        ForwardDiff.Dual{T}(fval, ∂yf * ForwardDiff.partials(y))
     end
 
     @eval function ($alg).sn(x::ForwardDiff.Dual{T}, y::ForwardDiff.Dual{T}) where {T}
-        xval = x.value
-        yval = y.value
-
+        xval = ForwardDiff.value(x)
+        yval = ForwardDiff.value(y)
         fval = ($alg).sn(xval, yval)
-        dn_val = ($alg).dn(xval, yval)
-        cn_val = ($alg).cn(xval, yval)
-        dn_cn = dn_val * cn_val
-        ∂xf = dn_cn
-        am_val = ($alg).am(xval, yval)
-        E_am = ($alg).E(am_val, yval)
-        cd_val = ($alg).cd(xval, yval)
-        sn_val = ($alg).sn(xval, yval)
-        cd_sn = cd_val * sn_val
-        expr = (1 - yval) * xval - E_am + yval * cd_sn
-        ∂yf = inv(2 * (1 - yval) * yval) * dn_cn * expr
+        c = ($alg).cn(xval, yval)
+        d = ($alg).dn(xval, yval)
+        ∂xf = d * c
+        ∂yf =
+            _sn_parameter_derivative(($alg).E, ($alg).am, ($alg).cd, xval, yval, fval, c, d)
+        ForwardDiff.Dual{T}(
+            fval,
+            ∂xf * ForwardDiff.partials(x) + ∂yf * ForwardDiff.partials(y),
+        )
+    end
 
-        ForwardDiff.Dual{T}(fval, ∂xf * x.partials + ∂yf * y.partials)
+    #----------------------------------------------------------------------------------------
+    # Elliptic dn(u, m)
+    #----------------------------------------------------------------------------------------
+    @eval function ($alg).dn(x::ForwardDiff.Dual{T}, y::U) where {T,U}
+        xval = ForwardDiff.value(x)
+        fval = ($alg).dn(xval, y)
+        ∂xf = -y * ($alg).sn(xval, y) * ($alg).cn(xval, y)
+        ForwardDiff.Dual{T}(fval, ∂xf * ForwardDiff.partials(x))
+    end
+
+    @eval function ($alg).dn(x::U, y::ForwardDiff.Dual{T}) where {T,U}
+        yval = ForwardDiff.value(y)
+        fval = ($alg).dn(x, yval)
+        s = ($alg).sn(x, yval)
+        c = ($alg).cn(x, yval)
+        ∂yf = _dn_parameter_derivative(($alg).E, ($alg).am, ($alg).cd, x, yval, s, c, fval)
+        ForwardDiff.Dual{T}(fval, ∂yf * ForwardDiff.partials(y))
+    end
+
+    @eval function ($alg).dn(x::ForwardDiff.Dual{T}, y::ForwardDiff.Dual{T}) where {T}
+        xval = ForwardDiff.value(x)
+        yval = ForwardDiff.value(y)
+        fval = ($alg).dn(xval, yval)
+        s = ($alg).sn(xval, yval)
+        c = ($alg).cn(xval, yval)
+        ∂xf = -yval * s * c
+        ∂yf =
+            _dn_parameter_derivative(($alg).E, ($alg).am, ($alg).cd, xval, yval, s, c, fval)
+        ForwardDiff.Dual{T}(
+            fval,
+            ∂xf * ForwardDiff.partials(x) + ∂yf * ForwardDiff.partials(y),
+        )
     end
 
 

@@ -15,14 +15,12 @@ end
     alg = JacobiElliptic.ArithmeticGeometricMeanAlg
     @testset "Zygote, ForwardDiff and Enzyme" begin
 
-        num_trials = 1
-        ms = rand(num_trials)
-        ϕs = rand(num_trials) .* 2π
-        ns = rand(num_trials)
+        ms = (0.4,)
+        ϕs = (0.7,)
+        ns = (0.2,)
         enzyme_atol = alg === JacobiElliptic.CarlsonAlg ? 1e-9 : 1e-5
 
-        # Test several known derivative identities across a wide range of values of ϕ and m
-        # in order to verify that derivatives work correctly
+        # Test known derivative identities at representative nonsingular values.
         @testset for (m, ϕ, n) in zip(ms, ϕs, ns)
 
             # I. Tests for complete integrals, from https://en.wikipedia.org/wiki/Elliptic_integral
@@ -34,13 +32,13 @@ end
                 @test Enzyme.autodiff(Reverse, alg.K, Active, Active(m))[1][1] ≈ grad
                 @test Enzyme.autodiff(Forward, alg.K, Duplicated, Duplicated(m, 1.0))[1][1] ≈
                       grad
-                m = rand()
+                enzyme_m = 0.35
                 for Tret in (Const, Duplicated, DuplicatedNoNeed), Tm in (Const, Duplicated)
-                    test_forward(alg.K, Tret, (m, Tm); atol = enzyme_atol)
+                    test_forward(alg.K, Tret, (enzyme_m, Tm); atol = enzyme_atol)
                 end
 
                 for Tret in (Const, Active), Tm in (Const, Active)
-                    test_reverse(alg.K, Tret, (m, Tm); atol = enzyme_atol)
+                    test_reverse(alg.K, Tret, (enzyme_m, Tm); atol = enzyme_atol)
                 end
             end
 
@@ -52,12 +50,12 @@ end
                 @test Enzyme.autodiff(Reverse, alg.E, Active, Active(m))[1][1] ≈ grad
                 @test Enzyme.autodiff(Forward, alg.E, Duplicated, Duplicated(m, 1.0))[1][1] ≈
                       grad
-                m = rand()
+                enzyme_m = 0.65
                 for Tret in (Const, Duplicated, DuplicatedNoNeed), Tm in (Const, Duplicated)
-                    test_forward(alg.E, Tret, (m, Tm); atol = enzyme_atol)
+                    test_forward(alg.E, Tret, (enzyme_m, Tm); atol = enzyme_atol)
                 end
                 for Tret in (Const, Active), Tm in (Const, Active)
-                    test_reverse(alg.E, Tret, (m, Tm); atol = enzyme_atol)
+                    test_reverse(alg.E, Tret, (enzyme_m, Tm); atol = enzyme_atol)
                 end
             end
 
@@ -69,14 +67,12 @@ end
 @testset "alg:$alg" for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     @testset "Zygote, ForwardDiff and Enzyme" begin
 
-        num_trials = 1
-        ms = rand(num_trials)
-        ϕs = rand(num_trials) .* 2π
-        ns = rand(num_trials)
+        ms = (0.4,)
+        ϕs = (0.7,)
+        ns = (0.2,)
         enzyme_atol = alg === JacobiElliptic.CarlsonAlg ? 1e-9 : 1e-5
 
-        # Test several known derivative identities across a wide range of values of ϕ and m
-        # in order to verify that derivatives work correctly
+        # Test known derivative identities at representative nonsingular values.
         @testset for (m, ϕ, n) in zip(ms, ϕs, ns)
 
             # I. Tests for complete integrals, from https://en.wikipedia.org/wiki/Elliptic_integral
@@ -88,13 +84,13 @@ end
                 @test Enzyme.autodiff(Reverse, alg.K, Active, Active(m))[1][1] ≈ grad
                 @test Enzyme.autodiff(Forward, alg.K, Duplicated, Duplicated(m, 1.0))[1][1] ≈
                       grad
-                m = rand()
+                enzyme_m = 0.35
                 for Tret in (Const, Duplicated, DuplicatedNoNeed), Tm in (Const, Duplicated)
-                    test_forward(alg.K, Tret, (m, Tm); atol = enzyme_atol)
+                    test_forward(alg.K, Tret, (enzyme_m, Tm); atol = enzyme_atol)
                 end
 
                 for Tret in (Const, Active), Tm in (Const, Active)
-                    test_reverse(alg.K, Tret, (m, Tm); atol = enzyme_atol)
+                    test_reverse(alg.K, Tret, (enzyme_m, Tm); atol = enzyme_atol)
                 end
             end
 
@@ -106,12 +102,12 @@ end
                 @test Enzyme.autodiff(Reverse, alg.E, Active, Active(m))[1][1] ≈ grad
                 @test Enzyme.autodiff(Forward, alg.E, Duplicated, Duplicated(m, 1.0))[1][1] ≈
                       grad
-                m = rand()
+                enzyme_m = 0.65
                 for Tret in (Const, Duplicated, DuplicatedNoNeed), Tm in (Const, Duplicated)
-                    test_forward(alg.E, Tret, (m, Tm); atol = enzyme_atol)
+                    test_forward(alg.E, Tret, (enzyme_m, Tm); atol = enzyme_atol)
                 end
                 for Tret in (Const, Active), Tm in (Const, Active)
-                    test_reverse(alg.E, Tret, (m, Tm); atol = enzyme_atol)
+                    test_reverse(alg.E, Tret, (enzyme_m, Tm); atol = enzyme_atol)
                 end
             end
 
@@ -514,6 +510,36 @@ end
         @test ForwardDiff.derivative(x -> alg.cn(u, x), m) ≈ 0.009235645582845396 atol =
             1e-5
         @test ForwardDiff.derivative(x -> alg.cn(x, x), m) ≈ -0.4346690704960831 atol = 1e-5
+
+        @testset "Jacobi endpoint derivatives" begin
+            u = π / 3
+
+            s, c = sincos(u)
+            sn_grad = [c, -c * (u - s * c) / 4]
+            cn_grad = [-s, s * (u - s * c) / 4]
+            dn_grad = [0.0, -s^2 / 2]
+
+            for (f, expected) in ((alg.sn, sn_grad), (alg.cn, cn_grad), (alg.dn, dn_grad))
+                @test ForwardDiff.derivative(x -> f(x, 0.0), u) ≈ expected[1]
+                @test ForwardDiff.derivative(m -> f(u, m), 0.0) ≈ expected[2]
+                @test ForwardDiff.gradient(x -> f(x[1], x[2]), [u, 0.0]) ≈ expected
+                @test ForwardDiff.derivative(x -> f(u + x, x), 0.0) ≈ sum(expected)
+            end
+
+            s = tanh(u)
+            c = sech(u)
+            ∂m_sn = -(s - u * c^2) / 4
+            sn_grad = [c^2, ∂m_sn]
+            cn_grad = [-s * c, -s * ∂m_sn / c]
+            dn_grad = [-s * c, -(s^2 + 2s * ∂m_sn) / (2c)]
+
+            for (f, expected) in ((alg.sn, sn_grad), (alg.cn, cn_grad), (alg.dn, dn_grad))
+                @test ForwardDiff.derivative(x -> f(x, 1.0), u) ≈ expected[1]
+                @test ForwardDiff.derivative(m -> f(u, m), 1.0) ≈ expected[2]
+                @test ForwardDiff.gradient(x -> f(x[1], x[2]), [u, 1.0]) ≈ expected
+                @test ForwardDiff.derivative(x -> f(u + x, 1 + x), 0.0) ≈ sum(expected)
+            end
+        end
     end
 
 
