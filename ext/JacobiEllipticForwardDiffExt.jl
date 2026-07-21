@@ -115,7 +115,9 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             tan_x = tan(x)
             ∂yf = 0.25 * (sec_x * tan_x - log(abs(sec_x + tan_x)))
         else
-            ∂yf = ($alg).E(x, yval) / (2 * yval * (1 - yval)) - fval / (2 * yval) - sin(2 * x) / (4 * (1 - yval) * sqrt(1 - yval * sin(x)^2))
+            ∂yf =
+                ($alg).E(x, yval) / (2 * yval * (1 - yval)) - fval / (2 * yval) -
+                sin(2 * x) / (4 * (1 - yval) * sqrt(1 - yval * sin(x)^2))
         end
         ForwardDiff.Dual{T}(fval, ∂yf * y.partials)
     end
@@ -135,7 +137,9 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
             tan_x = tan(xval)
             ∂yf = 0.25 * (sec_x * tan_x - log(abs(sec_x + tan_x)))
         else
-            ∂yf = ($alg).E(xval, yval) / (2 * yval * (1 - yval)) - fval / (2 * yval) - sin_2x / (4 * (1 - yval) * sqrt_term)
+            ∂yf =
+                ($alg).E(xval, yval) / (2 * yval * (1 - yval)) - fval / (2 * yval) -
+                sin_2x / (4 * (1 - yval) * sqrt_term)
         end
         ForwardDiff.Dual{T}(fval, ∂xf * x.partials + ∂yf * y.partials)
     end
