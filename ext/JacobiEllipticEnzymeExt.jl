@@ -3,6 +3,7 @@ module JacobiEllipticEnzymeExt# Should be same name as the file (just like a nor
 using JacobiElliptic, Enzyme
 import .EnzymeRules: forward, reverse, augmented_primal
 using .EnzymeRules
+include("common.jl")
 
 begin # ArithmeticGeometricMeanAlg
     alg = JacobiElliptic.ArithmeticGeometricMeanAlg
@@ -751,6 +752,189 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     end
 
     #----------------------------------------------------------------------------------------
+    # Associate complete elliptic integral J(n, m)
+    #----------------------------------------------------------------------------------------
+
+    @eval function forward(
+        config::EnzymeRules.FwdConfig,
+        func::Const{typeof(($alg).J)},
+        RT,
+        n::Annotation{<:Real},
+        m::Annotation{<:Real},
+    )
+        j, ∂n_j, ∂m_j = _complete_j_derivatives(
+            ($alg).E,
+            ($alg).K,
+            ($alg).Pi,
+            func.val,
+            n.val,
+            m.val,
+        )
+        tangent() =
+            (n isa Const ? zero(n.val) : ∂n_j * n.dval) +
+            (m isa Const ? zero(m.val) : ∂m_j * m.dval)
+        batch_tangent(i) =
+            (n isa Const ? zero(n.val) : ∂n_j * n.dval[i]) +
+            (m isa Const ? zero(m.val) : ∂m_j * m.dval[i])
+
+        if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
+            if EnzymeRules.width(config) == 1
+                return Duplicated(j, tangent())
+            else
+                return BatchDuplicated(
+                    j,
+                    ntuple(i -> batch_tangent(i), Val(EnzymeRules.width(config))),
+                )
+            end
+        elseif EnzymeRules.needs_shadow(config)
+            if EnzymeRules.width(config) == 1
+                return tangent()
+            else
+                return ntuple(i -> batch_tangent(i), Val(EnzymeRules.width(config)))
+            end
+        elseif EnzymeRules.needs_primal(config)
+            return j
+        else
+            return nothing
+        end
+    end
+
+    @eval function augmented_primal(
+        config::RevConfigWidth,
+        func::Const{typeof(($alg).J)},
+        ::Type,
+        n::Annotation{<:Real},
+        m::Annotation{<:Real},
+    )
+        j, ∂n_j, ∂m_j = _complete_j_derivatives(
+            ($alg).E,
+            ($alg).K,
+            ($alg).Pi,
+            func.val,
+            n.val,
+            m.val,
+        )
+        primal = EnzymeRules.needs_primal(config) ? j : nothing
+        return EnzymeRules.AugmentedReturn(primal, nothing, (∂n_j, ∂m_j))
+    end
+
+    @eval function reverse(
+        config::RevConfigWidth,
+        func::Const{typeof(($alg).J)},
+        dret,
+        tape,
+        n::Annotation{T},
+        m::Annotation{T},
+    ) where {T}
+        ∂n_j, ∂m_j = tape
+        gradient(argument, derivative) = if argument isa Const
+            nothing
+        elseif EnzymeRules.width(config) == 1
+            dret isa Type{<:Const} ? zero(argument.val) : derivative * dret.val
+        elseif dret isa Type{<:Const}
+            ntuple(i -> zero(argument.val), Val(EnzymeRules.width(config)))
+        else
+            ntuple(i -> derivative * dret.val[i], Val(EnzymeRules.width(config)))
+        end
+        return (gradient(n, ∂n_j), gradient(m, ∂m_j))
+    end
+
+    #----------------------------------------------------------------------------------------
+    # Associate incomplete elliptic integral J(n, φ, m)
+    #----------------------------------------------------------------------------------------
+
+    @eval function forward(
+        config::EnzymeRules.FwdConfig,
+        func::Const{typeof(($alg).J)},
+        RT,
+        n::Annotation{<:Real},
+        φ::Annotation{<:Real},
+        m::Annotation{<:Real},
+    )
+        j, ∂n_j, ∂φ_j, ∂m_j = _incomplete_j_derivatives(
+            ($alg).E,
+            ($alg).F,
+            ($alg).Pi,
+            func.val,
+            n.val,
+            φ.val,
+            m.val,
+        )
+        tangent() =
+            (n isa Const ? zero(n.val) : ∂n_j * n.dval) +
+            (φ isa Const ? zero(φ.val) : ∂φ_j * φ.dval) +
+            (m isa Const ? zero(m.val) : ∂m_j * m.dval)
+        batch_tangent(i) =
+            (n isa Const ? zero(n.val) : ∂n_j * n.dval[i]) +
+            (φ isa Const ? zero(φ.val) : ∂φ_j * φ.dval[i]) +
+            (m isa Const ? zero(m.val) : ∂m_j * m.dval[i])
+
+        if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
+            if EnzymeRules.width(config) == 1
+                return Duplicated(j, tangent())
+            else
+                return BatchDuplicated(
+                    j,
+                    ntuple(i -> batch_tangent(i), Val(EnzymeRules.width(config))),
+                )
+            end
+        elseif EnzymeRules.needs_shadow(config)
+            if EnzymeRules.width(config) == 1
+                return tangent()
+            else
+                return ntuple(i -> batch_tangent(i), Val(EnzymeRules.width(config)))
+            end
+        elseif EnzymeRules.needs_primal(config)
+            return j
+        else
+            return nothing
+        end
+    end
+
+    @eval function augmented_primal(
+        config::RevConfigWidth,
+        func::Const{typeof(($alg).J)},
+        ::Type,
+        n::Annotation{<:Real},
+        φ::Annotation{<:Real},
+        m::Annotation{<:Real},
+    )
+        j, ∂n_j, ∂φ_j, ∂m_j = _incomplete_j_derivatives(
+            ($alg).E,
+            ($alg).F,
+            ($alg).Pi,
+            func.val,
+            n.val,
+            φ.val,
+            m.val,
+        )
+        primal = EnzymeRules.needs_primal(config) ? j : nothing
+        return EnzymeRules.AugmentedReturn(primal, nothing, (∂n_j, ∂φ_j, ∂m_j))
+    end
+
+    @eval function reverse(
+        config::RevConfigWidth,
+        func::Const{typeof(($alg).J)},
+        dret,
+        tape,
+        n::Annotation{T},
+        φ::Annotation{T},
+        m::Annotation{T},
+    ) where {T}
+        ∂n_j, ∂φ_j, ∂m_j = tape
+        gradient(argument, derivative) = if argument isa Const
+            nothing
+        elseif EnzymeRules.width(config) == 1
+            dret isa Type{<:Const} ? zero(argument.val) : derivative * dret.val
+        elseif dret isa Type{<:Const}
+            ntuple(i -> zero(argument.val), Val(EnzymeRules.width(config)))
+        else
+            ntuple(i -> derivative * dret.val[i], Val(EnzymeRules.width(config)))
+        end
+        return (gradient(n, ∂n_j), gradient(φ, ∂φ_j), gradient(m, ∂m_j))
+    end
+
+    #----------------------------------------------------------------------------------------
     # Jacobi CN(ϕ, m)
     #----------------------------------------------------------------------------------------
 
@@ -768,9 +952,10 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         d = ($alg).dn(ϕ.val, m.val)
         c = ($alg).cn(ϕ.val, m.val)
         e = ($alg).E(a, m.val)
+        cd = c/d
         ∂cn_∂m(ϕ, m) = begin
 
-            inv(2m * (1 - m)) * d * s * ((m - 1) * ϕ - m * (c / d) * s + e)
+            _cn_parameter_derivative(e, cd, ϕ, m, s, c, d)
 
         end
 
@@ -839,11 +1024,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         m::Annotation{T},
     ) where {T}
         s, d, c, e = tape
-        ∂cn_∂m =
-            inv(2 * m.val * (1 - m.val)) *
-            d *
-            s *
-            ((m.val - 1) * ϕ.val - m.val * (c / d) * s + e)
+        ∂cn_∂m = _cn_parameter_derivative(e, c/d, ϕ.val, m.val, s, c, d)
         ∂cn_∂ϕ = -d * s
 
         dϕ = if ϕ isa Const
@@ -901,7 +1082,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         e = ($alg).E(a, m.val)
 
         ∂sn_∂m(ϕ, m) = begin
-            inv(2m * (1 - m)) * d * c * ((1 - m) * ϕ + m * (c / d) * s - e)
+            _sn_parameter_derivative(e, c/d, ϕ, m, s, c, d)
         end
 
         ∂sn_∂ϕ = d * c

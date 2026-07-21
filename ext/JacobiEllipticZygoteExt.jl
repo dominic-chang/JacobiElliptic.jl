@@ -2,6 +2,7 @@ module JacobiEllipticZygoteExt
 
 using JacobiElliptic
 using Zygote: @adjoint
+include("common.jl")
 
 
 @adjoint JacobiElliptic.CarlsonAlg._sqrt(a) = JacobiElliptic.CarlsonAlg._sqrt(a),
@@ -92,6 +93,39 @@ for alg in (JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg)
         end
 
         #------------------------------------------------------------------------------------
+        # Associate complete elliptic integral J(n, m)
+        #------------------------------------------------------------------------------------
+
+        @adjoint function ($alg).J(n, m)
+            j, ∂n_j, ∂m_j = _complete_j_derivatives(
+                ($alg).E,
+                ($alg).K,
+                ($alg).Pi,
+                ($alg).J,
+                n,
+                m,
+            )
+            return j, c̄ -> (c̄ * ∂n_j, c̄ * ∂m_j)
+        end
+
+        #------------------------------------------------------------------------------------
+        # Associate incomplete elliptic integral J(n, φ, m)
+        #------------------------------------------------------------------------------------
+
+        @adjoint function ($alg).J(n, φ, m)
+            j, ∂n_j, ∂φ_j, ∂m_j = _incomplete_j_derivatives(
+                ($alg).E,
+                ($alg).F,
+                ($alg).Pi,
+                ($alg).J,
+                n,
+                φ,
+                m,
+            )
+            return j, c̄ -> (c̄ * ∂n_j, c̄ * ∂φ_j, c̄ * ∂m_j)
+        end
+
+        #------------------------------------------------------------------------------------
         # Elliptic CN(a, b)
         #------------------------------------------------------------------------------------
 
@@ -101,14 +135,11 @@ for alg in (JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg)
             sn = ($alg).sn(a, b)
             am = ($alg).am(a, b)
             E_am = ($alg).E(am, b)
+            cd = cn/dn
             return cn,
             c̄ -> (
                 c̄ * (-dn * sn),
-                c̄ *
-                inv(2 * (1 - b) * b) *
-                dn *
-                sn *
-                ((b - 1) * a + E_am - b * (cn / dn) * sn),
+                c̄ * _cn_parameter_derivative(E_am, cd, a, b, sn, cn, dn)
             )
         end
 
@@ -122,14 +153,12 @@ for alg in (JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg)
             cn = ($alg).cn(a, b)
             am = ($alg).am(a, b)
             E_am = ($alg).E(am, b)
+            cd = cn/dn
             return sn,
             c̄ -> (
                 c̄ * (dn * cn),
                 c̄ *
-                inv(2 * (1 - b) * b) *
-                dn *
-                cn *
-                ((1 - b) * a - E_am + b * (cn / dn) * sn),
+                _sn_parameter_derivative(E_am, cd, a, b, sn, cn, dn)
             )
         end
     end

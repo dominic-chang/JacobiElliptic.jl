@@ -340,6 +340,122 @@ end
 
             end
 
+            @testset "Elliptic J" begin
+                complete_args = [n, m]
+                complete_grad = ForwardDiff.gradient(
+                    x -> (alg.Pi(x[1], x[2]) - alg.K(x[2])) / x[1],
+                    complete_args,
+                )
+                @test ForwardDiff.derivative(n -> alg.J(n, m), n) ≈ complete_grad[1]
+                @test ForwardDiff.derivative(m -> alg.J(n, m), m) ≈ complete_grad[2]
+                @test ForwardDiff.gradient(x -> alg.J(x[1], x[2]), complete_args) ≈
+                      complete_grad
+                @test ForwardDiff.derivative(x -> alg.J(n + x, m + x), 0.0) ≈
+                      sum(complete_grad)
+                @test collect(Zygote.gradient(alg.J, n, m)) ≈ complete_grad
+                @test collect(
+                    Enzyme.autodiff(Reverse, alg.J, Active, Active(n), Active(m))[1],
+                ) ≈ complete_grad atol = enzyme_atol
+                @test Enzyme.autodiff(
+                    Forward,
+                    alg.J,
+                    Duplicated,
+                    Duplicated(n, 1.0),
+                    Duplicated(m, 1.0),
+                )[1][1] ≈ sum(complete_grad) atol = enzyme_atol
+                for Tret in (Const, Duplicated, DuplicatedNoNeed),
+                    Tn in (Const, Duplicated),
+                    Tm in (Const, Duplicated)
+
+                    test_forward(alg.J, Tret, (n, Tn), (m, Tm); atol = enzyme_atol)
+                end
+                for Tret in (Const, Active), Tn in (Const, Active), Tm in (Const, Active)
+                    test_reverse(alg.J, Tret, (n, Tn), (m, Tm); atol = enzyme_atol)
+                end
+
+                incomplete_args = [n, ϕ, m]
+                incomplete_grad = ForwardDiff.gradient(
+                    x -> (alg.Pi(x[1], x[2], x[3]) - alg.F(x[2], x[3])) / x[1],
+                    incomplete_args,
+                )
+                @test ForwardDiff.derivative(n -> alg.J(n, ϕ, m), n) ≈ incomplete_grad[1]
+                @test ForwardDiff.derivative(ϕ -> alg.J(n, ϕ, m), ϕ) ≈ incomplete_grad[2]
+                @test ForwardDiff.derivative(m -> alg.J(n, ϕ, m), m) ≈ incomplete_grad[3]
+                @test ForwardDiff.gradient(x -> alg.J(x[1], x[2], x[3]), incomplete_args) ≈
+                      incomplete_grad
+                @test ForwardDiff.derivative(x -> alg.J(n + x, ϕ + x, m), 0.0) ≈
+                      sum(incomplete_grad[1:2])
+                @test ForwardDiff.derivative(x -> alg.J(n + x, ϕ, m + x), 0.0) ≈
+                      incomplete_grad[1] + incomplete_grad[3]
+                @test ForwardDiff.derivative(x -> alg.J(n, ϕ + x, m + x), 0.0) ≈
+                      sum(incomplete_grad[2:3])
+                @test ForwardDiff.derivative(x -> alg.J(n + x, ϕ + x, m + x), 0.0) ≈
+                      sum(incomplete_grad)
+                @test collect(Zygote.gradient(alg.J, n, ϕ, m)) ≈ incomplete_grad
+                @test collect(
+                    Enzyme.autodiff(
+                        Reverse,
+                        alg.J,
+                        Active,
+                        Active(n),
+                        Active(ϕ),
+                        Active(m),
+                    )[1],
+                ) ≈ incomplete_grad atol = enzyme_atol
+                @test Enzyme.autodiff(
+                    Forward,
+                    alg.J,
+                    Duplicated,
+                    Duplicated(n, 1.0),
+                    Duplicated(ϕ, 1.0),
+                    Duplicated(m, 1.0),
+                )[1][1] ≈ sum(incomplete_grad) atol = enzyme_atol
+                for Tret in (Const, Duplicated, DuplicatedNoNeed),
+                    Tn in (Const, Duplicated),
+                    Tϕ in (Const, Duplicated),
+                    Tm in (Const, Duplicated)
+
+                    test_forward(
+                        alg.J,
+                        Tret,
+                        (n, Tn),
+                        (ϕ, Tϕ),
+                        (m, Tm);
+                        atol = enzyme_atol,
+                    )
+                end
+                for Tret in (Const, Active),
+                    Tn in (Const, Active),
+                    Tϕ in (Const, Active),
+                    Tm in (Const, Active)
+
+                    test_reverse(
+                        alg.J,
+                        Tret,
+                        (n, Tn),
+                        (ϕ, Tϕ),
+                        (m, Tm);
+                        atol = enzyme_atol,
+                    )
+                end
+
+                zero_n_complete_grad = [
+                    ((2 + m) * alg.K(m) - 2 * (1 + m) * alg.E(m)) / (3m^2),
+                    ForwardDiff.derivative(m -> (alg.K(m) - alg.E(m)) / m, m),
+                ]
+                @test ForwardDiff.gradient(x -> alg.J(x[1], x[2]), [0.0, m]) ≈
+                      zero_n_complete_grad
+                @test collect(Zygote.gradient(alg.J, 0.0, m)) ≈ zero_n_complete_grad
+
+                s, c = sincos(ϕ)
+                zero_args = [0.0, ϕ, 0.0]
+                zero_n_grad = 3ϕ / 8 - sin(2ϕ) / 4 + sin(4ϕ) / 32
+                zero_grad = [zero_n_grad, s^2, zero_n_grad / 2]
+                @test ForwardDiff.gradient(x -> alg.J(x[1], x[2], x[3]), zero_args) ≈
+                      zero_grad
+                @test collect(Zygote.gradient(alg.J, zero_args...)) ≈ zero_grad
+            end
+
             @testset "CN" begin
                 _cn = alg.cn
 
@@ -510,6 +626,7 @@ end
         @test ForwardDiff.derivative(x -> alg.cn(x, x), m) ≈ -0.4346690704960831 atol = 1e-5
 
         @testset "Jacobi endpoint derivatives" begin
+            enzyme_atol = alg === JacobiElliptic.CarlsonAlg ? 1e-9 : 1e-5
             u = π / 3
 
             s, c = sincos(u)
@@ -522,6 +639,8 @@ end
                 @test ForwardDiff.derivative(m -> f(u, m), 0.0) ≈ expected[2]
                 @test ForwardDiff.gradient(x -> f(x[1], x[2]), [u, 0.0]) ≈ expected
                 @test ForwardDiff.derivative(x -> f(u + x, x), 0.0) ≈ sum(expected)
+                @test Zygote.gradient(x -> f(x, 0.0), u)[1] ≈ expected[1]
+                @test Zygote.gradient(m -> f(u, m), 0.0)[1] ≈ expected[2]
             end
 
             s = tanh(u)
@@ -536,6 +655,13 @@ end
                 @test ForwardDiff.derivative(m -> f(u, m), 1.0) ≈ expected[2]
                 @test ForwardDiff.gradient(x -> f(x[1], x[2]), [u, 1.0]) ≈ expected
                 @test ForwardDiff.derivative(x -> f(u + x, 1 + x), 0.0) ≈ sum(expected)
+                for Tret in (Const, Duplicated, DuplicatedNoNeed), Tm in (Const, Duplicated)
+                    test_forward(x -> f(x, 1.0), Tret, (u, Tm); atol = enzyme_atol)
+                    test_forward(m -> f(u, m), Tret, (1.0, Tm); atol = enzyme_atol)
+                end
+                for Tret in (Const, Active), Tu in (Const, Active), Tm in (Const, Active)
+                    test_reverse(f, Tret, (u, Tu), (m, Tm); atol = enzyme_atol)
+                end
             end
         end
     end
