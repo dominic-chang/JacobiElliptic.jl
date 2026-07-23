@@ -762,14 +762,8 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         n::Annotation{<:Real},
         m::Annotation{<:Real},
     )
-        j, ∂n_j, ∂m_j = _complete_j_derivatives(
-            ($alg).E,
-            ($alg).K,
-            ($alg).Pi,
-            func.val,
-            n.val,
-            m.val,
-        )
+        j, ∂n_j, ∂m_j =
+            _complete_j_derivatives(($alg).E, ($alg).K, ($alg).Pi, func.val, n.val, m.val)
         tangent() =
             (n isa Const ? zero(n.val) : ∂n_j * n.dval) +
             (m isa Const ? zero(m.val) : ∂m_j * m.dval)
@@ -806,14 +800,8 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         n::Annotation{<:Real},
         m::Annotation{<:Real},
     )
-        j, ∂n_j, ∂m_j = _complete_j_derivatives(
-            ($alg).E,
-            ($alg).K,
-            ($alg).Pi,
-            func.val,
-            n.val,
-            m.val,
-        )
+        j, ∂n_j, ∂m_j =
+            _complete_j_derivatives(($alg).E, ($alg).K, ($alg).Pi, func.val, n.val, m.val)
         primal = EnzymeRules.needs_primal(config) ? j : nothing
         return EnzymeRules.AugmentedReturn(primal, nothing, (∂n_j, ∂m_j))
     end
@@ -827,15 +815,16 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         m::Annotation{T},
     ) where {T}
         ∂n_j, ∂m_j = tape
-        gradient(argument, derivative) = if argument isa Const
-            nothing
-        elseif EnzymeRules.width(config) == 1
-            dret isa Type{<:Const} ? zero(argument.val) : derivative * dret.val
-        elseif dret isa Type{<:Const}
-            ntuple(i -> zero(argument.val), Val(EnzymeRules.width(config)))
-        else
-            ntuple(i -> derivative * dret.val[i], Val(EnzymeRules.width(config)))
-        end
+        gradient(argument, derivative) =
+            if argument isa Const
+                nothing
+            elseif EnzymeRules.width(config) == 1
+                dret isa Type{<:Const} ? zero(argument.val) : derivative * dret.val
+            elseif dret isa Type{<:Const}
+                ntuple(i -> zero(argument.val), Val(EnzymeRules.width(config)))
+            else
+                ntuple(i -> derivative * dret.val[i], Val(EnzymeRules.width(config)))
+            end
         return (gradient(n, ∂n_j), gradient(m, ∂m_j))
     end
 
@@ -922,15 +911,16 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         m::Annotation{T},
     ) where {T}
         ∂n_j, ∂φ_j, ∂m_j = tape
-        gradient(argument, derivative) = if argument isa Const
-            nothing
-        elseif EnzymeRules.width(config) == 1
-            dret isa Type{<:Const} ? zero(argument.val) : derivative * dret.val
-        elseif dret isa Type{<:Const}
-            ntuple(i -> zero(argument.val), Val(EnzymeRules.width(config)))
-        else
-            ntuple(i -> derivative * dret.val[i], Val(EnzymeRules.width(config)))
-        end
+        gradient(argument, derivative) =
+            if argument isa Const
+                nothing
+            elseif EnzymeRules.width(config) == 1
+                dret isa Type{<:Const} ? zero(argument.val) : derivative * dret.val
+            elseif dret isa Type{<:Const}
+                ntuple(i -> zero(argument.val), Val(EnzymeRules.width(config)))
+            else
+                ntuple(i -> derivative * dret.val[i], Val(EnzymeRules.width(config)))
+            end
         return (gradient(n, ∂n_j), gradient(φ, ∂φ_j), gradient(m, ∂m_j))
     end
 

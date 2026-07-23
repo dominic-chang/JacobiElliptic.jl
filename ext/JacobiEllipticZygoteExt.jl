@@ -97,14 +97,8 @@ for alg in (JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg)
         #------------------------------------------------------------------------------------
 
         @adjoint function ($alg).J(n, m)
-            j, ∂n_j, ∂m_j = _complete_j_derivatives(
-                ($alg).E,
-                ($alg).K,
-                ($alg).Pi,
-                ($alg).J,
-                n,
-                m,
-            )
+            j, ∂n_j, ∂m_j =
+                _complete_j_derivatives(($alg).E, ($alg).K, ($alg).Pi, ($alg).J, n, m)
             return j, c̄ -> (c̄ * ∂n_j, c̄ * ∂m_j)
         end
 
@@ -113,15 +107,8 @@ for alg in (JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg)
         #------------------------------------------------------------------------------------
 
         @adjoint function ($alg).J(n, φ, m)
-            j, ∂n_j, ∂φ_j, ∂m_j = _incomplete_j_derivatives(
-                ($alg).E,
-                ($alg).F,
-                ($alg).Pi,
-                ($alg).J,
-                n,
-                φ,
-                m,
-            )
+            j, ∂n_j, ∂φ_j, ∂m_j =
+                _incomplete_j_derivatives(($alg).E, ($alg).F, ($alg).Pi, ($alg).J, n, φ, m)
             return j, c̄ -> (c̄ * ∂n_j, c̄ * ∂φ_j, c̄ * ∂m_j)
         end
 
@@ -137,10 +124,7 @@ for alg in (JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg)
             E_am = ($alg).E(am, b)
             cd = cn/dn
             return cn,
-            c̄ -> (
-                c̄ * (-dn * sn),
-                c̄ * _cn_parameter_derivative(E_am, cd, a, b, sn, cn, dn)
-            )
+            c̄ -> (c̄ * (-dn * sn), c̄ * _cn_parameter_derivative(E_am, cd, a, b, sn, cn, dn))
         end
 
         #------------------------------------------------------------------------------------
@@ -155,11 +139,7 @@ for alg in (JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg)
             E_am = ($alg).E(am, b)
             cd = cn/dn
             return sn,
-            c̄ -> (
-                c̄ * (dn * cn),
-                c̄ *
-                _sn_parameter_derivative(E_am, cd, a, b, sn, cn, dn)
-            )
+            c̄ -> (c̄ * (dn * cn), c̄ * _sn_parameter_derivative(E_am, cd, a, b, sn, cn, dn))
         end
     end
 end
