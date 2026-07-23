@@ -67,24 +67,24 @@ function ellipke(m::T) where {T}
     end
 end
 """
-``K(m) = \\int_0^{\\pi/2}\\frac{d\\theta}{\\sqrt{1-k^2\\sin(\\theta)^2}}.``
+``K(m) = \\int_0^{\\pi/2}\\frac{d\\theta}{\\sqrt{1-m\\sin(\\theta)^2}}.``
 
 Returns the complete elliptic integral of the first kind.
     
 # Arguments
 
-- `m` : Elliptic modulus
+- `m` : Elliptic parameter 
 """
 K(m) = ellipke(m)[1]
 
 """
-``E(m) = \\int_0^{\\pi/2}\\sqrt{1-k^2\\sin(\\theta)^2}d\\theta.``
+``E(m) = \\int_0^{\\pi/2}\\sqrt{1-m\\sin(\\theta)^2}d\\theta.``
 
 Returns the complete elliptic integral of the second kind.
 
 # Arguments
 
-- `m` : Elliptic modulus
+- `m` : Elliptic parameter 
 """
 E(m) = ellipke(m)[2]
 end

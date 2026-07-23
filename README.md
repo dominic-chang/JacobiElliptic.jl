@@ -1,9 +1,9 @@
 # JacobiElliptic
 JacobiElliptic is an implementation of and Arithmetic-goemetric mean, Toshio Fukushima's & Billie C. Carlson's algorithms for calculating [Elliptic Integrals and Jacobi Elliptic Functions](https://ieeexplore.ieee.org/document/7203795). 
-The default algorithms are set to the Carlson algorithms.
+An arithmetic geometric mean approach is the default algorithm used to calculate the complete elliptic integrals of the first and second kind.
+The default algorithms for the rest of the functions are set to the Carlson algorithms.
 
 ## Features
-  - Type stable and preserving
   - [Metal.jl](https://github.com/JuliaGPU/Metal.jl) and [CUDA.jl](https://github.com/JuliaGPU/CUDA.jl) compatible
   - Automatic Differentiable. Compatible with [Zygote.jl](https://fluxml.ai/Zygote.jl/stable/), [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) and [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl)
 ## Documentation

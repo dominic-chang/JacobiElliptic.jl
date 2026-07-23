@@ -1,7 +1,5 @@
 using Documenter, JacobiElliptic
 
-makedocs(sitename = "JacobiElliptic.jl")
-
 makedocs(;
     modules = [JacobiElliptic],
     authors = "Dominic <dochang@g.harvard.edu.com> and contributors",

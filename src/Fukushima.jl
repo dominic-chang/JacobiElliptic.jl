@@ -1906,7 +1906,7 @@ Returns the inverse Jacobi Elliptic sn.
 # Arguments
 
 - `u` : Amplitude
-- `m` : Elliptic modulus
+- `m` : Elliptic parameter
 """
 function asn(s::A, m::B) where {A,B}
     T = promote_type(A, B)
@@ -1936,7 +1936,7 @@ Returns the inverse Jacobi Elliptic cn.
 # Arguments
 
 - `u` : Amplitude
-- `m` : Elliptic modulus
+- `m` : Elliptic parameter
 """
 function acn(c::A, m::B) where {A,B}
     T = promote_type(A, B)
@@ -2337,7 +2337,7 @@ Returns the associate incomplete elliptic integral of the third kind.
 
 - `n` : Characteristic
 - `φ` : Amplitude
-- `m` : Elliptic modulus
+- `m` : Elliptic parameter
 """
 function J(n::A, φ::B, m::C) where {A,B,C} #Appendix A
     T = promote_type(A, B, C)
@@ -2455,7 +2455,7 @@ Returns the associate complete elliptic integral of the third kind.
 # Arguments
 
 - `n` : Characteristic
-- `m` : Elliptic modulus
+- `m` : Elliptic parameter
 """
 function J(n::A, m::B) where {A,B}
     T = promote_type(A, B)
@@ -3277,7 +3277,7 @@ Returns the Jacobi Elliptic sn.
 # Arguments
 
 - `u` : Amplitude
-- `m` : Elliptic modulus
+- `m` : Elliptic parameter
 """
 function sn(u, m)
     signu = sign(u)
@@ -3296,7 +3296,7 @@ Returns the Jacobi Elliptic cn.
 # Arguments
 
 - `u` : Amplitude
-- `m` : Elliptic modulus
+- `m` : Elliptic parameter
 """
 function cn(u, m)
     u = abs(u)
@@ -3314,7 +3314,7 @@ Returns the Jacobi Elliptic dn.
 # Arguments
 
 - `u` : Amplitude
-- `m` : Elliptic modulus
+- `m` : Elliptic parameter
 """
 function dn(u, m)
     u = abs(u)

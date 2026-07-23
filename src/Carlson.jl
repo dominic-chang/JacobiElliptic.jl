@@ -50,7 +50,7 @@ Returns the incomplete elliptic integral of the first kind.
 # Arguments
 
 - `φ` : Amplitude
-- `m` : Elliptic modulus
+- `m` : Elliptic parameter 
 """
 function F(φ::A, m::B) where {A,B}
     T = promote_type(A, B)
@@ -117,7 +117,7 @@ Returns the incomplete elliptic integral of the second kind.
 # Arguments
 
 - `φ` : Amplitude
-- `m` : Elliptic modulus
+- `m` : Elliptic parameter
 
 """
 function E(phi::A, m::B) where {A,B}
@@ -247,7 +247,7 @@ Returns the incomplete elliptic integral of the third kind.
 
 - `n` : Characteristic
 - `φ` : Amplitude
-- `m` : Elliptic modulus
+- `m` : Elliptic parameter
 """
 function Pi(n::A, φ::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
@@ -300,7 +300,7 @@ Returns the complete elliptic integral of the third kind.
 # Arguments
 
 - `n` : Characteristic
-- `m` : Elliptic modulus
+- `m` : Elliptic parameter
 """
 function Pi(n::A, m::B) where {A,B}
     T = promote_type(A, B)

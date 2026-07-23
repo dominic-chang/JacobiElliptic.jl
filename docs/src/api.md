@@ -25,5 +25,4 @@ JacobiElliptic.FukushimaAlg.asn
 JacobiElliptic.FukushimaAlg.acn
 JacobiElliptic.FukushimaAlg.am
 JacobiElliptic.CarlsonAlg.am
-JacobiElliptic.CarlsonAlg.ellipke
 ```
