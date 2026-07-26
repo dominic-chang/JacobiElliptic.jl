@@ -23,6 +23,12 @@ function _elliptic_pi(n::T, m::T) where {T<:Union{Float32,Float64}}
     return ArbNumerics.elliptic_pi(ArbNumerics.ArbFloat(n), ArbNumerics.ArbFloat(m))
 end
 
+# Ratio tolerance for the incomplete F/E/Pi tests: both backends are full double
+# precision (worst measured deviation vs ArbNumerics over these grids is ~4e-13,
+# at the |m|=100 edge), so hold Float64 near machine accuracy. Float32 keeps the
+# previous tolerances, limited by eps(Float32) accumulation (~2e-5 worst).
+ratio_atol(typ, f32 = 1e-4) = typ == Float64 ? 1e-11 : f32
+
 @testset "alg:$alg" for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     @testset "Elliptic K" begin
         @testset for typ in [Float32, Float64]
@@ -85,14 +91,14 @@ end
                     0.999,
                 ]
                     @test alg.F(typ(φ), typ(m)) / typ(_elliptic_f(typ(φ), typ(m))) ≈
-                          one(typ) atol = 1e-4
+                          one(typ) atol = ratio_atol(typ)
                 end
             end
             @testset "abs(φ) > π/2:" begin
                 @testset "φ = $(typ(φ))" for φ in range(-4π / 2, 4π / 2, length = 100)
                     @testset "m=$(typ(m))" for m in range(1e-3, 1 - 1e-3, length = 10)
                         @test alg.F(typ(φ), typ(m)) / typ(_elliptic_f(typ(φ), typ(m))) ≈
-                              one(typ) atol = 1e-4
+                              one(typ) atol = ratio_atol(typ)
                     end
                 end
             end
@@ -104,7 +110,7 @@ end
                         φ = i * (mmax * (1 - 1e-3))
                         if φ != zero(typ)
                             @test alg.F(typ(φ), typ(m)) / typ(_elliptic_f(typ(φ), typ(m))) ≈
-                                  one(typ) atol = 1e-4
+                                  one(typ) atol = ratio_atol(typ)
                         end
                     end
                 end
@@ -131,14 +137,14 @@ end
                     0.999,
                 ]
                     @test alg.E(typ(φ), typ(m)) / typ(_elliptic_e(typ(φ), typ(m))) ≈
-                          one(typ) atol = 1e-4
+                          one(typ) atol = ratio_atol(typ)
                 end
             end
             @testset "abs(φ) > π/2:" begin
                 @testset "φ = $(typ(φ))" for φ in range(-4π / 2, 4π / 2, length = 100)
                     @testset "m=$(typ(m))" for m in range(1e-3, 1 - 1e-3, length = 10)
                         @test alg.E(typ(φ), typ(m)) / typ(_elliptic_e(typ(φ), typ(m))) ≈
-                              one(typ) atol = 1e-4
+                              one(typ) atol = ratio_atol(typ)
                     end
                 end
             end
@@ -149,7 +155,7 @@ end
                         φ = i * (mmax * (0.999))
                         if φ != zero(typ)
                             @test alg.E(typ(φ), typ(m)) / typ(_elliptic_e(typ(φ), typ(m))) ≈
-                                  one(typ) atol = 1e-4
+                                  one(typ) atol = ratio_atol(typ)
                         end
                     end
                 end
@@ -174,14 +180,14 @@ end
                             )
                                 @test alg.Pi(typ(n), typ(φ), typ(m)) /
                                       typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol =
-                                    1e-4
+                                    ratio_atol(typ)
                             end
                         end
                         @testset "small m" begin
                             @testset "m :$m" for m in [3.874e-4, 4.25e-3, 6.83e-2]
                                 @test alg.Pi(typ(n), typ(φ), typ(m)) /
                                       typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol =
-                                    1e-4
+                                    ratio_atol(typ)
                             end
                         end
                         @testset "large m" begin
@@ -189,14 +195,14 @@ end
                                                  [1 - 3.874e-4, 1 - 4.25e-3, 1 - 6.83e-2]
                                 @test alg.Pi(typ(n), typ(φ), typ(m)) /
                                       typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol =
-                                    1e-4
+                                    ratio_atol(typ)
                             end
                         end
                         @testset "negative m" begin
                             @testset "m :$m" for m in [-3.874e-4, -4.25e-3, -6.83e-2]
                                 @test alg.Pi(typ(n), typ(φ), typ(m)) /
                                       typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol =
-                                    1e-4
+                                    ratio_atol(typ)
                             end
                         end
                     end
@@ -216,7 +222,7 @@ end
                             if φ != zero(typ)
                                 @test alg.Pi(typ(n), typ(φ), typ(m)) /
                                       typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ one(typ) atol =
-                                    1e-4
+                                    ratio_atol(typ)
                             end
                         end
                     end
@@ -236,7 +242,7 @@ end
                         )
                             @test alg.Pi(typ(n), typ(φ), typ(m)) /
                                   typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol =
-                                1e-5
+                                ratio_atol(typ, 1e-5)
                         end
                         @testset "large m" begin
                             @testset "m :$m)" for m in [
@@ -248,7 +254,7 @@ end
                             ]
                                 @test alg.Pi(typ(n), typ(φ), typ(m)) /
                                       typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol =
-                                    1e-5
+                                    ratio_atol(typ, 1e-5)
                             end
                         end
                     end
