@@ -183,7 +183,7 @@ end
                 end
 
                 # Special case m = 1:
-                ϕ_here = 0.5;
+                ϕ_here = 0.5
                 m_here = 1.0
                 @test ForwardDiff.derivative(x -> _F(ϕ_here + x, m_here), 0.0) ≈
                       1.139493927324549 atol = 1e-9 # Number retrieved from ForwardDiff and checked against finite diff
@@ -415,28 +415,14 @@ end
                     Tϕ in (Const, Duplicated),
                     Tm in (Const, Duplicated)
 
-                    test_forward(
-                        alg.J,
-                        Tret,
-                        (n, Tn),
-                        (ϕ, Tϕ),
-                        (m, Tm);
-                        atol = enzyme_atol,
-                    )
+                    test_forward(alg.J, Tret, (n, Tn), (ϕ, Tϕ), (m, Tm); atol = enzyme_atol)
                 end
                 for Tret in (Const, Active),
                     Tn in (Const, Active),
                     Tϕ in (Const, Active),
                     Tm in (Const, Active)
 
-                    test_reverse(
-                        alg.J,
-                        Tret,
-                        (n, Tn),
-                        (ϕ, Tϕ),
-                        (m, Tm);
-                        atol = enzyme_atol,
-                    )
+                    test_reverse(alg.J, Tret, (n, Tn), (ϕ, Tϕ), (m, Tm); atol = enzyme_atol)
                 end
 
                 zero_n_complete_grad = [
