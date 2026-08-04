@@ -15,7 +15,7 @@ include("slatec.jl")
 _zero(T) = zero(T)
 _one(T) = one(T)
 function _isequals(A, B)
-    return A == B;
+    return A == B
 end
 
 # assumes 0 ≤ m ≤ 1
