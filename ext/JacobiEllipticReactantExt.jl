@@ -39,7 +39,7 @@ end
 # Elliptic K(m)
 #----------------------------------------------------------------------------------------
 
-function _reactant_K(m::T) where {T}
+Reactant.@reactant_overlay function ArithmeticGeometricMeanAlg.K(m::T) where {T}
     oneT = one(T)
     zeroT = zero(T)
     nanT = T(NaN)
@@ -67,12 +67,10 @@ function _reactant_K(m::T) where {T}
     return ans
 end
 
-ArithmeticGeometricMeanAlg.K(m::Reactant.TracedRNumber) = _reactant_K(m)
-
 #----------------------------------------------------------------------------------------
 # Elliptic E(m)
 #----------------------------------------------------------------------------------------
-function _reactant_E(m::T) where {T}
+Reactant.@reactant_overlay function ArithmeticGeometricMeanAlg.E(m::T) where {T}
     oneT = one(T)
     zeroT = zero(T)
     nanT = T(NaN)
@@ -99,9 +97,9 @@ function _reactant_E(m::T) where {T}
     return ans
 end
 
-ArithmeticGeometricMeanAlg.E(m::Reactant.TracedRNumber) = _reactant_E(m)
-ArithmeticGeometricMeanAlg.ellipke(m::Reactant.TracedRNumber) =
-    (_reactant_K(m), _reactant_E(m))
+Reactant.@reactant_overlay function ArithmeticGeometricMeanAlg.ellipke(m::T) where {T}
+    return (ArithmeticGeometricMeanAlg.K(m), ArithmeticGeometricMeanAlg.E(m))
+end
 
 #----------------------------------------------------------------------------------------
 # Elliptic F(ϕ, m)
@@ -151,7 +149,7 @@ function _reactant_DRF_ifbody(X::A, Y::B, Z::C, ERRTOL::D) where {A,B,C,D}
     return S / sqrt(MU)
 end
 
-function _reactant_DRF(X::A, Y::B, Z::C) where {A,B,C}
+Reactant.@reactant_overlay function CarlsonAlg.DRF(X::A, Y::B, Z::C) where {A,B,C}
     T = promote_type(A, B, C)
     Tc = Reactant.unwrapped_eltype(T)
     X = T(X)
@@ -176,21 +174,6 @@ function _reactant_DRF(X::A, Y::B, Z::C) where {A,B,C}
     return (ans, err)
 end
 
-CarlsonAlg.DRF(X::Reactant.TracedRNumber, Y::Real, Z::Real) = _reactant_DRF(X, Y, Z)
-CarlsonAlg.DRF(X::Real, Y::Reactant.TracedRNumber, Z::Real) = _reactant_DRF(X, Y, Z)
-CarlsonAlg.DRF(X::Real, Y::Real, Z::Reactant.TracedRNumber) = _reactant_DRF(X, Y, Z)
-CarlsonAlg.DRF(X::Reactant.TracedRNumber, Y::Reactant.TracedRNumber, Z::Real) =
-    _reactant_DRF(X, Y, Z)
-CarlsonAlg.DRF(X::Reactant.TracedRNumber, Y::Real, Z::Reactant.TracedRNumber) =
-    _reactant_DRF(X, Y, Z)
-CarlsonAlg.DRF(X::Real, Y::Reactant.TracedRNumber, Z::Reactant.TracedRNumber) =
-    _reactant_DRF(X, Y, Z)
-CarlsonAlg.DRF(
-    X::Reactant.TracedRNumber,
-    Y::Reactant.TracedRNumber,
-    Z::Reactant.TracedRNumber,
-) = _reactant_DRF(X, Y, Z)
-
 function _reactant_rawF(sinphi::A, m::B) where {A,B}
     T = promote_type(A, B)
     sinphi = T(sinphi)
@@ -198,7 +181,7 @@ function _reactant_rawF(sinphi::A, m::B) where {A,B}
     oneT = one(T)
     infT = T(Inf)
     sinphi2 = sinphi * sinphi
-    drf, _ = _reactant_DRF(oneT - sinphi2, muladd(-m, sinphi2, oneT), oneT)
+    drf, _ = CarlsonAlg.DRF(oneT - sinphi2, muladd(-m, sinphi2, oneT), oneT)
     return Base.ifelse(
         (abs(sinphi) == oneT) & (m == oneT),
         sign(sinphi) * infT,
@@ -227,7 +210,7 @@ function _reactant_internal_F(phi::A, m::B) where {A,B}
     return ans
 end
 
-function _reactant_F(phi::A, m::B) where {A,B}
+Reactant.@reactant_overlay function CarlsonAlg.F(phi::A, m::B) where {A,B}
     T = promote_type(A, B)
     phi = T(phi)
     m = T(m)
@@ -252,10 +235,6 @@ function _reactant_F(phi::A, m::B) where {A,B}
 
     return ans
 end
-
-CarlsonAlg.F(φ::Reactant.TracedRNumber, m::Real) = _reactant_F(φ, m)
-CarlsonAlg.F(φ::Real, m::Reactant.TracedRNumber) = _reactant_F(φ, m)
-CarlsonAlg.F(φ::Reactant.TracedRNumber, m::Reactant.TracedRNumber) = _reactant_F(φ, m)
 
 function __reactant_am(u::A, m::B, tol::C) where {A,B,C}
 
@@ -313,7 +292,7 @@ end
 
 Returns amplitude, φ, such that u = F(φ | m)
 """
-function _reactant_am(u::A, m::B) where {A,B}
+Reactant.@reactant_overlay function CarlsonAlg.am(u::A, m::B) where {A,B}
     T = promote_type(A, B)
     ans = zero(T)
     piT = T(Base.π)
@@ -337,18 +316,13 @@ function _reactant_am(u::A, m::B) where {A,B}
     return ans
 end
 
-CarlsonAlg.am(u::Reactant.TracedRNumber, m::Real) = _reactant_am(u, m)
-CarlsonAlg.am(u::Real, m::Reactant.TracedRNumber) = _reactant_am(u, m)
-CarlsonAlg.am(u::Reactant.TracedRNumber, m::Reactant.TracedRNumber) = _reactant_am(u, m)
-
 for (f, a, b, c) in (
     (:sn, :(sin(phi)), :(sqrtmu1 * s), :(sqrt(mu) * sin(phi))),
     (:cn, :(cos(phi)), :(cos(phi)), :(sqrt(1 - mu * sin(phi)^2))),
     (:dn, :(sqrt(1 - m * sin(phi)^2)), :(one(T)), :(cos(phi))),
 )
-    reactant_f = Symbol(:_reactant_, f)
     @eval begin
-        function $reactant_f(u::A, m::B) where {A,B}
+        Reactant.@reactant_overlay function CarlsonAlg.$f(u::A, m::B) where {A,B}
             T = promote_type(A, B)
             ans = T(NaN)
 
@@ -372,11 +346,6 @@ for (f, a, b, c) in (
 
             return ans
         end
-
-        CarlsonAlg.$f(u::Reactant.TracedRNumber, m::Real) = $reactant_f(u, m)
-        CarlsonAlg.$f(u::Real, m::Reactant.TracedRNumber) = $reactant_f(u, m)
-        CarlsonAlg.$f(u::Reactant.TracedRNumber, m::Reactant.TracedRNumber) =
-            $reactant_f(u, m)
     end
 end
 
@@ -440,7 +409,7 @@ function _reactant_DRD_ifbody(X::A, Y::B, Z::C) where {A,B,C}
     return threeT * SIGMA + POWER4 * (oneT + S1 + S2) / (MU * sqrt(MU))
 end
 
-function _reactant_DRD(X::A, Y::B, Z::C) where {A,B,C}
+Reactant.@reactant_overlay function CarlsonAlg.DRD(X::A, Y::B, Z::C) where {A,B,C}
     T = promote_type(A, B, C)
     Tc = Reactant.unwrapped_eltype(T)
     X = T(X)
@@ -464,22 +433,6 @@ function _reactant_DRD(X::A, Y::B, Z::C) where {A,B,C}
     return (ans, err)
 end
 
-CarlsonAlg.DRD(X::Reactant.TracedRNumber, Y::Real, Z::Real) = _reactant_DRD(X, Y, Z)
-CarlsonAlg.DRD(X::Real, Y::Reactant.TracedRNumber, Z::Real) = _reactant_DRD(X, Y, Z)
-CarlsonAlg.DRD(X::Real, Y::Real, Z::Reactant.TracedRNumber) = _reactant_DRD(X, Y, Z)
-CarlsonAlg.DRD(X::Reactant.TracedRNumber, Y::Reactant.TracedRNumber, Z::Real) =
-    _reactant_DRD(X, Y, Z)
-CarlsonAlg.DRD(X::Reactant.TracedRNumber, Y::Real, Z::Reactant.TracedRNumber) =
-    _reactant_DRD(X, Y, Z)
-CarlsonAlg.DRD(X::Real, Y::Reactant.TracedRNumber, Z::Reactant.TracedRNumber) =
-    _reactant_DRD(X, Y, Z)
-CarlsonAlg.DRD(
-    X::Reactant.TracedRNumber,
-    Y::Reactant.TracedRNumber,
-    Z::Reactant.TracedRNumber,
-) = _reactant_DRD(X, Y, Z)
-
-
 function _reactant_rawE(sinphi::A, m::B) where {A,B}
     T = promote_type(A, B)
     sinphi = T(sinphi)
@@ -495,8 +448,8 @@ function _reactant_rawE(sinphi::A, m::B) where {A,B}
         sinalpha2 = sinalpha * sinalpha
         cosalpha2 = one(T) - sinalpha2
         yalpha = muladd(-minv, sinalpha2, one(T))
-        drf, ierr1 = _reactant_DRF(cosalpha2, yalpha, one(T))
-        drd, ierr2 = _reactant_DRD(cosalpha2, yalpha, one(T))
+        drf, ierr1 = CarlsonAlg.DRF(cosalpha2, yalpha, one(T))
+        drd, ierr2 = CarlsonAlg.DRD(cosalpha2, yalpha, one(T))
 
         ans = Base.ifelse(
             (ierr1 == 0) & (ierr2 == 0),
@@ -507,8 +460,8 @@ function _reactant_rawE(sinphi::A, m::B) where {A,B}
         sinphi2 = sinphi * sinphi
         cosphi2 = one(T) - sinphi2
         y = muladd(-m, sinphi2, one(T))
-        drf, ierr1 = _reactant_DRF(cosphi2, y, one(T))
-        drd, ierr2 = _reactant_DRD(cosphi2, y, one(T))
+        drf, ierr1 = CarlsonAlg.DRF(cosphi2, y, one(T))
+        drd, ierr2 = CarlsonAlg.DRD(cosphi2, y, one(T))
 
         ans = Base.ifelse(
             (ierr1 == 0) & (ierr2 == 0),
@@ -520,7 +473,7 @@ function _reactant_rawE(sinphi::A, m::B) where {A,B}
     return ans
 end
 
-function _reactant_internal_E(phi::A, m::B) where {A,B}
+Reactant.@reactant_overlay function CarlsonAlg.E(phi::A, m::B) where {A,B}
     T = promote_type(A, B)
     phi = T(phi)
     m = T(m)
@@ -540,44 +493,6 @@ function _reactant_internal_E(phi::A, m::B) where {A,B}
 
     return ans
 end
-
-function CarlsonAlg.E(φ::Reactant.TracedRNumber, m::Real)
-    return _reactant_internal_E(φ, m)
-end
-
-JacobiElliptic.E(φ::Reactant.TracedRNumber, m::Real) = _reactant_internal_E(φ, m)
-
-function CarlsonAlg.E(φ::Real, m::Reactant.TracedRNumber)
-    return _reactant_internal_E(φ, m)
-end
-
-JacobiElliptic.E(φ::Real, m::Reactant.TracedRNumber) = _reactant_internal_E(φ, m)
-
-function CarlsonAlg.E(φ::Reactant.TracedRNumber, m::Reactant.TracedRNumber)
-    return _reactant_internal_E(φ, m)
-end
-
-JacobiElliptic.E(φ::Reactant.TracedRNumber, m::Reactant.TracedRNumber) =
-    _reactant_internal_E(φ, m)
-
-function CarlsonAlg.E(phi::Reactant.AnyTracedRArray{Tp,N}, m::Real) where {Tp,N}
-    return _reactant_internal_E.(phi, m)
-end
-
-JacobiElliptic.E(phi::Reactant.AnyTracedRArray{Tp,N}, m::Real) where {Tp,N} =
-    _reactant_internal_E.(phi, m)
-
-function CarlsonAlg.E(
-    phi::Reactant.AnyTracedRArray{Tp,N},
-    m::Reactant.TracedRNumber,
-) where {Tp,N}
-    return _reactant_internal_E.(phi, m)
-end
-
-JacobiElliptic.E(
-    phi::Reactant.AnyTracedRArray{Tp,N},
-    m::Reactant.TracedRNumber,
-) where {Tp,N} = _reactant_internal_E.(phi, m)
 
 
 #----------------------------------------------------------------------------------------
@@ -849,7 +764,7 @@ function _reactant_rawPi(n::A, sinphi::B, m::C) where {A,B,C}
     cosphi2 = oneT - sinphi2
     y = muladd(-m, sinphi2, oneT)
     p = muladd(-n, sinphi2, oneT)
-    drf, ierr1 = _reactant_DRF(cosphi2, y, oneT)
+    drf, ierr1 = CarlsonAlg.DRF(cosphi2, y, oneT)
     drj, ierr2 = _reactant_DRJ(cosphi2, y, oneT, p)
 
     return Base.ifelse(
@@ -910,7 +825,7 @@ function _reactant_incomplete_Pi_nonneg(n::A, phi::B, m::C) where {A,B,C}
     return ans
 end
 
-function _reactant_incomplete_Pi(n::A, phi::B, m::C) where {A,B,C}
+Reactant.@reactant_overlay function CarlsonAlg.Pi(n::A, phi::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
     n = T(n)
     phi = T(phi)
@@ -937,41 +852,6 @@ function _reactant_incomplete_Pi(n::A, phi::B, m::C) where {A,B,C}
     return ans
 end
 
-CarlsonAlg.Pi(n::Reactant.TracedRNumber, phi::Real, m::Real) =
-    _reactant_incomplete_Pi(n, phi, m)
-JacobiElliptic.Pi(n::Reactant.TracedRNumber, phi::Real, m::Real) =
-    _reactant_incomplete_Pi(n, phi, m)
-CarlsonAlg.Pi(n::Real, phi::Reactant.TracedRNumber, m::Real) =
-    _reactant_incomplete_Pi(n, phi, m)
-JacobiElliptic.Pi(n::Real, phi::Reactant.TracedRNumber, m::Real) =
-    _reactant_incomplete_Pi(n, phi, m)
-CarlsonAlg.Pi(n::Real, phi::Real, m::Reactant.TracedRNumber) =
-    _reactant_incomplete_Pi(n, phi, m)
-JacobiElliptic.Pi(n::Real, phi::Real, m::Reactant.TracedRNumber) =
-    _reactant_incomplete_Pi(n, phi, m)
-CarlsonAlg.Pi(n::Reactant.TracedRNumber, phi::Reactant.TracedRNumber, m::Real) =
-    _reactant_incomplete_Pi(n, phi, m)
-JacobiElliptic.Pi(n::Reactant.TracedRNumber, phi::Reactant.TracedRNumber, m::Real) =
-    _reactant_incomplete_Pi(n, phi, m)
-CarlsonAlg.Pi(n::Reactant.TracedRNumber, phi::Real, m::Reactant.TracedRNumber) =
-    _reactant_incomplete_Pi(n, phi, m)
-JacobiElliptic.Pi(n::Reactant.TracedRNumber, phi::Real, m::Reactant.TracedRNumber) =
-    _reactant_incomplete_Pi(n, phi, m)
-CarlsonAlg.Pi(n::Real, phi::Reactant.TracedRNumber, m::Reactant.TracedRNumber) =
-    _reactant_incomplete_Pi(n, phi, m)
-JacobiElliptic.Pi(n::Real, phi::Reactant.TracedRNumber, m::Reactant.TracedRNumber) =
-    _reactant_incomplete_Pi(n, phi, m)
-CarlsonAlg.Pi(
-    n::Reactant.TracedRNumber,
-    phi::Reactant.TracedRNumber,
-    m::Reactant.TracedRNumber,
-) = _reactant_incomplete_Pi(n, phi, m)
-JacobiElliptic.Pi(
-    n::Reactant.TracedRNumber,
-    phi::Reactant.TracedRNumber,
-    m::Reactant.TracedRNumber,
-) = _reactant_incomplete_Pi(n, phi, m)
-
 #----------------------------------------------------------------------------------------
 # Complete Elliptic Pi(n, m)
 #----------------------------------------------------------------------------------------
@@ -996,7 +876,7 @@ function _reactant_complete_Pi_core(n::A, m::B) where {A,B}
     return ans
 end
 
-function _reactant_complete_Pi(n::A, m::B) where {A,B}
+Reactant.@reactant_overlay function CarlsonAlg.Pi(n::A, m::B) where {A,B}
     T = promote_type(A, B)
     n = T(n)
     m = T(m)
@@ -1015,11 +895,6 @@ function _reactant_complete_Pi(n::A, m::B) where {A,B}
     return ans
 end
 
-CarlsonAlg.Pi(n::Reactant.TracedRNumber, m::Real) = _reactant_complete_Pi(n, m)
-CarlsonAlg.Pi(n::Real, m::Reactant.TracedRNumber) = _reactant_complete_Pi(n, m)
-CarlsonAlg.Pi(n::Reactant.TracedRNumber, m::Reactant.TracedRNumber) =
-    _reactant_complete_Pi(n, m)
-
 
 
 
@@ -1035,20 +910,12 @@ for (p, num) in ((:s, :(sn(u, m))), (:c, :(cn(u, m))), (:d, :(dn(u, m))), (:n, 1
 
     if p == q
         @eval begin
-            CarlsonAlg.$f(::Reactant.TracedRNumber{T}, ::S) where {T,S<:Real} =
+            Reactant.@reactant_overlay CarlsonAlg.$f(u::T, m::S) where {T,S} =
                 one(promote_type(T, S))
-            CarlsonAlg.$f(::S, ::Reactant.TracedRNumber{T}) where {S<:Real,T} =
-                one(promote_type(S, T))
-            CarlsonAlg.$f(
-                ::Reactant.TracedRNumber{T1},
-                ::Reactant.TracedRNumber{T2},
-            ) where {T1,T2} = one(promote_type(T1, T2))
         end
     elseif q != :n
         @eval begin
-            CarlsonAlg.$f(u::Reactant.TracedRNumber, m::Real) = ($num) / ($den)
-            CarlsonAlg.$f(u::Real, m::Reactant.TracedRNumber) = ($num) / ($den)
-            CarlsonAlg.$f(u::Reactant.TracedRNumber, m::Reactant.TracedRNumber) =
+            Reactant.@reactant_overlay CarlsonAlg.$f(u::T, m::S) where {T,S} =
                 ($num) / ($den)
         end
     end
