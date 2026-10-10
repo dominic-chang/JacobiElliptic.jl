@@ -944,15 +944,24 @@ Reactant.@reactant_overlay function CarlsonAlg.Pi(n::A, phi::B, m::C) where {A,B
                 m * sinphi * cosphi / sqrt(muladd(-m, sinphi * sinphi, oneT))
             ) / (oneT - m)
     elseif m < zero(T)
+        # Pi(n; phi + k*pi | m) = Pi(n; phi | m) + 2k Pi(n | m).
+        piT = T(Base.π)
+        halfpi = T(Base.π / 2)
+        phi2 = phi + halfpi
+        wrapped = 2 * abs(phi) > piT
+        phi_r = Base.ifelse(wrapped, mod(phi2, piT) - halfpi, phi)
+        offset = Base.ifelse(wrapped, 2 * fld(phi2, piT) * CarlsonAlg.Pi(n, m), zero(T))
+
         mc = oneT - m
         imc = inv(mc)
         mN = -m * imc
-        sinphi = sin(phi)
+        sinphi = sin(phi_r)
         sinphi2 = sinphi * sinphi
         phiN = asin(sqrt(mc / muladd(-m, sinphi2, oneT)) * sinphi)
         nN = (n - m) * imc
 
         ans =
+            offset +
             sqrt(imc) / nN *
             (mN * F(phiN, mN) + imc * n * _reactant_incomplete_Pi_nonneg(nN, phiN, mN))
     else

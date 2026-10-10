@@ -259,6 +259,10 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
             return (E(φ, m) - m * sinφ * cosφ / _sqrt(muladd(-m, sinφ * sinφ, oneT))) /
                    (oneT - m)
         end
+        if 2abs(φ) > T(π)
+            phi2 = φ + T(π / 2)
+            return 2fld(phi2, T(π)) * Pi(n, m) + Pi(n, mod(phi2, T(π)) - T(π / 2), m)
+        end
         mc = oneT - m
         imc = inv(mc)
         mN = -m * imc
