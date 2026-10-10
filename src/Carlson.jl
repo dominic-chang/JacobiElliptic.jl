@@ -307,9 +307,10 @@ function Pi(n::A, m::B) where {A,B}
     oneT = one(T)
     zeroT = zero(T)
     m > oneT && return T(NaN) #Complex Branch
-    n > oneT && return K(m) - Pi(m / n, m)
+    n > oneT && return K(m) - Pi(m / n, m) #Cauchy principal value
+    n == oneT && return T(Inf) #1/(1 - n*sin(θ)^2) pole at θ = π/2
     n == zeroT && return K(m)
-    m == zeroT || m == oneT && return T(Inf) #atanh(_sqrt(-1 + n)*tan(θ))/_sqrt(-1 + n)
+    m == oneT && return T(Inf)
     kc = _sqrt(oneT - m)
     nc = oneT - n
     return cel(kc, nc, oneT, oneT)

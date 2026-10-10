@@ -877,9 +877,14 @@ function _reactant_complete_Pi_core(n::A, m::B) where {A,B}
     infT = T(Inf)
     ans = zeroT
 
-    Reactant.@trace if n == zeroT
+    Reactant.@trace if n == oneT
+        # 1/(1 - n*sin(θ)^2) pole at θ = π/2.
+        ans = infT
+    elseif n == zeroT
         ans = K(m)
-    elseif (m == zeroT) | (m == oneT)
+    elseif m == oneT
+        # Only m == 1 diverges. m == 0 falls through to `cel`, which gives the
+        # finite pi/(2*sqrt(1 - n)).
         ans = infT
     else
         ans = _reactant_cel(sqrt(oneT - m), oneT - n, oneT, oneT)
