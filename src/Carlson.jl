@@ -254,6 +254,11 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
     oneT = one(T)
 
     if m < zero(T) # Imaginary modulus transformation https://dlmf.nist.gov/19.7#iii
+        if n == m #the transformation below is 0/0 at n == m, so use the closed form
+            sinφ, cosφ = sincos(φ)
+            return (E(φ, m) - m * sinφ * cosφ / _sqrt(muladd(-m, sinφ * sinφ, oneT))) /
+                   (oneT - m)
+        end
         mc = oneT - m
         imc = inv(mc)
         mN = -m * imc

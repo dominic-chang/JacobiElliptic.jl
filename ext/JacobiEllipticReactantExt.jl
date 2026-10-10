@@ -934,7 +934,16 @@ Reactant.@reactant_overlay function CarlsonAlg.Pi(n::A, phi::B, m::C) where {A,B
     oneT = one(T)
     ans = zero(T)
 
-    Reactant.@trace if m < zero(T)
+    Reactant.@trace if (m < zero(T)) & (n == m)
+        # The imaginary modulus transformation below is 0/0 at n == m, so use the closed
+        # form Pi(m; phi | m) = (E(phi | m) - m*sin*cos/sqrt(1 - m*sin^2)) / (1 - m).
+        sinphi, cosphi = sincos(phi)
+        ans =
+            (
+                CarlsonAlg.E(phi, m) -
+                m * sinphi * cosphi / sqrt(muladd(-m, sinphi * sinphi, oneT))
+            ) / (oneT - m)
+    elseif m < zero(T)
         mc = oneT - m
         imc = inv(mc)
         mN = -m * imc
