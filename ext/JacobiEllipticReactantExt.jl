@@ -212,7 +212,9 @@ function _reactant_internal_F(phi::A, m::B) where {A,B}
         ans = nanT
     elseif abs(phi) > halfpi
         phi2 = phi + halfpi
-        ans = 2 * fld(phi2, piT) * K(m) - _reactant_rawF(cos(mod(phi2, piT)), m)
+        ans =
+            2 * fld(phi2, piT) * CarlsonAlg.K(m) -
+            _reactant_rawF(cos(mod(phi2, piT)), m)
     else
         ans = _reactant_rawF(sin(phi), m)
     end
@@ -238,7 +240,9 @@ Reactant.@reactant_overlay function CarlsonAlg.F(phi::A, m::B) where {A,B}
         m12 = inv(sqrt(one_plus_n))
         m1m = n / one_plus_n
         newphi = halfpi - phi
-        ans = m12 * K(m1m) - sign(newphi) * m12 * _reactant_internal_F(abs(newphi), m1m)
+        ans =
+            m12 * CarlsonAlg.K(m1m) -
+            sign(newphi) * m12 * _reactant_internal_F(abs(newphi), m1m)
     else
         ans = sign(phi) * _reactant_internal_F(abs(phi), m)
     end
@@ -445,6 +449,89 @@ Reactant.@reactant_overlay function CarlsonAlg.DRD(X::A, Y::B, Z::C) where {A,B,
     return (ans, err)
 end
 
+#----------------------------------------------------------------------------------------
+# Complete Carlson K(m), E(m)
+#----------------------------------------------------------------------------------------
+function _reactant_complete_reduce_m(m::T) where {T}
+# Maps m onto the [0, 1) for complete K and E
+    oneT = one(T)
+    zeroT = zero(T)
+    reduced = Base.ifelse(
+        m < zeroT,
+        let m_abs = -m
+            m_abs / (m_abs + oneT)
+        end,
+        Base.ifelse(m > oneT, inv(m), m),
+    )
+    return Base.ifelse(isnan(m) | (m == oneT), zeroT, reduced)
+end
+
+Reactant.@reactant_overlay function CarlsonAlg.K(m::T) where {T}
+    oneT = one(T)
+    zeroT = zero(T)
+    m_eval = _reactant_complete_reduce_m(m)
+    drf, _ = CarlsonAlg.DRF(zeroT, oneT - m_eval, oneT)
+
+    return Base.ifelse(
+        isnan(m),
+        T(NaN),
+        Base.ifelse(
+            m == oneT,
+            T(Inf),
+            Base.ifelse(
+                m < zeroT,
+                drf / sqrt(oneT + abs(m)),
+                Base.ifelse(m > oneT, drf / sqrt(m), drf),
+            ),
+        ),
+    )
+end
+
+Reactant.@reactant_overlay function CarlsonAlg.ellipke(m::T) where {T}
+    oneT = one(T)
+    zeroT = zero(T)
+    nanT = T(NaN)
+    inv3 = T(1 / 3)
+    m_eval = _reactant_complete_reduce_m(m)
+    y = oneT - m_eval
+    drf, _ = CarlsonAlg.DRF(zeroT, y, oneT)
+    drd, _ = CarlsonAlg.DRD(zeroT, y, oneT)
+    e_base = muladd(-m_eval * inv3, drd, drf)
+    sqrt_factor = sqrt(oneT + abs(m))
+
+    k = Base.ifelse(
+        isnan(m),
+        nanT,
+        Base.ifelse(
+            m == oneT,
+            T(Inf),
+            Base.ifelse(
+                m < zeroT,
+                drf / sqrt_factor,
+                Base.ifelse(m > oneT, drf / sqrt(m), drf),
+            ),
+        ),
+    )
+    e = Base.ifelse(
+        isnan(m),
+        nanT,
+        Base.ifelse(
+            m == oneT,
+            oneT,
+            Base.ifelse(
+                m < zeroT,
+                e_base * sqrt_factor,
+                Base.ifelse(
+                    m > oneT,
+                    sqrt(m) * muladd(-(oneT - inv(m)), drf, e_base),
+                    e_base,
+                ),
+            ),
+        ),
+    )
+    return (k, e)
+end
+
 function _reactant_rawE(sinphi::A, m::B) where {A,B}
     T = promote_type(A, B)
     sinphi = T(sinphi)
@@ -498,7 +585,9 @@ Reactant.@reactant_overlay function CarlsonAlg.E(phi::A, m::B) where {A,B}
         ans = nanT
     elseif 2 * abs(phi) > piT
         phi2 = phi + halfpi
-        ans = 2 * fld(phi2, piT) * E(m) - _reactant_rawE(cos(mod(phi2, piT)), m)
+        ans =
+            2 * fld(phi2, piT) * CarlsonAlg.E(m) -
+            _reactant_rawE(cos(mod(phi2, piT)), m)
     else
         ans = _reactant_rawE(sin(phi), m)
     end
@@ -881,7 +970,7 @@ function _reactant_complete_Pi_core(n::A, m::B) where {A,B}
         # 1/(1 - n*sin(θ)^2) pole at θ = π/2.
         ans = infT
     elseif n == zeroT
-        ans = K(m)
+        ans = CarlsonAlg.K(m)
     elseif m == oneT
         # Only m == 1 diverges. m == 0 falls through to `cel`, which gives the
         # finite pi/(2*sqrt(1 - n)).
@@ -904,7 +993,7 @@ Reactant.@reactant_overlay function CarlsonAlg.Pi(n::A, m::B) where {A,B}
     Reactant.@trace if m > oneT
         ans = nanT
     elseif n > oneT
-        ans = K(m) - _reactant_complete_Pi_core(m / n, m)
+        ans = CarlsonAlg.K(m) - _reactant_complete_Pi_core(m / n, m)
     else
         ans = _reactant_complete_Pi_core(n, m)
     end
