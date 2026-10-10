@@ -44,27 +44,37 @@ Reactant.@reactant_overlay function ArithmeticGeometricMeanAlg.K(m::T) where {T}
     zeroT = zero(T)
     nanT = T(NaN)
     infT = T(Inf)
-    ans = zeroT
 
-    Reactant.@trace if isnan(m)
-        ans = nanT
-    elseif m < zeroT
-        m_abs = -m
-        one_plus_m_abs = m_abs + oneT
-        m_transformed = m_abs / one_plus_m_abs
-        k, _ = _reactant_ellipke_base(m_transformed)
-        ans = k / sqrt(one_plus_m_abs)
-    elseif m > oneT
-        m_inv = inv(m)
-        k, _ = _reactant_ellipke_base(m_inv)
-        ans = inv(sqrt(m)) * k
-    elseif m == oneT
-        ans = infT
-    else
-        k, _ = _reactant_ellipke_base(m)
-        ans = k
-    end
-    return ans
+    m_for_eval = Base.ifelse(
+        isnan(m),
+        m,
+        Base.ifelse(
+            m < zeroT,
+            let
+                m_abs = -m
+                one_plus_m_abs = m_abs + oneT
+                m_abs / one_plus_m_abs
+            end,
+            Base.ifelse(m > oneT, inv(m), m),
+        ),
+    )
+
+    return Base.ifelse(
+        isnan(m),
+        nanT,
+        Base.ifelse(
+            m == oneT,
+            infT,
+            let
+                k, _ = _reactant_ellipke_base(m_for_eval)
+                Base.ifelse(
+                    m < zeroT,
+                    k / sqrt(oneT + abs(m)),
+                    Base.ifelse(m > oneT, inv(sqrt(m)) * k, k),
+                )
+            end,
+        ),
+    )
 end
 
 #----------------------------------------------------------------------------------------
@@ -270,7 +280,6 @@ function __reactant_am(u::A, m::B, tol::C) where {A,B,C}
         a, b, c, n = ((a + b) / 2, sqrt(a * b), (a - b) / 2, n + 1)
         Reactant.@allowscalar _ambuf[unsafe_trunc(Int, n)] = c / a
     end
-    ans = Base.ifelse(abs(c) > tol, T(NaN), ans)
 
     phi = a * u * (2^n)
     @trace track_numbers=true while (n > 0) & flag
@@ -279,7 +288,10 @@ function __reactant_am(u::A, m::B, tol::C) where {A,B,C}
         n -= 1
     end
 
-    return Base.ifelse(flag, phi, ans)
+    # The AGM is only used on the `flag` path, so its non-convergence check must
+    # not reach the closed forms above: the m1 < sqrt_tol branch sets m1 == 0 for
+    # m == 1, which the AGM can never converge for.
+    return Base.ifelse(flag, Base.ifelse(abs(c) > tol, T(NaN), phi), ans)
 end
 
 function __reactant_am(u::A, m::B) where {A,B}
