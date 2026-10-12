@@ -10,6 +10,15 @@ _reactant_agm_iters(::Type{Float32}) = 5
 
 # Number of Carlson iterations for DRF / DRD.
 # The Carlson algorithm for these converge linearly instead of logarithmically as in AGM
+# DRC / DRJ duplication passes. Scan over the (n, phi, m) domain Pi feeds them (30M
+# triples): DRJ tops out at 12 passes for Float64 and 9 for Float32, the DRC nested inside
+# its loop at 9 and 5. One spare each. DRJ x DRC unrolls to ~130 inner bodies, so the
+# callers below are collapsed to a single DRJ evaluation to keep that affordable.
+_reactant_drj_iters(::Type{<:Any}) = 13
+_reactant_drj_iters(::Type{Float32}) = 10
+_reactant_drc_iters(::Type{<:Any}) = 10
+_reactant_drc_iters(::Type{Float32}) = 6
+
 _reactant_cel_iters(::Type{<:Any}) = 9
 _reactant_cel_iters(::Type{Float32}) = 7
 
@@ -560,7 +569,6 @@ function _reactant_DRC_ifbody(X::A, Y::B) where {A,B}
     C2 = T(9 / 22)
     C3 = T(3 / 8)
     C4 = T(3 / 10)
-    ERRTOL = (eps(T) / 32)^T(1 / 6)
 
     XN = X
     YN = Y
@@ -571,7 +579,7 @@ function _reactant_DRC_ifbody(X::A, Y::B) where {A,B}
     invMU = inv(MU)
     SN = muladd(invMU, YN + MU, -twoT)
 
-    @trace while abs(SN) >= ERRTOL
+    for _ in 1:_reactant_drc_iters(Reactant.unwrapped_eltype(T))
         LAMDA = muladd(twoT * sqrt(XN), sqrt(YN), YN)
         XN = (XN + LAMDA) * inv4
         YN = (YN + LAMDA) * inv4
@@ -602,9 +610,7 @@ function _reactant_DRC(X::A, Y::B) where {A,B}
         Base.ifelse(max(X, Y) > UPLIM, 3, Base.ifelse(X + Y < LOLIM, 2, 0)),
     )
 
-    @trace if err == 0
-        ans = _reactant_DRC_ifbody(X, Y)
-    end
+    ans = Base.ifelse(err == 0, _reactant_DRC_ifbody(X, Y), zeroT)
 
     return (ans, err)
 end
@@ -615,7 +621,6 @@ function _reactant_DRJ_ifbody(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
     threeT = T(3)
     inv4 = T(1 / 4)
     inv5 = T(1 / 5)
-    ERRTOL = (eps((T)) / 6)^T(1 / 6)
     C1 = T(3 / 14)
     C2 = T(1 / 3)
     C3 = T(3 / 22)
@@ -643,7 +648,7 @@ function _reactant_DRJ_ifbody(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
     PNDEV = (MU - PN) * invMU
     EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV), abs(PNDEV))
 
-    @trace while EPSLON >= ERRTOL
+    for _ in 1:_reactant_drj_iters(Reactant.unwrapped_eltype(T))
         XNROOT = sqrt(XN)
         YNROOT = sqrt(YN)
         ZNROOT = sqrt(ZN)
@@ -709,9 +714,10 @@ function _reactant_DRJ(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
         ),
     )
 
-    @trace if err == 0
-        ans, err = _reactant_DRJ_ifbody(X, Y, Z, P)
-    end
+    ok = err == 0
+    bodyans, bodyerr = _reactant_DRJ_ifbody(X, Y, Z, P)
+    ans = Base.ifelse(ok, bodyans, zeroT)
+    err = Base.ifelse(ok, bodyerr, err)
 
     return (ans, err)
 end
@@ -836,16 +842,14 @@ function _reactant_incomplete_Pi_core(n::A, phi::B, m::C) where {A,B,C}
     nanT = T(NaN)
     ans = zero(T)
 
-    Reactant.@trace if isnan(n) | isnan(phi) | isnan(m)
-        ans = nanT
-    elseif 2 * abs(phi) > piT
-        phi2 = phi + halfpi
-        ans = 2 * fld(phi2, piT) * Pi(n, m) - _reactant_rawPi(n, cos(mod(phi2, piT)), m)
-    else
-        ans = _reactant_rawPi(n, sin(phi), m)
-    end
-
-    return ans
+    # One rawPi -- and therefore one DRJ -- serves both cases.
+    wrapped = 2 * abs(phi) > piT
+    phi2 = phi + halfpi
+    sinarg = Base.ifelse(wrapped, cos(mod(phi2, piT)), sin(phi))
+    raw = _reactant_rawPi(n, sinarg, m)
+    offset = 2 * fld(phi2, piT) * Pi(n, m)
+    ans = Base.ifelse(wrapped, offset - raw, raw)
+    return Base.ifelse(isnan(n) | isnan(phi) | isnan(m), nanT, ans)
 end
 
 function _reactant_incomplete_Pi_nonneg(n::A, phi::B, m::C) where {A,B,C}
@@ -856,21 +860,13 @@ function _reactant_incomplete_Pi_nonneg(n::A, phi::B, m::C) where {A,B,C}
     oneT = one(T)
     ans = zero(T)
 
-    Reactant.@trace if n > oneT
-        nc = oneT - n
-        sinphi, cosphi = sincos(phi)
-        sinphi2 = sinphi * sinphi
-        t1 = sinphi / (cosphi * sqrt(muladd(-m, sinphi2, oneT)))
-        h1 = nc * (n - m) / n
-        n1 = m / n
-        ans =
-            _reactant_FukushimaT(t1, h1) - _reactant_incomplete_Pi_core(n1, phi, m) +
-            F(phi, m)
-    else
-        ans = _reactant_incomplete_Pi_core(n, phi, m)
-    end
-
-    return ans
+    isbig = n > oneT
+    sinphi, cosphi = sincos(phi)
+    sinphi2 = sinphi * sinphi
+    t1 = sinphi / (cosphi * sqrt(muladd(-m, sinphi2, oneT)))
+    h1 = (oneT - n) * (n - m) / n
+    core = _reactant_incomplete_Pi_core(Base.ifelse(isbig, m / n, n), phi, m)
+    return Base.ifelse(isbig, _reactant_FukushimaT(t1, h1) - core + F(phi, m), core)
 end
 
 Reactant.@reactant_overlay function CarlsonAlg.Pi(n::A, phi::B, m::C) where {A,B,C}
@@ -879,43 +875,42 @@ Reactant.@reactant_overlay function CarlsonAlg.Pi(n::A, phi::B, m::C) where {A,B
     phi = T(phi)
     m = T(m)
     oneT = one(T)
-    ans = zero(T)
 
-    Reactant.@trace if (m < zero(T)) & (n == m)
-        # The imaginary modulus transformation below is 0/0 at n == m, so use the closed
-        # form Pi(m; phi | m) = (E(phi | m) - m*sin*cos/sqrt(1 - m*sin^2)) / (1 - m).
-        sinphi, cosphi = sincos(phi)
-        ans =
-            (
-                CarlsonAlg.E(phi, m) -
-                m * sinphi * cosphi / sqrt(muladd(-m, sinphi * sinphi, oneT))
-            ) / (oneT - m)
-    elseif m < zero(T)
-        # Pi(n; phi + k*pi | m) = Pi(n; phi | m) + 2k Pi(n | m).
-        piT = T(Base.π)
-        halfpi = T(Base.π / 2)
-        phi2 = phi + halfpi
-        wrapped = 2 * abs(phi) > piT
-        phi_r = Base.ifelse(wrapped, mod(phi2, piT) - halfpi, phi)
-        offset = Base.ifelse(wrapped, 2 * fld(phi2, piT) * CarlsonAlg.Pi(n, m), zero(T))
+    isneg = m < zero(T)
+    isnm = isneg & (n == m)
+    piT = T(Base.π)
+    halfpi = T(Base.π / 2)
 
-        mc = oneT - m
-        imc = inv(mc)
-        mN = -m * imc
-        sinphi = sin(phi_r)
-        sinphi2 = sinphi * sinphi
-        phiN = asin(sqrt(mc / muladd(-m, sinphi2, oneT)) * sinphi)
-        nN = (n - m) * imc
+    # n == m makes the imaginary modulus transformation 0/0, so use the closed form
+    # Pi(m; phi | m) = (E(phi | m) - m*sin*cos/sqrt(1 - m*sin^2)) / (1 - m).
+    sc, cc = sincos(phi)
+    closed =
+        (CarlsonAlg.E(phi, m) - m * sc * cc / sqrt(muladd(-m, sc * sc, oneT))) / (oneT - m)
 
-        ans =
-            offset +
-            sqrt(imc) / nN *
-            (mN * F(phiN, mN) + imc * n * _reactant_incomplete_Pi_nonneg(nN, phiN, mN))
-    else
-        ans = _reactant_incomplete_Pi_nonneg(n, phi, m)
-    end
+    # Pi(n; phi + k*pi | m) = Pi(n; phi | m) + 2k Pi(n | m); reduce before the transform,
+    # whose asin cannot represent |phi| > pi/2.
+    phi2 = phi + halfpi
+    wrapped = 2 * abs(phi) > piT
+    phi_r = Base.ifelse(wrapped, mod(phi2, piT) - halfpi, phi)
+    offset = Base.ifelse(wrapped, 2 * fld(phi2, piT) * CarlsonAlg.Pi(n, m), zero(T))
 
-    return ans
+    mc = oneT - m
+    imc = inv(mc)
+    mN = -m * imc
+    sinphi = sin(phi_r)
+    sinphi2 = sinphi * sinphi
+    phiN = asin(sqrt(mc / muladd(-m, sinphi2, oneT)) * sinphi)
+    nN = (n - m) * imc
+
+    nonneg = _reactant_incomplete_Pi_nonneg(
+        Base.ifelse(isneg, nN, n),
+        Base.ifelse(isneg, phiN, phi),
+        Base.ifelse(isneg, mN, m),
+    )
+    transformed =
+        offset + sqrt(imc) / nN * (mN * F(phiN, mN) + imc * n * nonneg)
+
+    return Base.ifelse(isnm, closed, Base.ifelse(isneg, transformed, nonneg))
 end
 
 #----------------------------------------------------------------------------------------
