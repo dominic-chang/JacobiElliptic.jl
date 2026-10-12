@@ -19,6 +19,10 @@ _reactant_drj_iters(::Type{Float32}) = 10
 _reactant_drc_iters(::Type{<:Any}) = 10
 _reactant_drc_iters(::Type{Float32}) = 6
 
+# Number of iterations needed for am. Also controls the buffer size
+_reactant_am_iters(::Type{<:Any}) = 9
+_reactant_am_iters(::Type{Float32}) = 7
+
 _reactant_cel_iters(::Type{<:Any}) = 9
 _reactant_cel_iters(::Type{Float32}) = 7
 
@@ -223,9 +227,6 @@ function __reactant_am(u::A, m::B, tol::C) where {A,B,C}
 
     T = promote_type(A, B, C)
 
-    # Use an immutable local buffer so GPU backends can keep this in registers.
-    _ambuf = zeros(T, 10)
-
     sqrt_tol = sqrt(tol)
     zeroT = zero(T)
     t = tanh(u)
@@ -245,25 +246,22 @@ function __reactant_am(u::A, m::B, tol::C) where {A,B,C}
         ),
     )
 
+    # size of buffer
+    NP = _reactant_am_iters(Reactant.unwrapped_eltype(T))
+    _ambuf = Vector{T}(undef, NP)
     a = one(T)
     b = sqrt(m1)
     c = sqrt(m)
-    n = zero(T)
-    @trace track_numbers=true while (n < 10)
-        a, b, c, n = ((a + b) / 2, sqrt(a * b), (a - b) / 2, n + 1)
-        Reactant.@allowscalar _ambuf[unsafe_trunc(Int, n)] = c / a
+    for i in 1:NP
+        a, b, c = ((a + b) / 2, sqrt(a * b), (a - b) / 2)
+        _ambuf[i] = c / a
     end
 
-    phi = a * u * (2^n)
-    @trace track_numbers=true while (n > 0) & flag
-        temp = Reactant.@allowscalar _ambuf[unsafe_trunc(Int, n)]
-        phi = (phi + asin(temp * sin(phi))) / 2
-        n -= 1
+    phi = a * u * (2^NP)
+    for i in NP:-1:1
+        phi = (phi + asin(_ambuf[i] * sin(phi))) / 2
     end
 
-    # The AGM is only used on the `flag` path, so its non-convergence check must
-    # not reach the closed forms above: the m1 < sqrt_tol branch sets m1 == 0 for
-    # m == 1, which the AGM can never converge for.
     return Base.ifelse(flag, Base.ifelse(abs(c) > tol, T(NaN), phi), ans)
 end
 
@@ -279,57 +277,60 @@ Returns amplitude, φ, such that u = F(φ | m)
 """
 Reactant.@reactant_overlay function CarlsonAlg.am(u::A, m::B) where {A,B}
     T = promote_type(A, B)
-    ans = zero(T)
     piT = T(Base.π)
     halfpiT = T(Base.π / 2)
-    @trace if m < 0
-        mu1 = inv(1 - m)
-        mu = -m * mu1
-        sqrtmu1 = sqrt(mu1)
-        v = u / sqrtmu1
-        phi = __reactant_am(v, mu)
-        s = sin(phi)
-        t = floor((phi + halfpiT) / piT)
 
-        ans = t * piT + cospi(t) * asin(sqrtmu1 * s / sqrt(1 - mu * s^2))
-    elseif m <= 1 # 0 <= m <= 1
-        ans = __reactant_am(u, m)
-    else # m > 1
-        k = sqrt(m)
-        ans = asin(inv(k) * sin(__reactant_am(k * u, inv(m))))
-    end
-    return ans
+    oneT = one(T)
+    isneg = m < zero(T)
+    isbig = m > oneT
+
+    mu1 = inv(oneT - m)
+    mu = -m * mu1
+    sqrtmu1 = sqrt(mu1)
+    k = sqrt(m)
+    minv = inv(m)
+
+    phi = __reactant_am(
+        Base.ifelse(isneg, u / sqrtmu1, Base.ifelse(isbig, k * u, u)),
+        Base.ifelse(isneg, mu, Base.ifelse(isbig, minv, m)),
+    )
+    s = sin(phi)
+    t = floor((phi + halfpiT) / piT)
+    negans = t * piT + cospi(t) * asin(sqrtmu1 * s / sqrt(oneT - mu * s^2))
+
+    return Base.ifelse(isneg, negans, Base.ifelse(isbig, asin(s / k), phi))
 end
 
 for (f, a, b, c) in (
     (:sn, :(sin(phi)), :(sqrtmu1 * s), :(sqrt(mu) * sin(phi))),
-    (:cn, :(cos(phi)), :(cos(phi)), :(sqrt(1 - mu * sin(phi)^2))),
-    (:dn, :(sqrt(1 - m * sin(phi)^2)), :(one(T)), :(cos(phi))),
+    (:cn, :(cos(phi)), :(cos(phi)), :(sqrt(one(T) - mu * sin(phi)^2))),
+    (:dn, :(sqrt(one(T) - m * sin(phi)^2)), :(one(T)), :(cos(phi))),
 )
     @eval begin
         Reactant.@reactant_overlay function CarlsonAlg.$f(u::A, m::B) where {A,B}
             T = promote_type(A, B)
-            ans = T(NaN)
+            oneT = one(T)
+            isneg = m < zero(T)
+            isbig = m > oneT
 
-            @trace if m < 0
-                mu1 = inv(1 - m)
-                mu = -m * mu1
-                sqrtmu1 = sqrt(mu1)
-                v = u / sqrtmu1
-                phi = __reactant_am(v, mu)
-                s = sin(phi)
-                ans = ($b) / sqrt(1 - mu * s^2)
-            elseif m > 1
-                mu = inv(m)
-                v = u * sqrt(m)
-                phi = __reactant_am(v, mu)
-                ans = $c
-            else
-                phi = __reactant_am(u, m)
-                ans = $a
+            mu1 = inv(oneT - m)
+            muneg = -m * mu1
+            sqrtmu1 = sqrt(mu1)
+            mubig = inv(m)
+
+            phi = __reactant_am(
+                Base.ifelse(isneg, u / sqrtmu1, Base.ifelse(isbig, u * sqrt(m), u)),
+                Base.ifelse(isneg, muneg, Base.ifelse(isbig, mubig, m)),
+            )
+            s = sin(phi)
+
+            negval = let mu = muneg
+                ($b) / sqrt(oneT - mu * s^2)
             end
-
-            return ans
+            bigval = let mu = mubig
+                $c
+            end
+            return Base.ifelse(isneg, negval, Base.ifelse(isbig, bigval, $a))
         end
     end
 end
