@@ -8,6 +8,11 @@ import JacobiElliptic: CarlsonAlg, ArithmeticGeometricMeanAlg, StaticArrays
 _reactant_agm_iters(::Type{<:Any}) = 8
 _reactant_agm_iters(::Type{Float32}) = 5
 
+# Number of Carlson iterations for DRF / DRD.
+# The Carlson algorithm for these converge linearly instead of logarithmically as in AGM
+_reactant_duplication_iters(::Type{<:Any}) = 10
+_reactant_duplication_iters(::Type{Float32}) = 6
+
 @inline function _reactant_ellipke_base(m::T) where {T}
     a = one(T)
     b = sqrt(one(T) - m)
@@ -64,8 +69,8 @@ Reactant.@reactant_overlay ArithmeticGeometricMeanAlg.E(m::T) where {T} =
 # Elliptic F(ϕ, m)
 #----------------------------------------------------------------------------------------
 
-function _reactant_DRF_ifbody(X::A, Y::B, Z::C, ERRTOL::D) where {A,B,C,D}
-    T = promote_type(A, B, C, D)
+function _reactant_DRF_ifbody(X::A, Y::B, Z::C) where {A,B,C}
+    T = promote_type(A, B, C)
     C1 = T(1 / 24)
     C2 = T(3 / 44)
     C3 = T(1 / 14)
@@ -83,7 +88,7 @@ function _reactant_DRF_ifbody(X::A, Y::B, Z::C, ERRTOL::D) where {A,B,C,D}
     ZNDEV = muladd(ninvMU, (MU + ZN), 2)
     EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV))
 
-    Reactant.@trace while EPSLON >= ERRTOL
+    for _ in 1:_reactant_duplication_iters(Reactant.unwrapped_eltype(T))
         XNROOT = sqrt(XN)
         YNROOT = sqrt(YN)
         ZNROOT = sqrt(ZN)
@@ -116,7 +121,6 @@ Reactant.@reactant_overlay function CarlsonAlg.DRF(X::A, Y::B, Z::C) where {A,B,
     Z = T(Z)
     zeroT = zero(T)
 
-    ERRTOL = T((4 * eps(Tc) / 2)^Tc(1 / 6))
     LOLIM = T(5 * floatmin(Tc))
     UPLIM = T(floatmax(Tc) / 5)
 
@@ -127,7 +131,7 @@ Reactant.@reactant_overlay function CarlsonAlg.DRF(X::A, Y::B, Z::C) where {A,B,
     err = Base.ifelse(minxyz, 1, Base.ifelse(maxxyz, 3, Base.ifelse(mxyxzyz, 2, 0)))
 
     @trace if err == 0
-        ans = _reactant_DRF_ifbody(X, Y, Z, ERRTOL)
+        ans = _reactant_DRF_ifbody(X, Y, Z)
     end
 
     return (ans, err)
@@ -325,7 +329,6 @@ function _reactant_DRD_ifbody(X::A, Y::B, Z::C) where {A,B,C}
     sixT = T(6)
     inv4 = T(1 / 4)
     inv5 = T(1 / 5)
-    ERRTOL = T((eps(Reactant.unwrapped_eltype(T)) / 6)^Reactant.unwrapped_eltype(T)(1 / 6))
     C1 = T(3 / 14)
     C2 = T(1 / 6)
     C3 = T(9 / 22)
@@ -344,7 +347,7 @@ function _reactant_DRD_ifbody(X::A, Y::B, Z::C) where {A,B,C}
     ZNDEV = (MU - ZN) * invMU
     EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV))
 
-    Reactant.@trace while EPSLON >= ERRTOL
+    for _ in 1:_reactant_duplication_iters(Reactant.unwrapped_eltype(T))
         XNROOT = sqrt(XN)
         YNROOT = sqrt(YN)
         ZNROOT = sqrt(ZN)
