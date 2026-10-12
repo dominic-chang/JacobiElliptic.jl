@@ -90,6 +90,90 @@ begin # ArithmeticGeometricMeanAlg
         end
         return (dm,)
     end
+
+    #----------------------------------------------------------------------------------------
+    # Elliptic E(m)
+    #----------------------------------------------------------------------------------------
+    @eval function forward(
+        config::EnzymeRules.FwdConfig,
+        func::Const{typeof(($alg).E)},
+        RT,
+        m::Annotation{<:Real},
+    )
+        function ∂E_∂m(m)
+            K, E = ($alg).ellipke(m)
+            return iszero(m) ? -oftype(E, π) / 8 : (E - K) / (2 * m)
+        end
+
+        if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
+            if EnzymeRules.width(config) == 1
+                return Duplicated(
+                    func.val(m.val),
+                    (m isa Const ? zero(m.val) : ∂E_∂m(m.val) * m.dval),
+                )
+            else
+                return BatchDuplicated(
+                    func.val(m.val),
+                    ntuple(
+                        i -> (m isa Const ? zero(m.val) : ∂E_∂m(m.val) * m.dval[i]),
+                        Val(EnzymeRules.width(config)),
+                    ),
+                )
+            end
+        elseif EnzymeRules.needs_shadow(config)
+            if EnzymeRules.width(config) == 1
+                return (m isa Const ? zero(m.val) : ∂E_∂m(m.val) * m.dval)
+            else
+                return ntuple(
+                    i -> (m isa Const ? zero(m.val) : ∂E_∂m(m.val) * m.dval[i]),
+                    Val(EnzymeRules.width(config)),
+                )
+            end
+        elseif EnzymeRules.needs_primal(config)
+            return func.val(m.val)
+        else
+            return nothing
+        end
+    end
+
+    @eval function augmented_primal(
+        config::RevConfigWidth,
+        func::Const{typeof(($alg).E)},
+        ::Type,
+        m::Annotation{<:Real},
+    )
+        K, E = ($alg).ellipke(m.val)
+        primal = EnzymeRules.needs_primal(config) ? E : nothing
+        return EnzymeRules.AugmentedReturn(primal, nothing, (E, K))
+    end
+
+    @eval function reverse(
+        config::RevConfigWidth,
+        func::Const{typeof(($alg).E)},
+        dret,
+        tape,
+        m::Annotation{T},
+    ) where {T}
+        E, K = tape
+        ∂E_∂m(m) = iszero(m) ? -oftype(E, π) / 8 : (E - K) / (2 * m)
+
+        dm = if m isa Const
+            nothing
+        elseif EnzymeRules.width(config) == 1
+            if dret isa Type{<:Const}
+                zero(m.val)
+            else
+                ∂E_∂m(m.val) * dret.val
+            end
+        else
+            if dret isa Type{<:Const}
+                ntuple(i -> zero(m.val), Val(EnzymeRules.width(config)))
+            else
+                ntuple(i -> ∂E_∂m(m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+            end
+        end
+        return (dm,)
+    end
 end
 
 
