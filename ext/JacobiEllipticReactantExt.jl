@@ -4,112 +4,61 @@ using JacobiElliptic
 using Reactant
 import JacobiElliptic: CarlsonAlg, ArithmeticGeometricMeanAlg, StaticArrays
 
-function _reactant_ellipke_base(m::T) where {T}
-    oneT = one(T)
-    twoT = T(2)
-    halfpi = T(π / 2)
+# Number of ARM iterations needed for conversion.
+_reactant_agm_iters(::Type{<:Any}) = 8
+_reactant_agm_iters(::Type{Float32}) = 5
 
+@inline function _reactant_ellipke_base(m::T) where {T}
     a = one(T)
     b = sqrt(one(T) - m)
-    sum_c2 = m / twoT
+    sum_c2 = m / 2
     pow2 = one(T)
-
-    # Arithmetic Geometric mean implementation
-    # https://www.math.emory.edu/~gliang7/AGM.pdf
-    # https://en.wikipedia.org/wiki/Arithmetic%E2%80%93geometric_mean
-    c = (a - b) / twoT
-    @trace while (abs(c) > eps(c))
-        next_a = (a + b) / twoT
-        next_b = sqrt(a * b)
-        next_sum_c2 = sum_c2 + pow2 * c * c
-        sum_c2 = next_sum_c2
-        next_pow2 = twoT * pow2
-        pow2 = next_pow2
-        a = next_a
-        b = next_b
-        c = (a - b) / twoT
+    for _ in 1:_reactant_agm_iters(Reactant.unwrapped_eltype(T))
+        c = (a - b) / 2
+        sum_c2 = muladd(pow2, c * c, sum_c2)
+        pow2 += pow2
+        a, b = (a + b) / 2, sqrt(a * b)
     end
-
-    k = halfpi / a
-    e = k * (oneT - sum_c2)
+    k = T(π / 2) / a
+    e = k * (one(T) - sum_c2)
     return (k, e)
 end
 
 #----------------------------------------------------------------------------------------
-# Elliptic K(m)
+# Elliptic K(m), E(m)
 #----------------------------------------------------------------------------------------
 
-Reactant.@reactant_overlay function ArithmeticGeometricMeanAlg.K(m::T) where {T}
-    oneT = one(T)
-    zeroT = zero(T)
-    nanT = T(NaN)
-    infT = T(Inf)
-
-    m_for_eval = Base.ifelse(
-        isnan(m),
-        m,
-        Base.ifelse(
-            m < zeroT,
-            let
-                m_abs = -m
-                one_plus_m_abs = m_abs + oneT
-                m_abs / one_plus_m_abs
-            end,
-            Base.ifelse(m > oneT, inv(m), m),
-        ),
-    )
-
-    return Base.ifelse(
-        isnan(m),
-        nanT,
-        Base.ifelse(
-            m == oneT,
-            infT,
-            let
-                k, _ = _reactant_ellipke_base(m_for_eval)
-                Base.ifelse(
-                    m < zeroT,
-                    k / sqrt(oneT + abs(m)),
-                    Base.ifelse(m > oneT, inv(sqrt(m)) * k, k),
-                )
-            end,
-        ),
-    )
-end
-
-#----------------------------------------------------------------------------------------
-# Elliptic E(m)
-#----------------------------------------------------------------------------------------
-Reactant.@reactant_overlay function ArithmeticGeometricMeanAlg.E(m::T) where {T}
-    oneT = one(T)
-    zeroT = zero(T)
-    nanT = T(NaN)
-    ans = zeroT
-
-    Reactant.@trace if isnan(m)
-        ans = nanT
-    elseif m < zeroT
-        m_abs = -m
-        one_plus_m_abs = m_abs + oneT
-        m_transformed = m_abs / one_plus_m_abs
-        _, e_trans = _reactant_ellipke_base(m_transformed)
-        ans = sqrt(one_plus_m_abs) * e_trans
-    elseif m > oneT
-        m_inv = inv(m)
-        k_complete, e_complete = _reactant_ellipke_base(m_inv)
-        ans = sqrt(m) * (e_complete - (oneT - m_inv) * k_complete)
-    elseif m == oneT
-        ans = oneT
-    else
-        _, ans = _reactant_ellipke_base(m)
-    end
-
-    return ans
-end
-
+# This code is purposefully branch-free. 
+# Every case maps m into [0, 1) and runs the AGM algorithm.
+# NaN inputs propagate through the arithmetic.
 Reactant.@reactant_overlay function ArithmeticGeometricMeanAlg.ellipke(m::T) where {T}
-    return (ArithmeticGeometricMeanAlg.K(m), ArithmeticGeometricMeanAlg.E(m))
+    oneT = one(T)
+    isneg = m < zero(T)
+    isbig = m > oneT
+    m_base = Base.ifelse(isneg, -m / (oneT - m), Base.ifelse(isbig, inv(m), m))
+    # The reduction can land on exactly 1 for an input that is not 1: -m/(1 - m) rounds to
+    # 1.0 once m <= -9.1e15. src/AGM.jl catches that through its recursion, so the reduced
+    # parameter has to be tested too, or the AGM runs with b == 0 and returns garbage.
+    isone = (m == oneT) | (m_base == oneT)
+    # keep sqrt(1 - m_base) away from 0 at m == 1 so the unselected branch has finite gradients
+    m_base = Base.ifelse(isone, zero(T), m_base)
+    k, e = _reactant_ellipke_base(m_base)
+    k = Base.ifelse(isone, T(Inf), k)
+    e = Base.ifelse(isone, oneT, e)
+    sq = sqrt(Base.ifelse(isneg, oneT - m, Base.ifelse(isbig, m, oneT)))
+    K = Base.ifelse(isneg | isbig, k / sq, k)
+    E = Base.ifelse(isneg, e * sq, Base.ifelse(isbig, sq * (e - (oneT - m_base) * k), e))
+    return (K, E)
 end
+#----------------------------------------------------------------------------------------
+# Elliptic K(m), E(m) 
+#----------------------------------------------------------------------------------------
+
+Reactant.@reactant_overlay ArithmeticGeometricMeanAlg.K(m::T) where {T} =
+    ArithmeticGeometricMeanAlg.ellipke(m)[1]
+
+Reactant.@reactant_overlay ArithmeticGeometricMeanAlg.E(m::T) where {T} =
+    ArithmeticGeometricMeanAlg.ellipke(m)[2]
 
 #----------------------------------------------------------------------------------------
 # Elliptic F(ϕ, m)
