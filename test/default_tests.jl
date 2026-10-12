@@ -27,7 +27,31 @@ end
 # precision (worst measured deviation vs ArbNumerics over these grids is ~4e-13,
 # at the |m|=100 edge), so hold Float64 near machine accuracy. Float32 keeps the
 # previous tolerances, limited by eps(Float32) accumulation (~2e-5 worst).
-ratio_atol(typ, f32 = 1e-4) = typ == Float64 ? 1e-11 : f32
+# Tolerance on |ratio - 1| against ArbNumerics, keyed on the element type. Override one
+# precision at a time by keyword -- `ratio_atol(typ; f32 = 1e-5)` -- so that a call
+# tightening f32 need not restate f64, and vice versa.
+#
+# The two defaults come from measuring the actual worst case over each grid below, using
+# the same protocol as the tests themselves: the ArbFloat reference is built from the
+# already-rounded `typ` inputs, and any reference arithmetic (e.g. Π - F) stays in ArbFloat
+# so that the cancellation is charged to the implementation and not to the reference.
+#
+#   site                               Float32    Float64    tolerance
+#   incomplete Pi, φ ∈ (π/2, 3π)       5.36e-07   2.22e-15   f32 = 1e-5
+#     ... its large-m block            3.40e-06   6.44e-15   f32 = 1e-5
+#   complete Pi                        2.05e-05   4.36e-14   default
+#   incomplete J vs (Π - F)/n          8.64e-06   2.84e-14   default
+#   CarlsonAlg.J vs FukushimaAlg.J     7.81e-06   1.22e-13   f32 = 1e-5
+#
+# Float64 sits 2-4 orders below 1e-11 everywhere
+# Float32 needs ~1e-4 only because of the complete-Pi site
+# at 2.05e-05; the three sites that pass f32 = 1e-5 are the ones comfortably under it, and
+# the J cross-check is the tightest of those at 1.3x headroom.
+#
+# Sites deliberately NOT using this helper: the theta-function comparisons in this file and
+# in jacobi_tests.jl keep their looser atol, because there the reference series -- not the
+# implementation -- sets the accuracy floor.
+ratio_atol(typ; f32 = 1e-4, f64 = 1e-11) = typ == Float64 ? f64 : f32
 
 @testset "alg:$alg" for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     @testset "Elliptic K" begin
@@ -242,7 +266,7 @@ ratio_atol(typ, f32 = 1e-4) = typ == Float64 ? 1e-11 : f32
                         )
                             @test alg.Pi(typ(n), typ(φ), typ(m)) /
                                   typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol =
-                                ratio_atol(typ, 1e-5)
+                                ratio_atol(typ; f32 = 1e-5)
                         end
                         @testset "large m" begin
                             @testset "m :$m)" for m in [
@@ -254,7 +278,7 @@ ratio_atol(typ, f32 = 1e-4) = typ == Float64 ? 1e-11 : f32
                             ]
                                 @test alg.Pi(typ(n), typ(φ), typ(m)) /
                                       typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol =
-                                    ratio_atol(typ, 1e-5)
+                                    ratio_atol(typ; f32 = 1e-5)
                             end
                         end
                     end
@@ -269,7 +293,7 @@ ratio_atol(typ, f32 = 1e-4) = typ == Float64 ? 1e-11 : f32
             @testset "n : $n" for n in range(1e-3, 10, length = 10)
                 @testset "m : $m" for m in range(0.1, 0.999, length = 20)
                     @test alg.Pi(typ(n), typ(m)) / typ(_elliptic_pi(typ(n), typ(m))) ≈
-                          typ(1.0) atol = 1e-4
+                          typ(1.0) atol = ratio_atol(typ)
                 end
             end
 
@@ -366,7 +390,7 @@ FukushimaAlg = JacobiElliptic.FukushimaAlg
                                     _elliptic_pi(typ(n), typ(φ), typ(m)) -
                                     _elliptic_f(typ(φ), typ(m))
                                 )/n,
-                            ) ≈ typ(1.0) atol = 1e-4
+                            ) ≈ typ(1.0) atol = ratio_atol(typ)
                         end
                     end
                     @testset "small m" begin
@@ -425,7 +449,8 @@ FukushimaAlg = JacobiElliptic.FukushimaAlg
                         length = 20,
                     )
                         @test CarlsonAlg.J(typ(n), typ(φ), typ(m)) /
-                              FukushimaAlg.J(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol = 1e-5
+                              FukushimaAlg.J(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol =
+                            ratio_atol(typ; f32 = 1e-5)
                     end
                     @testset "large m" begin
                         @testset "m :$m)" for m in [

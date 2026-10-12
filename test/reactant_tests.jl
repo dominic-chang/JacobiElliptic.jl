@@ -207,6 +207,40 @@
         end
     end
 
-    # TODO: Add Reactant coverage for the constant quotient functions
-    # (nn, dd, cc, and ss) and explicit algorithm dispatch.
+    @testset "Constant quotient functions" begin
+        for (name, f) in (("nn", nn), ("dd", dd), ("cc", cc), ("ss", ss))
+            @testset "$name" begin
+                r = @jit f.(u_r, 0.5)
+                @test all(isone, Array(r))
+                @test Array(r) ≈ f.(us, 0.5)
+            end
+        end
+    end
+
+    @testset "Explicit algorithm dispatch" begin
+        # Only Carlson and AGM have Reactant overlays; FukushimaAlg has none, so
+        # `K(Fukushima(), m)` cannot be traced.
+        carlson = Ref(JacobiElliptic.Carlson())
+        agm = Ref(JacobiElliptic.AGM())
+
+        @test Array(@jit K.(carlson, m_r)) ≈ K.(Ref(JacobiElliptic.Carlson()), ms)
+        @test Array(@jit E.(carlson, m_r)) ≈ E.(Ref(JacobiElliptic.Carlson()), ms)
+        @test Array(@jit F.(carlson, u_r, 0.5)) ≈ F.(Ref(JacobiElliptic.Carlson()), us, 0.5)
+        @test Array(@jit Pi.(carlson, 0.2, u_r, 0.5)) ≈
+              Pi.(Ref(JacobiElliptic.Carlson()), 0.2, us, 0.5)
+        @test Array(@jit sn.(carlson, u_r, 0.5)) ≈ sn.(Ref(JacobiElliptic.Carlson()), us, 0.5)
+
+        @test Array(@jit K.(agm, m_r)) ≈ K.(Ref(JacobiElliptic.AGM()), ms)
+        @test Array(@jit E.(agm, m_r)) ≈ E.(Ref(JacobiElliptic.AGM()), ms)
+    end
+
+    @testset "Functions without a Reactant overlay" begin
+        # These have no `@reactant_overlay`, so tracing hits the un-traceable scalar code.
+        # Recorded so that adding an overlay turns these into a visible failure.
+        fukushima = Ref(JacobiElliptic.Fukushima())
+        @test_throws Exception @jit J.(n_r, 0.5)
+        @test_throws Exception @jit J.(n_r, 0.7, 0.5)
+        @test_throws Exception @jit K.(fukushima, m_r)
+        @test_throws Exception @jit sn.(fukushima, u_r, 0.5)
+    end
 end

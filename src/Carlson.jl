@@ -58,7 +58,13 @@ function F(φ::A, m::B) where {A,B}
     if m > 1
         ## Abramowitz & Stegum*(17.4.15)
         m12 = _sqrt(m)
-        theta = asin(m12 * sin(φ))
+        sinθ = m12 * sin(φ)
+        #F(φ|m) is real only on the first arch |φ| ≤ asin(1/√m); past it 1 - m*sin(θ)^2
+        #turns negative somewhere in [0, φ]. |sinθ| > 1 catches most of that, but once
+        #|φ| > π/2 the sine folds back into range and the transformation below would
+        #silently evaluate the wrong branch instead.
+        (abs(φ) > T(π / 2) || abs(sinθ) > oneT) && return T(NaN)
+        theta = asin(sinθ)
         signθ = sign(theta)
         absθ = abs(theta)
         return signθ / m12 * _F(absθ, inv(m))
@@ -252,6 +258,16 @@ Returns the incomplete elliptic integral of the third kind.
 function Pi(n::A, φ::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
     oneT = one(T)
+
+    if m > oneT
+        #Reciprocal modulus transformation: Π(n;φ|m) = Π(n/m; θ|1/m)/√m with sinθ = √m sinφ.
+        #Applied before the n > 1 reduction below, whose n₁ = m/n is an exact 2-cycle when
+        #n and m both exceed 1 (n₂ = m/n₁ = n) and never terminates. Same real domain as F.
+        k = _sqrt(m)
+        sinθ = k * sin(φ)
+        (abs(φ) > T(π / 2) || abs(sinθ) > oneT) && return T(NaN)
+        return Pi(n / m, asin(sinθ), inv(m)) / k
+    end
 
     if m < zero(T) # Imaginary modulus transformation https://dlmf.nist.gov/19.7#iii
         if n == m #the transformation below is 0/0 at n == m, so use the closed form
