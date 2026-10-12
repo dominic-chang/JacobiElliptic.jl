@@ -492,40 +492,37 @@ function _reactant_rawE(sinphi::A, m::B) where {A,B}
     T = promote_type(A, B)
     sinphi = T(sinphi)
     m = T(m)
+    oneT = one(T)
     inv3 = T(1 / 3)
     nanT = T(NaN)
-    ans = zero(T)
 
-    Reactant.@trace if m > one(T)
-        minv = inv(m)
-        m12 = sqrt(m)
-        sinalpha = m12 * sinphi
-        sinalpha2 = sinalpha * sinalpha
-        cosalpha2 = one(T) - sinalpha2
-        yalpha = muladd(-minv, sinalpha2, one(T))
-        drf, ierr1 = CarlsonAlg.DRF(cosalpha2, yalpha, one(T))
-        drd, ierr2 = CarlsonAlg.DRD(cosalpha2, yalpha, one(T))
+    isbig = m > oneT
 
-        ans = Base.ifelse(
-            (ierr1 == 0) & (ierr2 == 0),
-            sinalpha * (drf - sinalpha2 * inv3 * drd) / m12,
-            Base.ifelse((ierr1 == 2) & (ierr2 == 2), sinphi, nanT),
-        )
-    else
-        sinphi2 = sinphi * sinphi
-        cosphi2 = one(T) - sinphi2
-        y = muladd(-m, sinphi2, one(T))
-        drf, ierr1 = CarlsonAlg.DRF(cosphi2, y, one(T))
-        drd, ierr2 = CarlsonAlg.DRD(cosphi2, y, one(T))
+    m12 = sqrt(m)
+    sinalpha = m12 * sinphi
+    sinalpha2 = sinalpha * sinalpha
+    cosalpha2 = oneT - sinalpha2
+    yalpha = muladd(-inv(m), sinalpha2, oneT)
 
-        ans = Base.ifelse(
-            (ierr1 == 0) & (ierr2 == 0),
-            sinphi * (drf - m * sinphi2 * inv3 * drd),
-            Base.ifelse((ierr1 == 2) & (ierr2 == 2), sinphi, nanT),
-        )
-    end
+    sinphi2 = sinphi * sinphi
+    cosphi2 = oneT - sinphi2
+    y = muladd(-m, sinphi2, oneT)
 
-    return ans
+    X = Base.ifelse(isbig, cosalpha2, cosphi2)
+    Y = Base.ifelse(isbig, yalpha, y)
+    drf, ierr1 = CarlsonAlg.DRF(X, Y, oneT)
+    drd, ierr2 = CarlsonAlg.DRD(X, Y, oneT)
+
+    val = Base.ifelse(
+        isbig,
+        sinalpha * (drf - sinalpha2 * inv3 * drd) / m12,
+        sinphi * (drf - m * sinphi2 * inv3 * drd),
+    )
+    return Base.ifelse(
+        (ierr1 == 0) & (ierr2 == 0),
+        val,
+        Base.ifelse((ierr1 == 2) & (ierr2 == 2), sinphi, nanT),
+    )
 end
 
 Reactant.@reactant_overlay function CarlsonAlg.E(phi::A, m::B) where {A,B}
@@ -535,20 +532,14 @@ Reactant.@reactant_overlay function CarlsonAlg.E(phi::A, m::B) where {A,B}
     halfpi = T(Base.π / 2)
     piT = T(Base.π)
     nanT = T(NaN)
-    ans = zero(T)
 
-    Reactant.@trace if isnan(phi) | isnan(m)
-        ans = nanT
-    elseif 2 * abs(phi) > piT
-        phi2 = phi + halfpi
-        ans =
-            2 * fld(phi2, piT) * CarlsonAlg.E(m) -
-            _reactant_rawE(cos(mod(phi2, piT)), m)
-    else
-        ans = _reactant_rawE(sin(phi), m)
-    end
-
-    return ans
+    wrapped = 2 * abs(phi) > piT
+    phi2 = phi + halfpi
+    sinarg = Base.ifelse(wrapped, cos(mod(phi2, piT)), sin(phi))
+    raw = _reactant_rawE(sinarg, m)
+    offset = 2 * fld(phi2, piT) * CarlsonAlg.E(m)
+    ans = Base.ifelse(wrapped, offset - raw, raw)
+    return Base.ifelse(isnan(phi) | isnan(m), nanT, ans)
 end
 
 
