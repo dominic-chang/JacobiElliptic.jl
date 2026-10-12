@@ -3,6 +3,19 @@ JacobiElliptic is an implementation of and Arithmetic-goemetric mean, Toshio Fuk
 An arithmetic geometric mean approach is the default algorithm used to calculate the complete elliptic integrals of the first and second kind.
 The default algorithms for the rest of the functions are set to the Carlson algorithms.
 
+An algorithm can be selected per call by passing an instance as the first argument:
+
+```julia
+using JacobiElliptic
+
+sn(0.5, 0.2)                # default (Carlson)
+sn(Fukushima(), 0.5, 0.2)   # Fukushima
+K(0.2)                      # default (AGM)
+K(Carlson(), 0.2)           # Carlson
+```
+
+`AGM()` is accepted by `K` and `E` only, since it does not implement the other functions.
+
 ## Features
   - [Metal.jl](https://github.com/JuliaGPU/Metal.jl) and [CUDA.jl](https://github.com/JuliaGPU/CUDA.jl) compatible
   - Automatic Differentiable. Compatible with [Zygote.jl](https://fluxml.ai/Zygote.jl/stable/), [ForwardDiff.jl](https://github.com/JuliaDiff/ForwardDiff.jl) and [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl)

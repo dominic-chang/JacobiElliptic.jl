@@ -5,6 +5,7 @@ using DelimitedFiles: readdlm
 using Enzyme, EnzymeTestUtils
 using Reactant
 
+include("default_algorithm_tests.jl")
 include("default_tests.jl")
 include("carlson_tests.jl")
 include("jacobi_tests.jl")
