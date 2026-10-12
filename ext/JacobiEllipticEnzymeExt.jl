@@ -7,6 +7,10 @@ include("common.jl")
 
 begin # ArithmeticGeometricMeanAlg
     alg = JacobiElliptic.ArithmeticGeometricMeanAlg
+    # ellipke(m) is bitwise (K(m), E(m)) and costs one pass instead of two. Resolved here
+    # at definition time; FukushimaAlg has no ellipke and keeps the two separate calls.
+    ke_val = :(($alg).ellipke(m.val))
+    ke_m = :(($alg).ellipke(m))
     #----------------------------------------------------------------------------------------
     # Elliptic K(m)
     #----------------------------------------------------------------------------------------
@@ -18,7 +22,10 @@ begin # ArithmeticGeometricMeanAlg
         RT,
         m::Annotation{<:Real},
     )
-        ∂K_∂m(m) = ($alg).E(m) / (2 * m * (1 - m)) - ($alg).K(m) / 2 / m
+        function ∂K_∂m(m)
+            K, E = $ke_m
+            return E / (2 * m * (1 - m)) - K / 2 / m
+        end
 
         if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
             if EnzymeRules.width(config) == 1
@@ -57,8 +64,7 @@ begin # ArithmeticGeometricMeanAlg
         ::Type,
         m::Annotation{<:Real},
     )
-        K = func.val(m.val)
-        E = ($alg).E(m.val)
+        K, E = $ke_val
         primal = EnzymeRules.needs_primal(config) ? K : nothing
         return EnzymeRules.AugmentedReturn(primal, nothing, (E, K))
     end
@@ -178,6 +184,10 @@ end
 
 
 for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
+    ke_val = isdefined(alg, :ellipke) ? :(($alg).ellipke(m.val)) :
+             :((($alg).K(m.val), ($alg).E(m.val)))
+    ke_m = isdefined(alg, :ellipke) ? :(($alg).ellipke(m)) :
+           :((($alg).K(m), ($alg).E(m)))
     #----------------------------------------------------------------------------------------
     # Elliptic K(m)
     #----------------------------------------------------------------------------------------
@@ -189,7 +199,10 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         RT,
         m::Annotation{<:Real},
     )
-        ∂K_∂m(m) = ($alg).E(m) / (2 * m * (1 - m)) - ($alg).K(m) / 2 / m
+        function ∂K_∂m(m)
+            K, E = $ke_m
+            return E / (2 * m * (1 - m)) - K / 2 / m
+        end
 
         if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
             if EnzymeRules.width(config) == 1
@@ -228,8 +241,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         ::Type,
         m::Annotation{<:Real},
     )
-        K = func.val(m.val)
-        E = ($alg).E(m.val)
+        K, E = $ke_val
         primal = EnzymeRules.needs_primal(config) ? K : nothing
         return EnzymeRules.AugmentedReturn(primal, nothing, (E, K))
     end
@@ -334,8 +346,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         m::Annotation{<:Real},
     )
         Pi = func.val(n.val, m.val)
-        E = ($alg).E(m.val)
-        K = ($alg).K(m.val)
+        K, E = $ke_val
         primal = EnzymeRules.needs_primal(config) ? Pi : nothing
         return EnzymeRules.AugmentedReturn(primal, nothing, (E, K, Pi))
     end
