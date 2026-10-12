@@ -130,9 +130,9 @@ Reactant.@reactant_overlay function CarlsonAlg.DRF(X::A, Y::B, Z::C) where {A,B,
     mxyxzyz = min(X + Y, X + Z, Y + Z) < LOLIM
     err = Base.ifelse(minxyz, 1, Base.ifelse(maxxyz, 3, Base.ifelse(mxyxzyz, 2, 0)))
 
-    @trace if err == 0
-        ans = _reactant_DRF_ifbody(X, Y, Z)
-    end
+    # Safe to evaluate unconditionally now that the duplication loop has a fixed trip
+    # count: bad arguments give NaN rather than spinning, and the ifelse discards them.
+    ans = Base.ifelse(err == 0, _reactant_DRF_ifbody(X, Y, Z), zeroT)
 
     return (ans, err)
 end
@@ -152,27 +152,23 @@ function _reactant_rawF(sinphi::A, m::B) where {A,B}
     )
 end
 
+# Branch-free: both cases feed a single rawF. The Abramowitz & Stegun (17.4.3) reduction
+# only picks that call's argument and adds the 2*fld(.)*K(m) offset, so selecting with
+# ifelse costs one K but saves the second rawF -- and rawF is the expensive half.
 function _reactant_internal_F(phi::A, m::B) where {A,B}
     T = promote_type(A, B)
     phi = T(phi)
     m = T(m)
     halfpi = T(π / 2)
     piT = T(π)
-    nanT = T(NaN)
-    ans = zero(T)
 
-    Reactant.@trace if isnan(phi) | isnan(m)
-        ans = nanT
-    elseif abs(phi) > halfpi
-        phi2 = phi + halfpi
-        ans =
-            2 * fld(phi2, piT) * CarlsonAlg.K(m) -
-            _reactant_rawF(cos(mod(phi2, piT)), m)
-    else
-        ans = _reactant_rawF(sin(phi), m)
-    end
-
-    return ans
+    wrapped = abs(phi) > halfpi
+    phi2 = phi + halfpi
+    sinarg = Base.ifelse(wrapped, cos(mod(phi2, piT)), sin(phi))
+    raw = _reactant_rawF(sinarg, m)
+    offset = 2 * fld(phi2, piT) * CarlsonAlg.K(m)
+    ans = Base.ifelse(wrapped, offset - raw, raw)
+    return Base.ifelse(isnan(phi) | isnan(m), T(NaN), ans)
 end
 
 Reactant.@reactant_overlay function CarlsonAlg.F(phi::A, m::B) where {A,B}
@@ -181,26 +177,34 @@ Reactant.@reactant_overlay function CarlsonAlg.F(phi::A, m::B) where {A,B}
     m = T(m)
     oneT = one(T)
     halfpi = T(Base.π / 2)
-    ans = zero(T)
+    zeroT = zero(T)
 
-    Reactant.@trace if m > oneT
-        m12 = sqrt(m)
-        theta = asin(m12 * sin(phi))
-        ans = sign(theta) / m12 * _reactant_internal_F(abs(theta), inv(m))
-    elseif m < zero(T)
-        n = -m
-        one_plus_n = oneT + n
-        m12 = inv(sqrt(one_plus_n))
-        m1m = n / one_plus_n
-        newphi = halfpi - phi
-        ans =
-            m12 * CarlsonAlg.K(m1m) -
-            sign(newphi) * m12 * _reactant_internal_F(abs(newphi), m1m)
-    else
-        ans = sign(phi) * _reactant_internal_F(abs(phi), m)
-    end
+    # A&S 17.4.15 (m > 1) and 17.4.17 (m < 0) both reduce to one evaluation at |angle|
+    # with a parameter in [0, 1], so select the pair and call _reactant_internal_F once
+    # instead of once per branch. Unselected branches produce NaN (sqrt of a negative,
+    # m1m = -Inf at m == 1); every one of them is discarded by an ifelse.
+    isbig = m > oneT
+    isneg = m < zeroT
 
-    return ans
+    m12big = sqrt(m)
+    theta = asin(m12big * sin(phi))
+    n = -m
+    one_plus_n = oneT + n
+    m12neg = inv(sqrt(one_plus_n))
+    m1m = n / one_plus_n
+    newphi = halfpi - phi
+
+    angle = Base.ifelse(isbig, abs(theta), Base.ifelse(isneg, abs(newphi), abs(phi)))
+    param = Base.ifelse(isbig, inv(m), Base.ifelse(isneg, m1m, m))
+    f = _reactant_internal_F(angle, param)
+
+    scale = Base.ifelse(
+        isbig,
+        sign(theta) / m12big,
+        Base.ifelse(isneg, -sign(newphi) * m12neg, sign(phi)),
+    )
+    sf = scale * f
+    return Base.ifelse(isneg, m12neg * CarlsonAlg.K(m1m) + sf, sf)
 end
 
 function __reactant_am(u::A, m::B, tol::C) where {A,B,C}
