@@ -10,6 +10,9 @@ _reactant_agm_iters(::Type{Float32}) = 5
 
 # Number of Carlson iterations for DRF / DRD.
 # The Carlson algorithm for these converge linearly instead of logarithmically as in AGM
+_reactant_cel_iters(::Type{<:Any}) = 9
+_reactant_cel_iters(::Type{Float32}) = 7
+
 _reactant_duplication_iters(::Type{<:Any}) = 10
 _reactant_duplication_iters(::Type{Float32}) = 6
 
@@ -739,7 +742,6 @@ end
 
 function _reactant_cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
     T = promote_type(A, B, C, D)
-    ca = eps(Reactant.unwrapped_eltype(T))
     oneT = one(T)
     twoT = T(2)
     zeroT = zero(T)
@@ -756,21 +758,20 @@ function _reactant_cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
     g = zero(T)
     q = zero(T)
 
-    Reactant.@trace if p > zeroT
-        p = sqrt(p)
-        b = b / p
-    else
-        f = kc^2
-        q = oneT - f
-        g = oneT - p
-        f = f - p
-        q = (b - a * p) * q
-        p = sqrt(f / g)
-        a = (a - b) / g
-        b = -q * (g^2 * p) + a * p
-    end
+    ispos = p > zeroT
+    p_pos = sqrt(p)
+    b_pos = b / p_pos
+    f0 = kc * kc
+    g0 = oneT - p
+    q0 = (b - a * p) * (oneT - f0)
+    p_neg = sqrt((f0 - p) / g0)
+    a_neg = (a - b) / g0
+    b_neg = -q0 * (g0^2 * p_neg) + a_neg * p_neg
 
-    count = 0
+    p = Base.ifelse(ispos, p_pos, p_neg)
+    b = Base.ifelse(ispos, b_pos, b_neg)
+    a = Base.ifelse(ispos, a, a_neg)
+
     f = copy(a)
     invp = inv(p)
     a = muladd(invp, b, a)
@@ -780,7 +781,7 @@ function _reactant_cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
     g = copy(m)
     m = kc + m
 
-    Reactant.@trace while (abs(g - kc) >= g * ca) & (count < 1000)
+    for _ in 1:_reactant_cel_iters(Reactant.unwrapped_eltype(T))
         kc = twoT * √e
         e = kc * m
 
@@ -792,7 +793,6 @@ function _reactant_cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
         p = g + p
         g = copy(m)
         m = kc + m
-        count += 1
     end
 
     return pi_over_2 * muladd(a, m, b) / (m * (m + p))
@@ -929,22 +929,13 @@ function _reactant_complete_Pi_core(n::A, m::B) where {A,B}
     oneT = one(T)
     zeroT = zero(T)
     infT = T(Inf)
-    ans = zeroT
 
-    Reactant.@trace if n == oneT
-        # 1/(1 - n*sin(θ)^2) pole at θ = π/2.
-        ans = infT
-    elseif n == zeroT
-        ans = CarlsonAlg.K(m)
-    elseif m == oneT
-        # Only m == 1 diverges. m == 0 falls through to `cel`, which gives the
-        # finite pi/(2*sqrt(1 - n)).
-        ans = infT
-    else
-        ans = _reactant_cel(sqrt(oneT - m), oneT - n, oneT, oneT)
-    end
-
-    return ans
+    celv = _reactant_cel(sqrt(oneT - m), oneT - n, oneT, oneT)
+    return Base.ifelse(
+        (n == oneT) | (m == oneT),
+        infT,
+        Base.ifelse(n == zeroT, CarlsonAlg.K(m), celv),
+    )
 end
 
 Reactant.@reactant_overlay function CarlsonAlg.Pi(n::A, m::B) where {A,B}
@@ -953,17 +944,11 @@ Reactant.@reactant_overlay function CarlsonAlg.Pi(n::A, m::B) where {A,B}
     m = T(m)
     oneT = one(T)
     nanT = T(NaN)
-    ans = zero(T)
 
-    Reactant.@trace if m > oneT
-        ans = nanT
-    elseif n > oneT
-        ans = CarlsonAlg.K(m) - _reactant_complete_Pi_core(m / n, m)
-    else
-        ans = _reactant_complete_Pi_core(n, m)
-    end
-
-    return ans
+    isbign = n > oneT
+    core = _reactant_complete_Pi_core(Base.ifelse(isbign, m / n, n), m)
+    ans = Base.ifelse(isbign, CarlsonAlg.K(m) - core, core)
+    return Base.ifelse(m > oneT, nanT, ans)
 end
 
 
