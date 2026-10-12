@@ -110,40 +110,39 @@ end
         end
     end
 
-    @testset "known defects: FukushimaAlg" begin
-        # FukushimaAlg still carries the three defects that were fixed in CarlsonAlg,
-        # plus a large-|m| error in the incomplete E. It is never exercised outside
-        # m ∈ (0, 1) by the other suites, which is why these went unnoticed.
+    @testset "FukushimaAlg: ported fixes" begin
+        # The |φ| > π/2 reduction, the n == m closed form and the n == 1 pole were fixed
+        # in CarlsonAlg first and then ported here; these guard the port.
         FA = JacobiElliptic.FukushimaAlg
 
-        # 1. incomplete E at large |m|: E(0.7, -100) returns 2.35e12 for a true 2.51
+        @testset "|φ| > π/2 with m < 0: $((φ, m))" for (φ, m) in (
+            (2.0, -2.0),
+            (3.0, -0.5),
+            (-3.0, -2.0),
+            (1.6, -2.0),
+            (5.0, -0.5),
+        )
+            @test FA.Pi(0.5, φ, m) ≈ _arb(ArbNumerics.elliptic_pi, 0.5, φ, m) rtol = RTOL
+        end
+
+        @testset "n == m = $m" for m in (-2.0, -0.5, -0.1)
+            @test FA.Pi(m, 0.5, m) ≈ _arb(ArbNumerics.elliptic_pi, m, 0.5, m) rtol = RTOL
+        end
+
+        @test isinf(FA.Pi(1.0, 0.5))          # the 1/(1 - n sin²θ) pole at θ = π/2
+        @testset "Pi(n, 0) stays finite: n = $n" for n in (-2.0, -0.5, 0.0, 0.5, 0.9)
+            @test FA.Pi(n, 0.0) ≈ π / (2 * sqrt(1 - n)) rtol = RTOL
+        end
+    end
+
+    @testset "known defects: FukushimaAlg" begin
+        # Not ported: the incomplete E is wrong at large |m| (E(0.7, -100) returns 2.35e12
+        # for a true 2.51). CarlsonAlg has no counterpart to port -- this one needs its own
+        # investigation in src/Fukushima.jl.
         @test_broken isapprox(
-            _try(FA.E, 0.7, -100.0),
+            _try(JacobiElliptic.FukushimaAlg.E, 0.7, -100.0),
             _arb(ArbNumerics.elliptic_e, 0.7, -100.0),
             rtol = 1e-11,
         )
-
-        # 2. |φ| > π/2 with m < 0: the transformation is applied before the argument is
-        #    reduced, so the half-period is lost (fixed in CarlsonAlg)
-        @testset "|φ| > π/2, m < 0: $((φ, m))" for (φ, m) in
-                                                   ((2.0, -2.0), (3.0, -0.5), (-3.0, -2.0))
-            @test_broken isapprox(
-                _try(FA.Pi, 0.5, φ, m),
-                _arb(ArbNumerics.elliptic_pi, 0.5, φ, m),
-                rtol = 1e-11,
-            )
-        end
-
-        # 3. n == m < 0 is 0/0 in the transformation (fixed in CarlsonAlg)
-        @testset "n == m = $m" for m in (-2.0, -0.5)
-            @test_broken isapprox(
-                _try(FA.Pi, m, 0.5, m),
-                _arb(ArbNumerics.elliptic_pi, m, 0.5, m),
-                rtol = 1e-11,
-            )
-        end
-
-        # 4. n == 1 is a pole; CarlsonAlg returns Inf, FukushimaAlg returns a finite value
-        @test_broken isinf(_try(FA.Pi, 1.0, 0.5))
     end
 end

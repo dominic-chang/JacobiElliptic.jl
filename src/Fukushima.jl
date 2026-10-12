@@ -2275,9 +2275,10 @@ function Pi(n::A, m::B) where {A,B}
     zeroT = zero(T)
     (isnan(n) || isnan(m)) && return T(NaN)
     m > oneT && return T(NaN) #Complex Branch
-    n > oneT && return K(m) - Pi(m / n, m)
+    n > oneT && return K(m) - Pi(m / n, m) #Cauchy principal value
+    n == oneT && return T(Inf) #1/(1 - n*sin(θ)^2) pole at θ = π/2
     n == zeroT && return K(m)
-    m == zeroT || m == oneT && return T(Inf) #atanh(√(-1 + n)*tan(θ))/√(-1 + n)
+    m == oneT && return T(Inf)
     kc = √(oneT - m)
     nc = oneT - n
     return cel(kc, nc, oneT, oneT)
@@ -2290,6 +2291,17 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
     (isnan(n) || isnan(φ) || isnan(m)) && return T(NaN)
 
     if m < 0 # Imaginary modulus transformation https://dlmf.nist.gov/19.7#iii
+        if n == m #the transformation below is 0/0 at n == m, so use the closed form
+            sinφ, cosφ = sincos(φ)
+            return (E(φ, m) - m * sinφ * cosφ / sqrt(muladd(-m, sinφ * sinφ, oneT))) /
+                   (oneT - m)
+        end
+        #the transformation goes through asin, which folds |φ| > π/2 onto the principal
+        #branch, so reduce first with Π(n; φ + kπ | m) = Π(n; φ | m) + 2k Π(n | m)
+        if 2abs(φ) > T(π)
+            phi2 = φ + T(π / 2)
+            return 2fld(phi2, T(π)) * Pi(n, m) + Pi(n, mod(phi2, T(π)) - T(π / 2), m)
+        end
         mc = oneT - m
         imc = inv(mc)
         mN = -m * imc
