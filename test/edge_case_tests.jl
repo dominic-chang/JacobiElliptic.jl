@@ -10,12 +10,6 @@ catch
     NaN
 end
 
-_try(f, xs...) = try
-    f(xs...)
-catch
-    NaN
-end
-
 @testset "Edge cases" begin
     RTOL = 1e-11
     alg = JacobiElliptic.CarlsonAlg      # the default algorithm for all of these
@@ -134,14 +128,25 @@ end
         end
     end
 
-    @testset "known defects: FukushimaAlg" begin
-        # Not ported: the incomplete E is wrong at large |m| (E(0.7, -100) returns 2.35e12
-        # for a true 2.51). CarlsonAlg has no counterpart to port -- this one needs its own
-        # investigation in src/Fukushima.jl.
-        @test_broken isapprox(
-            _try(JacobiElliptic.FukushimaAlg.E, 0.7, -100.0),
-            _arb(ArbNumerics.elliptic_e, 0.7, -100.0),
-            rtol = 1e-11,
-        )
+    @testset "incomplete E at large negative m" begin
+        # `_Ds` used to stop its descent too early for m < 0, leaving `_Dsi`'s series to
+        # diverge: E(0.7, -100) came back as 2.35e12 against a true 2.51, and Float32 was
+        # off by 4e31. The descent cut-off now scales with 1 - m.
+        FA = JacobiElliptic.FukushimaAlg
+
+        @testset "φ = $φ, m = $m" for φ in (0.3, 0.7, 1.2, 1.5, 3.0, -0.7),
+            m in (-5.0, -10.0, -50.0, -100.0, -1.0e4, -1.0e8, -1.0e15)
+
+            @test FA.E(φ, m) ≈ _arb(ArbNumerics.elliptic_e, φ, m) rtol = 1e-11
+        end
+
+        # Float32 stops at |m| = 1e6, where `_Dsi` overflows: it evaluates its m-polynomial
+        # by Horner before scaling by s^2k, so the m^7 coefficient passes 3.4e38. That
+        # limit predates this fix -- Float32 returned NaN there before it too.
+        @testset "Float32: φ = $φ, m = $m" for φ in (0.3f0, 0.7f0, 1.5f0),
+            m in (-10.0f0, -100.0f0, -1.0f3, -1.0f4, -1.0f5)
+
+            @test FA.E(φ, m) ≈ _arb(ArbNumerics.elliptic_e, φ, m) rtol = 1.0f-5
+        end
     end
 end

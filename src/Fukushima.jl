@@ -2158,8 +2158,14 @@ function _Ds(s::A, m::B) where {A,B}
     y0 = s^2
     yi = y0
 
+    # Fukushima fits this cut-off over 0 ≤ m ≤ 1, where it is ~0.034..0.041. Extrapolating
+    # it to m < 0 moves it the wrong way: `_Dsi` is a series whose k-th term scales like
+    # (m*y)^k, so a growing cut-off lets the series diverge (D(0.7, -100) came back as
+    # 2.4e10 instead of 0.0224). Dividing by 1 - m instead keeps |m|*y bounded by the same
+    # 0.041 the fit was built around, so the descent stops where the series still converges.
     yA(m::T) where {T} =
-        T == Float32 ? (T(0.1888) - T(0.0378) * m) : (T(0.04094) - T(0.00652) * m)
+        m < zero(T) ? (T == Float32 ? T(0.1888) : T(0.04094)) / (one(T) - m) :
+        (T == Float32 ? (T(0.1888) - T(0.0378) * m) : (T(0.04094) - T(0.00652) * m))
     I = 0
     for _ = 1:10
         yi < yA(m) && break
