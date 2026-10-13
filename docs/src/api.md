@@ -12,6 +12,8 @@ Every function below dispatches to a default algorithm. Pass an
 explicitly, for example `F(Carlson(), φ, m)` or `K(Fukushima(), m)`.
 
 ```@docs
+JacobiElliptic.default_algorithm
+JacobiElliptic.set_default_algorithm!
 JacobiElliptic.AbstractAlgorithm
 JacobiElliptic.AGM
 JacobiElliptic.Carlson

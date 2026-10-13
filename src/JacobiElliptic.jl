@@ -8,10 +8,11 @@ using DocStringExtensions
                                          """
 
 
-export Fukushima, Carlson
+export Fukushima, Carlson, AGM
 export am, sn, cn, dn, nn, sd, dd, nd, sc, cc, dc, nc, ss, cs, ds, ns # Do not export cd to avoid name clash with Base.cd
 export ellipj, ellipke
 export E, F, K, Pi, J
+export default_algorithm, set_default_algorithm!
 include(joinpath(@__DIR__, "Fukushima.jl"))
 include(joinpath(@__DIR__, "Carlson.jl"))
 include(joinpath(@__DIR__, "AGM.jl"))
@@ -64,6 +65,7 @@ func_syms = [
     :ds,
     :ns,
     :cd,
+    :am,
 ]
 
 # Creates function func(::alg, args...) = algAlg.sym(args...)
@@ -74,24 +76,64 @@ for alg in [:Fukushima, :Carlson]
     end
 end
 
-K(alg::AGM, m) = ArithmeticGeometricMeanAlg.K(m)
-E(alg::AGM, m) = ArithmeticGeometricMeanAlg.E(m)
-
-
-# Sets default functions to Carlson Alg
-# func(args...) = CarlsonAlg.func(args...)
-alg = :Carlson
+# AGM implements only the complete integrals; everything else delegates to Carlson. The
+# one-argument K and E below are more specific than this fallback, so they win for the
+# complete forms while E(::AGM, φ, m) lands here.
 for func in func_syms
-    f = Symbol(alg, :Alg)
-    @eval $func(args...) = $f.$func(args...)
+    @eval $func(::AGM, args...) = CarlsonAlg.$func(args...)
 end
 
-K(m) = ArithmeticGeometricMeanAlg.K(m)
-E(m) = ArithmeticGeometricMeanAlg.E(m)
+K(::AGM, m) = ArithmeticGeometricMeanAlg.K(m)
+E(::AGM, m) = ArithmeticGeometricMeanAlg.E(m)
+
+"""
+$(TYPEDSIGNATURES)
+
+Return the algorithm currently used when none is passed explicitly. Defaults to
+[`AGM`](@ref), which supplies the complete `K` and `E` and delegates everything else to
+[`Carlson`](@ref). Change it with [`set_default_algorithm!`](@ref).
+"""
+default_algorithm() = AGM()
+
+"""
+$(TYPEDSIGNATURES)
+
+Set the process-wide default algorithm and return it. Accepts an instance or the type
+itself, so `set_default_algorithm!(Fukushima())` and `set_default_algorithm!(Fukushima)`
+are equivalent.
+
+Intended for configuration at startup.
+"""
+function set_default_algorithm!(alg::AbstractAlgorithm)
+    @eval default_algorithm() = $alg
+    return alg
+end
+set_default_algorithm!(::Type{A}) where {A<:AbstractAlgorithm} = set_default_algorithm!(A())
+
+_effective_default(@nospecialize(f), alg::AbstractAlgorithm) = alg
+_effective_default(@nospecialize(f), ::AGM) = Carlson()
+_effective_default(::typeof(K), alg::AGM) = alg
+_effective_default(::typeof(E), alg::AGM) = alg
+
+"""
+$(TYPEDSIGNATURES)
+
+A callable binding `f` to `alg`, so that `AlgorithmCall(f, alg)(args...)` is
+`f(alg, args...)`. Used by GPU backends, which need a concrete function to compile.
+"""
+struct AlgorithmCall{F,A<:AbstractAlgorithm} <: Function
+    f::F
+    alg::A
+end
+(call::AlgorithmCall)(args...) = call.f(call.alg, args...)
+
+# Un-prefixed entry points route through the current default.
+for func in func_syms
+    @eval $func(args...) = $func(default_algorithm(), args...)
+end
 
 asn = FukushimaAlg.asn
 acn = FukushimaAlg.acn
-am = CarlsonAlg.am
 
 # Documentation for the entry points generated above. Each dispatches to the default
 # algorithm; pass an `AbstractAlgorithm` first to override, e.g. `K(Fukushima(), m)`.
@@ -138,6 +180,16 @@ Complete and incomplete elliptic integrals of the third kind. Defaults to
 - `φ` : Amplitude (incomplete form only)
 - `m` : Elliptic parameter
 """ Pi
+
+@doc """
+``u = F(\\varphi\\,|\\,m)`` inverted for the amplitude ``\\varphi``.
+
+Jacobi amplitude. Defaults to [`Carlson`](@ref).
+
+# Arguments
+- `u` : Argument
+- `m` : Elliptic parameter
+""" am
 
 @doc """
 ``J(n|m)`` and ``J(n;\\varphi|m)``, the associate elliptic integral of the third kind,

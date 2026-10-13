@@ -8,13 +8,24 @@ An algorithm can be selected per call by passing an instance as the first argume
 ```julia
 using JacobiElliptic
 
-sn(0.5, 0.2)                # default (Carlson)
-sn(Fukushima(), 0.5, 0.2)   # Fukushima
-K(0.2)                      # default (AGM)
-K(Carlson(), 0.2)           # Carlson
+sn(0.5, 0.2)                # current default
+sn(Fukushima(), 0.5, 0.2)   # Fukushima, just this call
+K(Carlson(), 0.2)           # Carlson, just this call
 ```
 
-`AGM()` is accepted by `K` and `E` only, since it does not implement the other functions.
+The process-wide default can also be changed:
+
+```julia
+set_default_algorithm!(Fukushima())
+sn(0.5, 0.2)                     # now Fukushima
+
+set_default_algorithm!(Carlson)  # the type is accepted too
+default_algorithm()              # inspect the current selection
+```
+
+`AGM()` is the initial default: it supplies the complete `K` and `E` and delegates
+everything else is `Carlson`. 
+It should be configured at startup.
 
 ## Features
   - [Metal.jl](https://github.com/JuliaGPU/Metal.jl) and [CUDA.jl](https://github.com/JuliaGPU/CUDA.jl) compatible
