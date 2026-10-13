@@ -5,6 +5,8 @@ using DelimitedFiles: readdlm
 using Enzyme, EnzymeTestUtils
 using Reactant
 
+setprecision(ArbNumerics.ArbFloat, 200)
+
 include("default_algorithm_tests.jl")
 include("default_tests.jl")
 include("edge_case_tests.jl")

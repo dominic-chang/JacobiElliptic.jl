@@ -1,5 +1,5 @@
 
-# Testing Algorithm uality by comparing Carlson Elliptic Integral Algorithm implementation in Arbnumerics
+# Testing Algorithm quality by comparing Carlson Elliptic Integral Algorithm implementation in Arbnumerics
 function _elliptic_k(m::T) where {T<:Union{Float32,Float64}}
     return ArbNumerics.elliptic_k(ArbNumerics.ArbFloat(m))
 end
@@ -53,7 +53,7 @@ end
 # implementation -- sets the accuracy floor.
 ratio_atol(typ; f32 = 1e-4, f64 = 1e-11) = typ == Float64 ? f64 : f32
 
-@testset "alg:$alg" for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
+@testset "alg = $alg" for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     @testset "Elliptic K" begin
         @testset for typ in [Float32, Float64]
             @testset "$typ $m" for m in [
@@ -75,7 +75,7 @@ ratio_atol(typ; f32 = 1e-4, f64 = 1e-11) = typ == Float64 ? f64 : f32
     end
 
     @testset "Complete Elliptic E" begin
-        @testset "Type: $typ" for typ in [Float32, Float64]
+        @testset "Type = $typ" for typ in [Float32, Float64]
             @testset "$(typ(m))" for m in [
                 0.001,
                 0.01,
@@ -96,7 +96,7 @@ ratio_atol(typ; f32 = 1e-4, f64 = 1e-11) = typ == Float64 ? f64 : f32
         end
     end
 
-    #Test EllipticF
+    # Test EllipticF
     @testset "Elliptic F" begin
         @testset "$typ" for typ in [Float32, Float64]
             @testset "Standard Domain, φ:$(typ(φ))" for φ in
@@ -142,7 +142,7 @@ ratio_atol(typ; f32 = 1e-4, f64 = 1e-11) = typ == Float64 ? f64 : f32
         end
     end
 
-    #Test EllipticE
+    # Test EllipticE
     @testset "Elliptic E" begin
         @testset "$typ" for typ in [Float32, Float64]
             @testset "Standard Domain, φ:$(typ(φ))" for φ in
@@ -186,18 +186,18 @@ ratio_atol(typ; f32 = 1e-4, f64 = 1e-11) = typ == Float64 ? f64 : f32
             end
         end
     end
-    #Test EllipticPI
+    # Test EllipticPI
     @testset "Elliptic Pi" begin
         @testset "$typ" for typ in [Float32, Float64]
             @testset "Standard Domain" begin
-                @testset "φ : $φ" for φ in range(1e-3, π / 2, length = 100)
-                    @testset "n : $n" for n in range(
+                @testset "φ = $φ" for φ in range(1e-3, π / 2, length = 100)
+                    @testset "n = $n" for n in range(
                         1e-3,
                         typ == Float32 ? 0.99 : 0.999,
                         length = 10,
                     )
                         @testset "Standard m" begin
-                            @testset "m : $m" for m in range(
+                            @testset "m = $m" for m in range(
                                 0.1,
                                 typ == Float32 ? 0.99 : 0.999,
                                 length = 20,
@@ -208,14 +208,14 @@ ratio_atol(typ; f32 = 1e-4, f64 = 1e-11) = typ == Float64 ? f64 : f32
                             end
                         end
                         @testset "small m" begin
-                            @testset "m :$m" for m in [3.874e-4, 4.25e-3, 6.83e-2]
+                            @testset "m = $m" for m in [3.874e-4, 4.25e-3, 6.83e-2]
                                 @test alg.Pi(typ(n), typ(φ), typ(m)) /
                                       typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol =
                                     ratio_atol(typ)
                             end
                         end
                         @testset "large m" begin
-                            @testset "m :$m" for m in
+                            @testset "m = $m" for m in
                                                  [1 - 3.874e-4, 1 - 4.25e-3, 1 - 6.83e-2]
                                 @test alg.Pi(typ(n), typ(φ), typ(m)) /
                                       typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol =
@@ -223,7 +223,7 @@ ratio_atol(typ; f32 = 1e-4, f64 = 1e-11) = typ == Float64 ? f64 : f32
                             end
                         end
                         @testset "negative m" begin
-                            @testset "m :$m" for m in [-3.874e-4, -4.25e-3, -6.83e-2]
+                            @testset "m = $m" for m in [-3.874e-4, -4.25e-3, -6.83e-2]
                                 @test alg.Pi(typ(n), typ(φ), typ(m)) /
                                       typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol =
                                     ratio_atol(typ)
@@ -235,7 +235,7 @@ ratio_atol(typ; f32 = 1e-4, f64 = 1e-11) = typ == Float64 ? f64 : f32
             @testset "|m sin(φ)| ≤ 1 && |m| > 1" begin
                 @testset "m = $(typ(m))" for m in
                                              [-100, -10, -5, -2, -1.1, 1.1, 2, 5, 10, 100]
-                    @testset "n : $n" for n in range(
+                    @testset "n = $n" for n in range(
                         1e-3,
                         typ == Float32 ? 0.99 : 0.999,
                         length = 10,
@@ -253,13 +253,13 @@ ratio_atol(typ; f32 = 1e-4, f64 = 1e-11) = typ == Float64 ? f64 : f32
                 end
             end
             @testset "φ > π/2" begin
-                @testset "φ : $φ" for φ in range(π / 2, 3π, length = 10)
-                    @testset "n : $n" for n in range(
+                @testset "φ = $φ" for φ in range(π / 2, 3π, length = 10)
+                    @testset "n = $n" for n in range(
                         1e-3,
                         typ == Float32 ? 0.99 : 0.999,
                         length = 10,
                     )
-                        @testset "m : $m" for m in range(
+                        @testset "m = $m" for m in range(
                             1e-3,
                             typ == Float32 ? 0.99 : 0.999,
                             length = 20,
@@ -269,7 +269,7 @@ ratio_atol(typ; f32 = 1e-4, f64 = 1e-11) = typ == Float64 ? f64 : f32
                                 ratio_atol(typ; f32 = 1e-5)
                         end
                         @testset "large m" begin
-                            @testset "m :$m)" for m in [
+                            @testset "m = $m" for m in [
                                 1 - 1e-5,
                                 1 - 3.874e-4,
                                 1 - 4.25e-3,
@@ -287,11 +287,11 @@ ratio_atol(typ; f32 = 1e-4, f64 = 1e-11) = typ == Float64 ? f64 : f32
         end
     end
 
-    #Test EllipticPI
+    # Test EllipticPI
     @testset "Complete Elliptic Pi" begin
         @testset "$typ" for typ in [Float32, Float64]
-            @testset "n : $n" for n in range(1e-3, 10, length = 10)
-                @testset "m : $m" for m in range(0.1, 0.999, length = 20)
+            @testset "n = $n" for n in range(1e-3, 10, length = 10)
+                @testset "m = $m" for m in range(0.1, 0.999, length = 20)
                     @test alg.Pi(typ(n), typ(m)) / typ(_elliptic_pi(typ(n), typ(m))) ≈
                           typ(1.0) atol = ratio_atol(typ)
                 end
@@ -303,8 +303,8 @@ ratio_atol(typ; f32 = 1e-4, f64 = 1e-11) = typ == Float64 ? f64 : f32
 
 
 
-    #Taken from Elliptic.jl
-    #https://github.com/nolta/Elliptic.jl/blob/main/test/jacobi_tests.jl
+    # Taken from Elliptic.jl
+    # https://github.com/nolta/Elliptic.jl/blob/main/test/jacobi_tests.jl
     @testset "Jacobi Elliptic Trig" begin
         @testset "Abramowitz & Stegun Table 16.1" begin
             dataloc = "data/"
@@ -373,14 +373,14 @@ FukushimaAlg = JacobiElliptic.FukushimaAlg
 @testset "Elliptic J" begin
     @testset "$typ" for typ in [Float32, Float64]
         @testset "Standard Domain" begin
-            @testset "φ : $φ" for φ in range(1e-3, π / 2, length = 100)
-                @testset "n : $n" for n in range(
+            @testset "φ = $φ" for φ in range(1e-3, π / 2, length = 100)
+                @testset "n = $n" for n in range(
                     1e-3,
                     typ == Float32 ? 0.99 : 0.999,
                     length = 10,
                 )
                     @testset "Standard m" begin
-                        @testset "m : $m" for m in range(
+                        @testset "m = $m" for m in range(
                             0.1,
                             typ == Float32 ? 0.99 : 0.999,
                             length = 10,
@@ -394,21 +394,21 @@ FukushimaAlg = JacobiElliptic.FukushimaAlg
                         end
                     end
                     @testset "small m" begin
-                        @testset "m :$m" for m in [3.874e-4, 4.25e-3, 6.83e-2]
+                        @testset "m = $m" for m in [3.874e-4, 4.25e-3, 6.83e-2]
                             @test CarlsonAlg.J(typ(n), typ(φ), typ(m)) /
                                   FukushimaAlg.J(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol =
                                 1e-4
                         end
                     end
                     @testset "large m" begin
-                        @testset "m :$m" for m in [1 - 3.874e-4, 1 - 4.25e-3, 1 - 6.83e-2]
+                        @testset "m = $m" for m in [1 - 3.874e-4, 1 - 4.25e-3, 1 - 6.83e-2]
                             @test CarlsonAlg.J(typ(n), typ(φ), typ(m)) /
                                   FukushimaAlg.J(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol =
                                 1e-4
                         end
                     end
                     @testset "negative m" begin
-                        @testset "m :$m" for m in [-3.874e-4, -4.25e-3, -6.83e-2]
+                        @testset "m = $m" for m in [-3.874e-4, -4.25e-3, -6.83e-2]
                             @test CarlsonAlg.J(typ(n), typ(φ), typ(m)) /
                                   FukushimaAlg.J(typ(n), typ(φ), typ(m)) ≈ typ(1.0) atol =
                                 1e-4
@@ -419,7 +419,7 @@ FukushimaAlg = JacobiElliptic.FukushimaAlg
         end
         @testset "|m sin(φ)| ≤ 1 && |m| > 1" begin
             @testset "m = $(typ(m))" for m in [-100, -10, -5, -2, -1.1, 1.1, 2, 5, 10, 100]
-                @testset "n : $n" for n in range(
+                @testset "n = $n" for n in range(
                     1e-3,
                     typ == Float32 ? 0.99 : 0.999,
                     length = 10,
@@ -437,13 +437,13 @@ FukushimaAlg = JacobiElliptic.FukushimaAlg
             end
         end
         @testset "φ > π/2" begin
-            @testset "φ : $φ" for φ in range(π / 2, 3π, length = 10)
-                @testset "n : $n" for n in range(
+            @testset "φ = $φ" for φ in range(π / 2, 3π, length = 10)
+                @testset "n = $n" for n in range(
                     1e-3,
                     typ == Float32 ? 0.99 : 0.999,
                     length = 10,
                 )
-                    @testset "m : $m" for m in range(
+                    @testset "m = $m" for m in range(
                         1e-3,
                         typ == Float32 ? 0.99 : 0.999,
                         length = 20,
@@ -453,7 +453,7 @@ FukushimaAlg = JacobiElliptic.FukushimaAlg
                             ratio_atol(typ; f32 = 1e-5)
                     end
                     @testset "large m" begin
-                        @testset "m :$m)" for m in [
+                        @testset "m = $m" for m in [
                             1 - 1e-5,
                             1 - 3.874e-4,
                             1 - 4.25e-3,

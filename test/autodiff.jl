@@ -64,7 +64,7 @@ end
 end
 
 
-@testset "alg:$alg" for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
+@testset "alg = $alg" for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     @testset "Zygote, ForwardDiff and Enzyme" begin
 
         ms = (0.4,)

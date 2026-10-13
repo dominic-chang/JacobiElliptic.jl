@@ -1,21 +1,23 @@
-#module SLATEC
+# A port of the SLATEC Carlson symmetric-form routines. These keep their published
+# names rather than taking the `_` internal prefix the rest of the package uses: they
+# are the names the reference material and the Reactant overlays both refer to.
 
 export DRC, DRD, DRF, DRJ
 
-#***BEGIN PROLOGUE  DRF
-#***PURPOSE  Compute the incomplete or complete elliptic integral of the
+# ***BEGIN PROLOGUE  DRF
+# ***PURPOSE  Compute the incomplete or complete elliptic integral of the
 #            1st kind.  For X, Y, and Z non-negative and at most one of
 #            them zero, RF(X,Y,Z) = Integral from zero to infinity of
 #                                -1/2     -1/2     -1/2
 #                      (1/2)(t+X)    (t+Y)    (t+Z)    dt.
 #            If X, Y or Z is zero, the integral is complete.
-#***LIBRARY   SLATEC
-#***CATEGORY  C14
-#***TYPE      DOUBLE PRECISION (RF-S, DRF-D)
-#***KEYWORDS  COMPLETE ELLIPTIC INTEGRAL, DUPLICATION THEOREM,
+# ***LIBRARY   SLATEC
+# ***CATEGORY  C14
+# ***TYPE      DOUBLE PRECISION (RF-S, DRF-D)
+# ***KEYWORDS  COMPLETE ELLIPTIC INTEGRAL, DUPLICATION THEOREM,
 #             INCOMPLETE ELLIPTIC INTEGRAL, INTEGRAL OF THE FIRST KIND,
 #             TAYLOR SERIES
-#***AUTHOR  Carlson, B. C.
+# ***AUTHOR  Carlson, B. C.
 #             Ames Laboratory-DOE
 #             Iowa State University
 #             Ames, IA  50011
@@ -80,20 +82,20 @@ export DRC, DRD, DRF, DRJ
     return (ans, 0)
 end
 
-#***BEGIN PROLOGUE  DRD
-#***PURPOSE  Compute the incomplete or complete elliptic integral of
+# ***BEGIN PROLOGUE  DRD
+# ***PURPOSE  Compute the incomplete or complete elliptic integral of
 #            the 2nd kind. For X and Y nonnegative, X+Y and Z positive,
 #            DRD(X,Y,Z) = Integral from zero to infinity of
 #                                -1/2     -1/2     -3/2
 #                      (3/2)(t+X)    (t+Y)    (t+Z)    dt.
 #            If X or Y is zero, the integral is complete.
-#***LIBRARY   SLATEC
-#***CATEGORY  C14
-#***TYPE      DOUBLE PRECISION (RD-S, DRD-D)
-#***KEYWORDS  COMPLETE ELLIPTIC INTEGRAL, DUPLICATION THEOREM,
+# ***LIBRARY   SLATEC
+# ***CATEGORY  C14
+# ***TYPE      DOUBLE PRECISION (RD-S, DRD-D)
+# ***KEYWORDS  COMPLETE ELLIPTIC INTEGRAL, DUPLICATION THEOREM,
 #             INCOMPLETE ELLIPTIC INTEGRAL, INTEGRAL OF THE SECOND KIND,
 #             TAYLOR SERIES
-#***AUTHOR  Carlson, B. C.
+# ***AUTHOR  Carlson, B. C.
 #             Ames Laboratory-DOE
 #             Iowa State University
 #             Ames, IA  50011
@@ -171,18 +173,18 @@ end
     return (ans, 0)
 end
 
-#***BEGIN PROLOGUE  DRC
-#***PURPOSE  Calculate a double precision approximation to
+# ***BEGIN PROLOGUE  DRC
+# ***PURPOSE  Calculate a double precision approximation to
 #             DRC(X,Y) = Integral from zero to infinity of
 #                              -1/2     -1
 #                    (1/2)(t+X)    (t+Y)  dt,
 #            where X is nonnegative and Y is positive.
-#***LIBRARY   SLATEC
-#***CATEGORY  C14
-#***TYPE      DOUBLE PRECISION (RC-S, DRC-D)
-#***KEYWORDS  DUPLICATION THEOREM, ELEMENTARY FUNCTIONS,
+# ***LIBRARY   SLATEC
+# ***CATEGORY  C14
+# ***TYPE      DOUBLE PRECISION (RC-S, DRC-D)
+# ***KEYWORDS  DUPLICATION THEOREM, ELEMENTARY FUNCTIONS,
 #             ELLIPTIC INTEGRAL, TAYLOR SERIES
-#***AUTHOR  Carlson, B. C.
+# ***AUTHOR  Carlson, B. C.
 #             Ames Laboratory-DOE
 #             Iowa State University
 #             Ames, IA  50011
@@ -236,20 +238,20 @@ end
     return (ans, 0)
 end
 
-#***BEGIN PROLOGUE  DRJ
-#***PURPOSE  Compute the incomplete or complete (X or Y or Z is zero)
+# ***BEGIN PROLOGUE  DRJ
+# ***PURPOSE  Compute the incomplete or complete (X or Y or Z is zero)
 #            elliptic integral of the 3rd kind.  For X, Y, and Z non-
 #            negative, at most one of them zero, and P positive,
 #             RJ(X,Y,Z,P) = Integral from zero to infinity of
 #                              -1/2     -1/2     -1/2     -1
 #                    (3/2)(t+X)    (t+Y)    (t+Z)    (t+P)  dt.
-#***LIBRARY   SLATEC
-#***CATEGORY  C14
-#***TYPE      DOUBLE PRECISION (RJ-S, DRJ-D)
-#***KEYWORDS  COMPLETE ELLIPTIC INTEGRAL, DUPLICATION THEOREM,
+# ***LIBRARY   SLATEC
+# ***CATEGORY  C14
+# ***TYPE      DOUBLE PRECISION (RJ-S, DRJ-D)
+# ***KEYWORDS  COMPLETE ELLIPTIC INTEGRAL, DUPLICATION THEOREM,
 #             INCOMPLETE ELLIPTIC INTEGRAL, INTEGRAL OF THE THIRD KIND,
 #             TAYLOR SERIES
-#***AUTHOR  Carlson, B. C.
+# ***AUTHOR  Carlson, B. C.
 #             Ames Laboratory-DOE
 #             Iowa State University
 #             Ames, IA  50011
@@ -466,4 +468,4 @@ end
 end
 
 
-#end # module
+# end # module

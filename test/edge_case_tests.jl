@@ -17,7 +17,6 @@ catch
 end
 
 @testset "Edge cases" begin
-    setprecision(ArbNumerics.ArbFloat, 200)
     RTOL = 1e-11
     alg = JacobiElliptic.CarlsonAlg      # the default algorithm for all of these
 

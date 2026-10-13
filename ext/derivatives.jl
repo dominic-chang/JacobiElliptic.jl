@@ -49,7 +49,7 @@ function _incomplete_j_derivatives(E, F, Pi, J, n, φ, m)
     e = E(φ, m)
     sin_φ, cos_φ = sincos(φ)
     sin_φ_squared = sin_φ^2
-    sqrt_term = sqrt(1 - m * sin_φ_squared)
+    sqrt_term = √(1 - m * sin_φ_squared)
     ∂φ_j = sin_φ_squared / ((1 - n * sin_φ_squared) * sqrt_term)
     ∂m_f =
         iszero(m) ? (2φ - sin(2φ)) / 8 :

@@ -24,8 +24,8 @@ default_algorithm()              # inspect the current selection
 ```
 
 `AGM()` is the initial default: it supplies the complete `K` and `E` and delegates
-everything else is `Carlson`. 
-It should be configured at startup.
+everything else to the `Carlson` algorithms. 
+`default_algorithm` should be configured at startup.
 
 ## Features
   - [Metal.jl](https://github.com/JuliaGPU/Metal.jl) and [CUDA.jl](https://github.com/JuliaGPU/CUDA.jl) compatible

@@ -1,7 +1,9 @@
 module JacobiEllipticForwardDiffExt
 
-using JacobiElliptic, ForwardDiff
-include("common.jl")
+using JacobiElliptic
+using ForwardDiff
+import JacobiElliptic: CarlsonAlg, FukushimaAlg
+include("derivatives.jl")
 
 function JacobiElliptic.CarlsonAlg._zero(::Type{ForwardDiff.Dual{T,V,N}}) where {T,V,N}
     zero(V)
@@ -18,7 +20,7 @@ for (T1, T2) in zip(_types, _types)
     end
 end
 
-#ForwardDiff.DiffRules.@define_diffrule JacobiElliptic.CarlsonAlg._sqrt(x) = :(inv(2 * JacobiElliptic.CarlsonAlg._sqrt($x)))
+# ForwardDiff.DiffRules.@define_diffrule JacobiElliptic.CarlsonAlg._sqrt(x) = :(inv(2 * JacobiElliptic.CarlsonAlg._sqrt($x)))
 function JacobiElliptic.CarlsonAlg._sqrt(x::ForwardDiff.Dual{T}) where {T}
     xval = x.value
     fval = JacobiElliptic.CarlsonAlg._sqrt(xval)
@@ -50,7 +52,7 @@ begin
 
 end
 
-for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
+for alg in (CarlsonAlg, FukushimaAlg)
     #----------------------------------------------------------------------------------------
     # Elliptic K(ϕ)
     #----------------------------------------------------------------------------------------
@@ -76,7 +78,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     @eval function ($alg).F(x::ForwardDiff.Dual{T}, y::U) where {T,U}
         xval = x.value
         fval = ($alg).F(xval, y)
-        ∂xf = inv(sqrt(1 - y * sin(xval)^2))
+        ∂xf = inv(√(1 - y * sin(xval)^2))
         ForwardDiff.Dual{T}(fval, ∂xf * x.partials)
     end
 
@@ -92,7 +94,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         else
             ∂yf =
                 ($alg).E(x, yval) / (2 * yval * (1 - yval)) - fval / (2 * yval) -
-                sin(2 * x) / (4 * (1 - yval) * sqrt(1 - yval * sin(x)^2))
+                sin(2 * x) / (4 * (1 - yval) * √(1 - yval * sin(x)^2))
         end
         ForwardDiff.Dual{T}(fval, ∂yf * y.partials)
     end
@@ -103,7 +105,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         fval = ($alg).F(xval, yval)
         sin_x = sin(xval)
         sin_2x = sin(2 * xval)
-        sqrt_term = sqrt(1 - yval * sin_x^2)
+        sqrt_term = √(1 - yval * sin_x^2)
         ∂xf = inv(sqrt_term)
         if iszero(yval)
             ∂yf = (2xval - sin_2x) / 8
@@ -125,7 +127,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     @eval function ($alg).E(x::ForwardDiff.Dual{T}, y::U) where {T,U}
         xval = x.value
         fval = ($alg).E(xval, y)
-        ∂xf = sqrt(1 - y * sin(xval)^2)
+        ∂xf = √(1 - y * sin(xval)^2)
         ForwardDiff.Dual{T}(fval, ∂xf * x.partials)
     end
 
@@ -143,7 +145,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
         fval = ($alg).E(xval, yval)
         sin_x = sin(xval)
         sin_2x = sin(2 * xval)
-        sqrt_term = sqrt(1 - yval * sin_x^2)
+        sqrt_term = √(1 - yval * sin_x^2)
         ∂xf = sqrt_term
         ∂yf = iszero(yval) ? (sin_2x - 2xval) / 8 : (fval - ($alg).F(xval, yval)) / (2yval)
         ForwardDiff.Dual{T}(fval, ∂xf * x.partials + ∂yf * y.partials)

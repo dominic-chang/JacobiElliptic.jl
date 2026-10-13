@@ -1,4 +1,4 @@
-#include("using Test
+# include("using Test
 using SpecialFunctions: gamma
 using DelimitedFiles: readdlm
 
@@ -123,19 +123,19 @@ using DelimitedFiles: readdlm
             m = 1.0 - table17p1[i, 1]
             k = table17p1[i, 3]
             e = table17p1[i, 5]
-            #a, b = alg.ellipke(m)
+            # a, b = alg.ellipke(m)
             if k == Inf
                 @test alg.K(m) == k
                 @test alg.F(pi / 2, m) == k
-                #@test a == k
+                # @test a == k
             else
                 @test alg.K(m) ≈ k atol = ktol
                 @test alg.F(pi / 2, m) ≈ k atol = ktol
-                #@test a ≈ k atol=ktol
+                # @test a ≈ k atol=ktol
             end
             @test alg.E(m) ≈ e atol = etol
             @test alg.E(pi / 2, m) ≈ e atol = etol
-            #@test b ≈ e atol=etol
+            # @test b ≈ e atol=etol
         end
 
         @test alg.K(0.0) ≈ pi / 2
@@ -208,9 +208,9 @@ using DelimitedFiles: readdlm
             @test alg.E(m) ≈ e atol = tol
             @test alg.F(pi / 2, m) ≈ k atol = tol
             @test alg.E(pi / 2, m) ≈ e atol = tol
-            #a,b = alg.ellipke(m)
-            #@test a ≈ k atol=tol
-            #@test b ≈ e atol=tol
+            # a,b = alg.ellipke(m)
+            # @test a ≈ k atol=tol
+            # @test b ≈ e atol=tol
         end
 
         # XXX: why isn't tol smaller?
@@ -220,20 +220,20 @@ using DelimitedFiles: readdlm
             k = table17p2[i, 3]
             e = table17p2[i, 5]
             m = sind(alpha)^2
-            #a,b = alg.ellipke(m)
+            # a,b = alg.ellipke(m)
             if k == Inf
                 @test alg.K(m) == k
                 @test alg.F(pi / 2, m) == k
-                #@test a == k
+                # @test a == k
             else
                 @test alg.K(m) ≈ k atol = tol
                 @test alg.F(pi / 2, m) ≈ k atol = tol
-                #@test a ≈ k atol=tol
+                # @test a ≈ k atol=tol
             end
             #
             @test alg.E(m) ≈ e atol = tol
             @test alg.E(pi / 2, m) ≈ e atol = tol
-            #@test b ≈ e atol=tol
+            # @test b ≈ e atol=tol
         end
     end
 
@@ -408,7 +408,7 @@ using DelimitedFiles: readdlm
                     @test alg.F(-phi, m) == -f
                     if phid == 90
                         @test alg.K(m) == f
-                        #@test alg.ellipke(m)[1] == f
+                        # @test alg.ellipke(m)[1] == f
                     end
                 else
                     @test alg.F(phi, m) ≈ f atol =
@@ -418,7 +418,7 @@ using DelimitedFiles: readdlm
                     if phid == 90
                         @test alg.K(m) ≈ f atol =
                             (alg == JacobiElliptic.Carlson ? 1e-8 : 1e-5)
-                        #@test alg.ellipke(m)[1] ≈ f atol=(alg == JacobiElliptic.Carlson ? 1e-8 : 1e-5)
+                        # @test alg.ellipke(m)[1] ≈ f atol=(alg == JacobiElliptic.Carlson ? 1e-8 : 1e-5)
                     end
                 end
             end

@@ -2,7 +2,7 @@ module JacobiEllipticReactantExt
 
 using JacobiElliptic
 using Reactant
-import JacobiElliptic: CarlsonAlg, ArithmeticGeometricMeanAlg, StaticArrays
+import JacobiElliptic: ArithmeticGeometricMeanAlg, CarlsonAlg
 
 # Number of ARM iterations needed for conversion.
 _reactant_agm_iters(::Type{<:Any}) = 8
@@ -10,7 +10,7 @@ _reactant_agm_iters(::Type{Float32}) = 5
 
 # Number of Carlson iterations for DRF / DRD.
 # The Carlson algorithm for these converge linearly instead of logarithmically as in AGM
-# DRC / DRJ duplication passes. Scan over the (n, phi, m) domain Pi feeds them (30M
+# DRC / DRJ duplication passes. Scan over the (n, φ, m) domain Pi feeds them (30M
 # triples): DRJ tops out at 12 passes for Float64 and 9 for Float32, the DRC nested inside
 # its loop at 9 and 5. One spare each. DRJ x DRC unrolls to ~130 inner bodies, so the
 # callers below are collapsed to a single DRJ evaluation to keep that affordable.
@@ -31,14 +31,14 @@ _reactant_duplication_iters(::Type{Float32}) = 6
 
 @inline function _reactant_ellipke_base(m::T) where {T}
     a = one(T)
-    b = sqrt(one(T) - m)
+    b = √(one(T) - m)
     sum_c2 = m / 2
     pow2 = one(T)
     for _ in 1:_reactant_agm_iters(Reactant.unwrapped_eltype(T))
         c = (a - b) / 2
         sum_c2 = muladd(pow2, c * c, sum_c2)
         pow2 += pow2
-        a, b = (a + b) / 2, sqrt(a * b)
+        a, b = (a + b) / 2, √(a * b)
     end
     k = T(π / 2) / a
     e = k * (one(T) - sum_c2)
@@ -46,34 +46,51 @@ _reactant_duplication_iters(::Type{Float32}) = 6
 end
 
 #----------------------------------------------------------------------------------------
-# Elliptic K(m), E(m)
+# Complete AGM K(m), E(m)
 #----------------------------------------------------------------------------------------
 
-# This code is purposefully branch-free. 
-# Every case maps m into [0, 1) and runs the AGM algorithm.
-# NaN inputs propagate through the arithmetic.
-Reactant.@reactant_overlay function ArithmeticGeometricMeanAlg.ellipke(m::T) where {T}
+# Branchless counterpart of `src/complete_reduction.jl`, shared by the three complete
+# integral overlays. The CPU ladder picks one of five cases; here every case is evaluated
+# and then selected, so the kernel runs exactly once on a parameter always inside [0, 1).
+#
+# `_reactant_reduce_m` returns the reduced parameter together with the predicates that
+# `_reactant_complete_lift` needs to map a kernel's `(K, E)` back to the original argument.
+@inline function _reactant_reduce_m(m::T) where {T}
     oneT = one(T)
     isneg = m < zero(T)
     isbig = m > oneT
-    m_base = Base.ifelse(isneg, -m / (oneT - m), Base.ifelse(isbig, inv(m), m))
-    # The reduction can land on exactly 1 for an input that is not 1: -m/(1 - m) rounds to
-    # 1.0 once m <= -9.1e15. src/AGM.jl catches that through its recursion, so the reduced
-    # parameter has to be tested too, or the AGM runs with b == 0 and returns garbage.
-    isone = (m == oneT) | (m_base == oneT)
-    # keep sqrt(1 - m_base) away from 0 at m == 1 so the unselected branch has finite gradients
-    m_base = Base.ifelse(isone, zero(T), m_base)
-    k, e = _reactant_ellipke_base(m_base)
-    k = Base.ifelse(isone, T(Inf), k)
-    e = Base.ifelse(isone, oneT, e)
-    sq = sqrt(Base.ifelse(isneg, oneT - m, Base.ifelse(isbig, m, oneT)))
-    K = Base.ifelse(isneg | isbig, k / sq, k)
-    E = Base.ifelse(isneg, e * sq, Base.ifelse(isbig, sq * (e - (oneT - m_base) * k), e))
-    return (K, E)
+    reduced = Base.ifelse(isneg, -m / (oneT - m), Base.ifelse(isbig, inv(m), m))
+    # The reduction does not always land strictly inside [0, 1): -m/(1 - m) rounds to
+    # exactly 1 once m ≤ -9.1e15, and m == -Inf gives Inf/Inf == NaN. `src/AGM.jl` and
+    # `src/Carlson.jl` screen both out before calling the kernel, so they are screened
+    # here too, or the kernel runs with b == 0 and returns garbage.
+    degenerate = (m == oneT) | (reduced == oneT)
+    invalid = isnan(m) | isnan(reduced)
+    # Clamping also keeps √(1 - reduced) away from 0, so the unselected branch of every
+    # select below still has finite gradients.
+    reduced = Base.ifelse(degenerate | invalid, zero(T), reduced)
+    return (reduced, isneg, isbig, degenerate, invalid)
 end
-#----------------------------------------------------------------------------------------
-# Elliptic K(m), E(m) 
-#----------------------------------------------------------------------------------------
+
+@inline function _reactant_complete_lift(m::T, reduction, k::T, e::T) where {T}
+    oneT = one(T)
+    nanT = T(NaN)
+    reduced, isneg, isbig, degenerate, invalid = reduction
+    k = Base.ifelse(degenerate, T(Inf), k)
+    e = Base.ifelse(degenerate, oneT, e)
+    sq = √(Base.ifelse(isneg, oneT - m, Base.ifelse(isbig, m, oneT)))
+    K = Base.ifelse(isneg | isbig, k / sq, k)
+    E = Base.ifelse(isneg, e * sq, Base.ifelse(isbig, sq * (e - (oneT - reduced) * k), e))
+    return (Base.ifelse(invalid, nanT, K), Base.ifelse(invalid, nanT, E))
+end
+
+# The complete integrals are the one place where three overlays share an argument
+# reduction, so it lives in `_reactant_reduce_m` / `_reactant_complete_lift` just above.
+Reactant.@reactant_overlay function ArithmeticGeometricMeanAlg.ellipke(m::T) where {T}
+    reduction = _reactant_reduce_m(m)
+    k, e = _reactant_ellipke_base(reduction[1])
+    return _reactant_complete_lift(m, reduction, k, e)
+end
 
 Reactant.@reactant_overlay ArithmeticGeometricMeanAlg.K(m::T) where {T} =
     ArithmeticGeometricMeanAlg.ellipke(m)[1]
@@ -105,9 +122,9 @@ function _reactant_DRF_ifbody(X::A, Y::B, Z::C) where {A,B,C}
     EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV))
 
     for _ in 1:_reactant_duplication_iters(Reactant.unwrapped_eltype(T))
-        XNROOT = sqrt(XN)
-        YNROOT = sqrt(YN)
-        ZNROOT = sqrt(ZN)
+        XNROOT = √(XN)
+        YNROOT = √(YN)
+        ZNROOT = √(ZN)
         YNROOTZNROOT = YNROOT * ZNROOT
         LAMDA = muladd(XNROOT, YNROOT + ZNROOT, YNROOTZNROOT)
         XN = (XN + LAMDA) * inv4
@@ -126,7 +143,7 @@ function _reactant_DRF_ifbody(X::A, Y::B, Z::C) where {A,B,C}
     E2 = muladd(-ZNDEV, ZNDEV, XNDEVYNDEV)
     E3 = XNDEVYNDEV * ZNDEV
     S = one(T) + muladd(E2, muladd(-C2, E3, muladd(C1, E2, -C0)), C3 * E3)
-    return S / sqrt(MU)
+    return S / √(MU)
 end
 
 Reactant.@reactant_overlay function CarlsonAlg.DRF(X::A, Y::B, Z::C) where {A,B,C}
@@ -153,81 +170,81 @@ Reactant.@reactant_overlay function CarlsonAlg.DRF(X::A, Y::B, Z::C) where {A,B,
     return (ans, err)
 end
 
-function _reactant_rawF(sinphi::A, m::B) where {A,B}
+function _reactant_rawF(sinφ::A, m::B) where {A,B}
     T = promote_type(A, B)
-    sinphi = T(sinphi)
+    sinφ = T(sinφ)
     m = T(m)
     oneT = one(T)
     infT = T(Inf)
-    sinphi2 = sinphi * sinphi
-    drf, _ = CarlsonAlg.DRF(oneT - sinphi2, muladd(-m, sinphi2, oneT), oneT)
+    sinφ2 = sinφ * sinφ
+    drf, _ = CarlsonAlg.DRF(oneT - sinφ2, muladd(-m, sinφ2, oneT), oneT)
     return Base.ifelse(
-        (abs(sinphi) == oneT) & (m == oneT),
-        sign(sinphi) * infT,
-        sinphi * drf,
+        (abs(sinφ) == oneT) & (m == oneT),
+        sign(sinφ) * infT,
+        sinφ * drf,
     )
 end
 
 # Branch-free: both cases feed a single rawF. The Abramowitz & Stegun (17.4.3) reduction
 # only picks that call's argument and adds the 2*fld(.)*K(m) offset, so selecting with
 # ifelse costs one K but saves the second rawF -- and rawF is the expensive half.
-function _reactant_internal_F(phi::A, m::B) where {A,B}
+function _reactant_internal_F(φ::A, m::B) where {A,B}
     T = promote_type(A, B)
-    phi = T(phi)
+    φ = T(φ)
     m = T(m)
-    halfpi = T(π / 2)
+    halfπ = T(π / 2)
     piT = T(π)
 
-    wrapped = abs(phi) > halfpi
-    phi2 = phi + halfpi
-    sinarg = Base.ifelse(wrapped, cos(mod(phi2, piT)), sin(phi))
+    wrapped = abs(φ) > halfπ
+    φ2 = φ + halfπ
+    sinarg = Base.ifelse(wrapped, cos(mod(φ2, piT)), sin(φ))
     raw = _reactant_rawF(sinarg, m)
-    offset = 2 * fld(phi2, piT) * CarlsonAlg.K(m)
+    offset = 2 * fld(φ2, piT) * CarlsonAlg.K(m)
     ans = Base.ifelse(wrapped, offset - raw, raw)
-    return Base.ifelse(isnan(phi) | isnan(m), T(NaN), ans)
+    return Base.ifelse(isnan(φ) | isnan(m), T(NaN), ans)
 end
 
-Reactant.@reactant_overlay function CarlsonAlg.F(phi::A, m::B) where {A,B}
+Reactant.@reactant_overlay function CarlsonAlg.F(φ::A, m::B) where {A,B}
     T = promote_type(A, B)
-    phi = T(phi)
+    φ = T(φ)
     m = T(m)
     oneT = one(T)
-    halfpi = T(Base.π / 2)
+    halfπ = T(Base.π / 2)
     zeroT = zero(T)
 
     # A&S 17.4.15 (m > 1) and 17.4.17 (m < 0) both reduce to one evaluation at |angle|
     # with a parameter in [0, 1], so select the pair and call _reactant_internal_F once
-    # instead of once per branch. Unselected branches produce NaN (sqrt of a negative,
+    # instead of once per branch. Unselected branches produce NaN (√ of a negative,
     # m1m = -Inf at m == 1); every one of them is discarded by an ifelse.
     isbig = m > oneT
     isneg = m < zeroT
 
-    m12big = sqrt(m)
-    theta = asin(m12big * sin(phi))
+    m12big = √(m)
+    theta = asin(m12big * sin(φ))
     n = -m
     one_plus_n = oneT + n
-    m12neg = inv(sqrt(one_plus_n))
+    m12neg = inv(√(one_plus_n))
     m1m = n / one_plus_n
-    newphi = halfpi - phi
+    newφ = halfπ - φ
 
-    angle = Base.ifelse(isbig, abs(theta), Base.ifelse(isneg, abs(newphi), abs(phi)))
+    angle = Base.ifelse(isbig, abs(theta), Base.ifelse(isneg, abs(newφ), abs(φ)))
     param = Base.ifelse(isbig, inv(m), Base.ifelse(isneg, m1m, m))
     f = _reactant_internal_F(angle, param)
 
     scale = Base.ifelse(
         isbig,
         sign(theta) / m12big,
-        Base.ifelse(isneg, -sign(newphi) * m12neg, sign(phi)),
+        Base.ifelse(isneg, -sign(newφ) * m12neg, sign(φ)),
     )
     sf = scale * f
     return Base.ifelse(isneg, m12neg * CarlsonAlg.K(m1m) + sf, sf)
 end
 
-function __reactant_am(u::A, m::B, tol::C) where {A,B,C}
+function _reactant_am(u::A, m::B, tol::C) where {A,B,C}
 
     T = promote_type(A, B, C)
 
-    sqrt_tol = sqrt(tol)
+    sqrt_tol = √(tol)
     zeroT = zero(T)
     t = tanh(u)
     m1 = one(T) - m
@@ -250,24 +267,24 @@ function __reactant_am(u::A, m::B, tol::C) where {A,B,C}
     NP = _reactant_am_iters(Reactant.unwrapped_eltype(T))
     _ambuf = Vector{T}(undef, NP)
     a = one(T)
-    b = sqrt(m1)
-    c = sqrt(m)
+    b = √(m1)
+    c = √(m)
     for i in 1:NP
-        a, b, c = ((a + b) / 2, sqrt(a * b), (a - b) / 2)
+        a, b, c = ((a + b) / 2, √(a * b), (a - b) / 2)
         _ambuf[i] = c / a
     end
 
-    phi = a * u * (2^NP)
+    φ = a * u * (2^NP)
     for i in NP:-1:1
-        phi = (phi + asin(_ambuf[i] * sin(phi))) / 2
+        φ = (φ + asin(_ambuf[i] * sin(φ))) / 2
     end
 
-    return Base.ifelse(flag, Base.ifelse(abs(c) > tol, T(NaN), phi), ans)
+    return Base.ifelse(flag, Base.ifelse(abs(c) > tol, T(NaN), φ), ans)
 end
 
-function __reactant_am(u::A, m::B) where {A,B}
+function _reactant_am(u::A, m::B) where {A,B}
     T = promote_type(A, B)
-    return __reactant_am(u, m, eps(T))
+    return _reactant_am(u, m, eps(T))
 end
 
 """
@@ -286,25 +303,25 @@ Reactant.@reactant_overlay function CarlsonAlg.am(u::A, m::B) where {A,B}
 
     mu1 = inv(oneT - m)
     mu = -m * mu1
-    sqrtmu1 = sqrt(mu1)
-    k = sqrt(m)
+    sqrtmu1 = √(mu1)
+    k = √(m)
     minv = inv(m)
 
-    phi = __reactant_am(
+    φ = _reactant_am(
         Base.ifelse(isneg, u / sqrtmu1, Base.ifelse(isbig, k * u, u)),
         Base.ifelse(isneg, mu, Base.ifelse(isbig, minv, m)),
     )
-    s = sin(phi)
-    t = floor((phi + halfpiT) / piT)
-    negans = t * piT + cospi(t) * asin(sqrtmu1 * s / sqrt(oneT - mu * s^2))
+    s = sin(φ)
+    t = floor((φ + halfpiT) / piT)
+    negans = t * piT + cospi(t) * asin(sqrtmu1 * s / √(oneT - mu * s^2))
 
-    return Base.ifelse(isneg, negans, Base.ifelse(isbig, asin(s / k), phi))
+    return Base.ifelse(isneg, negans, Base.ifelse(isbig, asin(s / k), φ))
 end
 
 for (f, a, b, c) in (
-    (:sn, :(sin(phi)), :(sqrtmu1 * s), :(sqrt(mu) * sin(phi))),
-    (:cn, :(cos(phi)), :(cos(phi)), :(sqrt(one(T) - mu * sin(phi)^2))),
-    (:dn, :(sqrt(one(T) - m * sin(phi)^2)), :(one(T)), :(cos(phi))),
+    (:sn, :(sin(φ)), :(sqrtmu1 * s), :(√(mu) * sin(φ))),
+    (:cn, :(cos(φ)), :(cos(φ)), :(√(one(T) - mu * sin(φ)^2))),
+    (:dn, :(√(one(T) - m * sin(φ)^2)), :(one(T)), :(cos(φ))),
 )
     @eval begin
         Reactant.@reactant_overlay function CarlsonAlg.$f(u::A, m::B) where {A,B}
@@ -315,17 +332,17 @@ for (f, a, b, c) in (
 
             mu1 = inv(oneT - m)
             muneg = -m * mu1
-            sqrtmu1 = sqrt(mu1)
+            sqrtmu1 = √(mu1)
             mubig = inv(m)
 
-            phi = __reactant_am(
-                Base.ifelse(isneg, u / sqrtmu1, Base.ifelse(isbig, u * sqrt(m), u)),
+            φ = _reactant_am(
+                Base.ifelse(isneg, u / sqrtmu1, Base.ifelse(isbig, u * √(m), u)),
                 Base.ifelse(isneg, muneg, Base.ifelse(isbig, mubig, m)),
             )
-            s = sin(phi)
+            s = sin(φ)
 
             negval = let mu = muneg
-                ($b) / sqrt(oneT - mu * s^2)
+                ($b) / √(oneT - mu * s^2)
             end
             bigval = let mu = mubig
                 $c
@@ -365,9 +382,9 @@ function _reactant_DRD_ifbody(X::A, Y::B, Z::C) where {A,B,C}
     EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV))
 
     for _ in 1:_reactant_duplication_iters(Reactant.unwrapped_eltype(T))
-        XNROOT = sqrt(XN)
-        YNROOT = sqrt(YN)
-        ZNROOT = sqrt(ZN)
+        XNROOT = √(XN)
+        YNROOT = √(YN)
+        ZNROOT = √(ZN)
         ynrootznroot = YNROOT * ZNROOT
         LAMDA = muladd(XNROOT, YNROOT + ZNROOT, ynrootznroot)
         SIGMA = muladd(POWER4, inv(ZNROOT * (ZN + LAMDA)), SIGMA)
@@ -391,7 +408,7 @@ function _reactant_DRD_ifbody(X::A, Y::B, Z::C) where {A,B,C}
     EF = ED + EC + EC
     S1 = ED * (-C1 + C3 * ED * inv4 - threeT * C4 * ZNDEV * EF / 2)
     S2 = ZNDEV * (C2 * EF + ZNDEV * (-C3 * EC + ZNDEV * C4 * EA))
-    return threeT * SIGMA + POWER4 * (oneT + S1 + S2) / (MU * sqrt(MU))
+    return threeT * SIGMA + POWER4 * (oneT + S1 + S2) / (MU * √(MU))
 end
 
 Reactant.@reactant_overlay function CarlsonAlg.DRD(X::A, Y::B, Z::C) where {A,B,C}
@@ -421,89 +438,26 @@ end
 #----------------------------------------------------------------------------------------
 # Complete Carlson K(m), E(m)
 #----------------------------------------------------------------------------------------
-function _reactant_complete_reduce_m(m::T) where {T}
-# Maps m onto the [0, 1) for complete K and E
-    oneT = one(T)
-    zeroT = zero(T)
-    reduced = Base.ifelse(
-        m < zeroT,
-        let m_abs = -m
-            m_abs / (m_abs + oneT)
-        end,
-        Base.ifelse(m > oneT, inv(m), m),
-    )
-    return Base.ifelse(isnan(m) | (m == oneT), zeroT, reduced)
-end
-
 Reactant.@reactant_overlay function CarlsonAlg.K(m::T) where {T}
-    oneT = one(T)
-    zeroT = zero(T)
-    m_eval = _reactant_complete_reduce_m(m)
-    drf, _ = CarlsonAlg.DRF(zeroT, oneT - m_eval, oneT)
-
-    return Base.ifelse(
-        isnan(m),
-        T(NaN),
-        Base.ifelse(
-            m == oneT,
-            T(Inf),
-            Base.ifelse(
-                m < zeroT,
-                drf / sqrt(oneT + abs(m)),
-                Base.ifelse(m > oneT, drf / sqrt(m), drf),
-            ),
-        ),
-    )
+    reduction = _reactant_reduce_m(m)
+    drf, _ = CarlsonAlg.DRF(zero(T), one(T) - reduction[1], one(T))
+    # Only the first component is wanted; the placeholder second one and the `E` half of
+    # the lift are dead and get folded away.
+    return _reactant_complete_lift(m, reduction, drf, zero(T))[1]
 end
 
 Reactant.@reactant_overlay function CarlsonAlg.ellipke(m::T) where {T}
-    oneT = one(T)
-    zeroT = zero(T)
-    nanT = T(NaN)
-    inv3 = T(1 / 3)
-    m_eval = _reactant_complete_reduce_m(m)
-    y = oneT - m_eval
-    drf, _ = CarlsonAlg.DRF(zeroT, y, oneT)
-    drd, _ = CarlsonAlg.DRD(zeroT, y, oneT)
-    e_base = muladd(-m_eval * inv3, drd, drf)
-    sqrt_factor = sqrt(oneT + abs(m))
-
-    k = Base.ifelse(
-        isnan(m),
-        nanT,
-        Base.ifelse(
-            m == oneT,
-            T(Inf),
-            Base.ifelse(
-                m < zeroT,
-                drf / sqrt_factor,
-                Base.ifelse(m > oneT, drf / sqrt(m), drf),
-            ),
-        ),
-    )
-    e = Base.ifelse(
-        isnan(m),
-        nanT,
-        Base.ifelse(
-            m == oneT,
-            oneT,
-            Base.ifelse(
-                m < zeroT,
-                e_base * sqrt_factor,
-                Base.ifelse(
-                    m > oneT,
-                    sqrt(m) * muladd(-(oneT - inv(m)), drf, e_base),
-                    e_base,
-                ),
-            ),
-        ),
-    )
-    return (k, e)
+    reduction = _reactant_reduce_m(m)
+    y = one(T) - reduction[1]
+    drf, _ = CarlsonAlg.DRF(zero(T), y, one(T))
+    drd, _ = CarlsonAlg.DRD(zero(T), y, one(T))
+    e = muladd(-reduction[1] * T(1 / 3), drd, drf)
+    return _reactant_complete_lift(m, reduction, drf, e)
 end
 
-function _reactant_rawE(sinphi::A, m::B) where {A,B}
+function _reactant_rawE(sinφ::A, m::B) where {A,B}
     T = promote_type(A, B)
-    sinphi = T(sinphi)
+    sinφ = T(sinφ)
     m = T(m)
     oneT = one(T)
     inv3 = T(1 / 3)
@@ -511,17 +465,17 @@ function _reactant_rawE(sinphi::A, m::B) where {A,B}
 
     isbig = m > oneT
 
-    m12 = sqrt(m)
-    sinalpha = m12 * sinphi
+    m12 = √(m)
+    sinalpha = m12 * sinφ
     sinalpha2 = sinalpha * sinalpha
     cosalpha2 = oneT - sinalpha2
     yalpha = muladd(-inv(m), sinalpha2, oneT)
 
-    sinphi2 = sinphi * sinphi
-    cosphi2 = oneT - sinphi2
-    y = muladd(-m, sinphi2, oneT)
+    sinφ2 = sinφ * sinφ
+    cosφ2 = oneT - sinφ2
+    y = muladd(-m, sinφ2, oneT)
 
-    X = Base.ifelse(isbig, cosalpha2, cosphi2)
+    X = Base.ifelse(isbig, cosalpha2, cosφ2)
     Y = Base.ifelse(isbig, yalpha, y)
     drf, ierr1 = CarlsonAlg.DRF(X, Y, oneT)
     drd, ierr2 = CarlsonAlg.DRD(X, Y, oneT)
@@ -529,30 +483,30 @@ function _reactant_rawE(sinphi::A, m::B) where {A,B}
     val = Base.ifelse(
         isbig,
         sinalpha * (drf - sinalpha2 * inv3 * drd) / m12,
-        sinphi * (drf - m * sinphi2 * inv3 * drd),
+        sinφ * (drf - m * sinφ2 * inv3 * drd),
     )
     return Base.ifelse(
         (ierr1 == 0) & (ierr2 == 0),
         val,
-        Base.ifelse((ierr1 == 2) & (ierr2 == 2), sinphi, nanT),
+        Base.ifelse((ierr1 == 2) & (ierr2 == 2), sinφ, nanT),
     )
 end
 
-Reactant.@reactant_overlay function CarlsonAlg.E(phi::A, m::B) where {A,B}
+Reactant.@reactant_overlay function CarlsonAlg.E(φ::A, m::B) where {A,B}
     T = promote_type(A, B)
-    phi = T(phi)
+    φ = T(φ)
     m = T(m)
-    halfpi = T(Base.π / 2)
+    halfπ = T(Base.π / 2)
     piT = T(Base.π)
     nanT = T(NaN)
 
-    wrapped = 2 * abs(phi) > piT
-    phi2 = phi + halfpi
-    sinarg = Base.ifelse(wrapped, cos(mod(phi2, piT)), sin(phi))
+    wrapped = 2 * abs(φ) > piT
+    φ2 = φ + halfπ
+    sinarg = Base.ifelse(wrapped, cos(mod(φ2, piT)), sin(φ))
     raw = _reactant_rawE(sinarg, m)
-    offset = 2 * fld(phi2, piT) * CarlsonAlg.E(m)
+    offset = 2 * fld(φ2, piT) * CarlsonAlg.E(m)
     ans = Base.ifelse(wrapped, offset - raw, raw)
-    return Base.ifelse(isnan(phi) | isnan(m), nanT, ans)
+    return Base.ifelse(isnan(φ) | isnan(m), nanT, ans)
 end
 
 
@@ -581,7 +535,7 @@ function _reactant_DRC_ifbody(X::A, Y::B) where {A,B}
     SN = muladd(invMU, YN + MU, -twoT)
 
     for _ in 1:_reactant_drc_iters(Reactant.unwrapped_eltype(T))
-        LAMDA = muladd(twoT * sqrt(XN), sqrt(YN), YN)
+        LAMDA = muladd(twoT * √(XN), √(YN), YN)
         XN = (XN + LAMDA) * inv4
         YN = (YN + LAMDA) * inv4
 
@@ -591,7 +545,7 @@ function _reactant_DRC_ifbody(X::A, Y::B) where {A,B}
     end
 
     S = SN^2 * muladd(SN, muladd(SN, muladd(SN, C2, C3), C1), C4)
-    return (oneT + S) / sqrt(MU)
+    return (oneT + S) / √(MU)
 end
 
 function _reactant_DRC(X::A, Y::B) where {A,B}
@@ -650,9 +604,9 @@ function _reactant_DRJ_ifbody(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
     EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV), abs(PNDEV))
 
     for _ in 1:_reactant_drj_iters(Reactant.unwrapped_eltype(T))
-        XNROOT = sqrt(XN)
-        YNROOT = sqrt(YN)
-        ZNROOT = sqrt(ZN)
+        XNROOT = √(XN)
+        YNROOT = √(YN)
+        ZNROOT = √(ZN)
         YNROOTZNROOT = YNROOT * ZNROOT
         rootsum = XNROOT + YNROOT + ZNROOT
         LAMDA = muladd(XNROOT, (YNROOT + ZNROOT), YNROOTZNROOT)
@@ -687,7 +641,7 @@ function _reactant_DRJ_ifbody(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
     S1 = oneT + E2 * (-C1 + (threeT * C3 / 4) * E2 - (threeT * C4 / 2) * E3)
     S2 = EB * (C2 / twoT + PNDEV * (-twoT * C3 + PNDEV * C4))
     S3 = PNDEV * EA * (C2 - PNDEV * C3) - C2 * PNDEV * EC
-    ans = threeT * SIGMA + POWER4 * (S1 + S2 + S3) / (MU * sqrt(MU))
+    ans = threeT * SIGMA + POWER4 * (S1 + S2 + S3) / (MU * √(MU))
 
     return (ans, IER)
 end
@@ -733,12 +687,12 @@ end
 
     return Base.ifelse(
         h > zero(T),
-        atan(t * sqrt(h)) / sqrt(h),
+        atan(t * √(h)) / √(h),
         Base.ifelse(
             h == zero(T),
             t,
             begin
-                sqrt_neg_h = sqrt(-h)
+                sqrt_neg_h = √(-h)
                 arg = t * sqrt_neg_h
                 Base.ifelse(abs(arg) < oneT, atanh(arg), _reactant_custom_atanh(arg)) /
                 sqrt_neg_h
@@ -752,7 +706,7 @@ function _reactant_cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
     oneT = one(T)
     twoT = T(2)
     zeroT = zero(T)
-    pi_over_2 = T(π / 2)
+    π_over_2 = T(π / 2)
 
     kc = abs(kc)
     p = T(p)
@@ -766,12 +720,12 @@ function _reactant_cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
     q = zero(T)
 
     ispos = p > zeroT
-    p_pos = sqrt(p)
+    p_pos = √(p)
     b_pos = b / p_pos
     f0 = kc * kc
     g0 = oneT - p
     q0 = (b - a * p) * (oneT - f0)
-    p_neg = sqrt((f0 - p) / g0)
+    p_neg = √((f0 - p) / g0)
     a_neg = (a - b) / g0
     b_neg = -q0 * (g0^2 * p_neg) + a_neg * p_neg
 
@@ -802,29 +756,29 @@ function _reactant_cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
         m = kc + m
     end
 
-    return pi_over_2 * muladd(a, m, b) / (m * (m + p))
+    return π_over_2 * muladd(a, m, b) / (m * (m + p))
 end
 
-function _reactant_rawPi(n::A, sinphi::B, m::C) where {A,B,C}
+function _reactant_rawPi(n::A, sinφ::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
     n = T(n)
-    sinphi = T(sinphi)
+    sinφ = T(sinφ)
     m = T(m)
     oneT = one(T)
     inv3 = T(1 / 3)
     infT = T(Inf)
     nanT = T(NaN)
 
-    sinphi2 = sinphi * sinphi
-    cosphi2 = oneT - sinphi2
-    y = muladd(-m, sinphi2, oneT)
-    p = muladd(-n, sinphi2, oneT)
-    drf, ierr1 = CarlsonAlg.DRF(cosphi2, y, oneT)
-    drj, ierr2 = _reactant_DRJ(cosphi2, y, oneT, p)
+    sinφ2 = sinφ * sinφ
+    cosφ2 = oneT - sinφ2
+    y = muladd(-m, sinφ2, oneT)
+    p = muladd(-n, sinφ2, oneT)
+    drf, ierr1 = CarlsonAlg.DRF(cosφ2, y, oneT)
+    drj, ierr2 = _reactant_DRJ(cosφ2, y, oneT, p)
 
     return Base.ifelse(
         (ierr1 == 0) & (ierr2 == 0),
-        sinphi * (drf + n * sinphi2 * inv3 * drj),
+        sinφ * (drf + n * sinφ2 * inv3 * drj),
         Base.ifelse(
             ((ierr1 == 2) & (ierr2 == 2)) | ((ierr1 == 0) & (ierr2 == 2)),
             infT,
@@ -833,83 +787,83 @@ function _reactant_rawPi(n::A, sinphi::B, m::C) where {A,B,C}
     )
 end
 
-function _reactant_incomplete_Pi_core(n::A, phi::B, m::C) where {A,B,C}
+function _reactant_incomplete_Pi_core(n::A, φ::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
     n = T(n)
-    phi = T(phi)
+    φ = T(φ)
     m = T(m)
     piT = T(π)
-    halfpi = T(π / 2)
+    halfπ = T(π / 2)
     nanT = T(NaN)
     ans = zero(T)
 
     # One rawPi -- and therefore one DRJ -- serves both cases.
-    wrapped = 2 * abs(phi) > piT
-    phi2 = phi + halfpi
-    sinarg = Base.ifelse(wrapped, cos(mod(phi2, piT)), sin(phi))
+    wrapped = 2 * abs(φ) > piT
+    φ2 = φ + halfπ
+    sinarg = Base.ifelse(wrapped, cos(mod(φ2, piT)), sin(φ))
     raw = _reactant_rawPi(n, sinarg, m)
-    offset = 2 * fld(phi2, piT) * Pi(n, m)
+    offset = 2 * fld(φ2, piT) * Pi(n, m)
     ans = Base.ifelse(wrapped, offset - raw, raw)
-    return Base.ifelse(isnan(n) | isnan(phi) | isnan(m), nanT, ans)
+    return Base.ifelse(isnan(n) | isnan(φ) | isnan(m), nanT, ans)
 end
 
-function _reactant_incomplete_Pi_nonneg(n::A, phi::B, m::C) where {A,B,C}
+function _reactant_incomplete_Pi_nonneg(n::A, φ::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
     n = T(n)
-    phi = T(phi)
+    φ = T(φ)
     m = T(m)
     oneT = one(T)
     ans = zero(T)
 
     isbig = n > oneT
-    sinphi, cosphi = sincos(phi)
-    sinphi2 = sinphi * sinphi
-    t1 = sinphi / (cosphi * sqrt(muladd(-m, sinphi2, oneT)))
+    sinφ, cosφ = sincos(φ)
+    sinφ2 = sinφ * sinφ
+    t1 = sinφ / (cosφ * √(muladd(-m, sinφ2, oneT)))
     h1 = (oneT - n) * (n - m) / n
-    core = _reactant_incomplete_Pi_core(Base.ifelse(isbig, m / n, n), phi, m)
-    return Base.ifelse(isbig, _reactant_FukushimaT(t1, h1) - core + F(phi, m), core)
+    core = _reactant_incomplete_Pi_core(Base.ifelse(isbig, m / n, n), φ, m)
+    return Base.ifelse(isbig, _reactant_FukushimaT(t1, h1) - core + F(φ, m), core)
 end
 
-Reactant.@reactant_overlay function CarlsonAlg.Pi(n::A, phi::B, m::C) where {A,B,C}
+Reactant.@reactant_overlay function CarlsonAlg.Pi(n::A, φ::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
     n = T(n)
-    phi = T(phi)
+    φ = T(φ)
     m = T(m)
     oneT = one(T)
 
     isneg = m < zero(T)
     isnm = isneg & (n == m)
     piT = T(Base.π)
-    halfpi = T(Base.π / 2)
+    halfπ = T(Base.π / 2)
 
     # n == m makes the imaginary modulus transformation 0/0, so use the closed form
-    # Pi(m; phi | m) = (E(phi | m) - m*sin*cos/sqrt(1 - m*sin^2)) / (1 - m).
-    sc, cc = sincos(phi)
+    # Pi(m; φ | m) = (E(φ | m) - m*sin*cos/√(1 - m*sin^2)) / (1 - m).
+    sc, cc = sincos(φ)
     closed =
-        (CarlsonAlg.E(phi, m) - m * sc * cc / sqrt(muladd(-m, sc * sc, oneT))) / (oneT - m)
+        (CarlsonAlg.E(φ, m) - m * sc * cc / √(muladd(-m, sc * sc, oneT))) / (oneT - m)
 
-    # Pi(n; phi + k*pi | m) = Pi(n; phi | m) + 2k Pi(n | m); reduce before the transform,
-    # whose asin cannot represent |phi| > pi/2.
-    phi2 = phi + halfpi
-    wrapped = 2 * abs(phi) > piT
-    phi_r = Base.ifelse(wrapped, mod(phi2, piT) - halfpi, phi)
-    offset = Base.ifelse(wrapped, 2 * fld(phi2, piT) * CarlsonAlg.Pi(n, m), zero(T))
+    # Pi(n; φ + k*π | m) = Pi(n; φ | m) + 2k Pi(n | m); reduce before the transform,
+    # whose asin cannot represent |φ| > π/2.
+    φ2 = φ + halfπ
+    wrapped = 2 * abs(φ) > piT
+    φ_r = Base.ifelse(wrapped, mod(φ2, piT) - halfπ, φ)
+    offset = Base.ifelse(wrapped, 2 * fld(φ2, piT) * CarlsonAlg.Pi(n, m), zero(T))
 
     mc = oneT - m
     imc = inv(mc)
     mN = -m * imc
-    sinphi = sin(phi_r)
-    sinphi2 = sinphi * sinphi
-    phiN = asin(sqrt(mc / muladd(-m, sinphi2, oneT)) * sinphi)
+    sinφ = sin(φ_r)
+    sinφ2 = sinφ * sinφ
+    φN = asin(√(mc / muladd(-m, sinφ2, oneT)) * sinφ)
     nN = (n - m) * imc
 
     nonneg = _reactant_incomplete_Pi_nonneg(
         Base.ifelse(isneg, nN, n),
-        Base.ifelse(isneg, phiN, phi),
+        Base.ifelse(isneg, φN, φ),
         Base.ifelse(isneg, mN, m),
     )
     transformed =
-        offset + sqrt(imc) / nN * (mN * F(phiN, mN) + imc * n * nonneg)
+        offset + √(imc) / nN * (mN * F(φN, mN) + imc * n * nonneg)
 
     return Base.ifelse(isnm, closed, Base.ifelse(isneg, transformed, nonneg))
 end
@@ -926,7 +880,7 @@ function _reactant_complete_Pi_core(n::A, m::B) where {A,B}
     zeroT = zero(T)
     infT = T(Inf)
 
-    celv = _reactant_cel(sqrt(oneT - m), oneT - n, oneT, oneT)
+    celv = _reactant_cel(√(oneT - m), oneT - n, oneT, oneT)
     return Base.ifelse(
         (n == oneT) | (m == oneT),
         infT,

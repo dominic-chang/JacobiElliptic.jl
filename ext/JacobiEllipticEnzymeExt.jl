@@ -1,9 +1,11 @@
-module JacobiEllipticEnzymeExt# Should be same name as the file (just like a normal package)
+module JacobiEllipticEnzymeExt
 
-using JacobiElliptic, Enzyme
-import .EnzymeRules: forward, reverse, augmented_primal
+using JacobiElliptic
+using Enzyme
 using .EnzymeRules
-include("common.jl")
+import JacobiElliptic: ArithmeticGeometricMeanAlg, CarlsonAlg, FukushimaAlg
+import .EnzymeRules: forward, reverse, augmented_primal
+include("derivatives.jl")
 
 begin # ArithmeticGeometricMeanAlg
     alg = JacobiElliptic.ArithmeticGeometricMeanAlg
@@ -15,7 +17,7 @@ begin # ArithmeticGeometricMeanAlg
     # Elliptic K(m)
     #----------------------------------------------------------------------------------------
     @eval function forward(
-        # https://enzymead.github.io/Enzyme.jl/stable/#Forward-mode
+        # https://enzymead.github.io/Enzyme.jl/stable/# Forward-mode
         # Of note, when we seed both arguments at once the tangent return is the sum of both.
         config::EnzymeRules.FwdConfig,
         func::Const{typeof(($alg).K)},
@@ -183,7 +185,7 @@ begin # ArithmeticGeometricMeanAlg
 end
 
 
-for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
+for alg in (CarlsonAlg, FukushimaAlg)
     ke_val = isdefined(alg, :ellipke) ? :(($alg).ellipke(m.val)) :
              :((($alg).K(m.val), ($alg).E(m.val)))
     ke_m = isdefined(alg, :ellipke) ? :(($alg).ellipke(m)) :
@@ -192,7 +194,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     # Elliptic K(m)
     #----------------------------------------------------------------------------------------
     @eval function forward(
-        # https://enzymead.github.io/Enzyme.jl/stable/#Forward-mode
+        # https://enzymead.github.io/Enzyme.jl/stable/# Forward-mode
         # Of note, when we seed both arguments at once the tangent return is the sum of both.
         config::EnzymeRules.FwdConfig,
         func::Const{typeof(($alg).K)},
@@ -279,7 +281,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     #----------------------------------------------------------------------------------------
 
     @eval function forward(
-        # https://enzymead.github.io/Enzyme.jl/stable/#Forward-mode
+        # https://enzymead.github.io/Enzyme.jl/stable/# Forward-mode
         # Of note, when we seed both arguments at once the tangent return is the sum of both.
         config::EnzymeRules.FwdConfig,
         func::Const{typeof(($alg).Pi)},
@@ -412,7 +414,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     #----------------------------------------------------------------------------------------
 
     @eval function forward(
-        # https://enzymead.github.io/Enzyme.jl/stable/#Forward-mode
+        # https://enzymead.github.io/Enzyme.jl/stable/# Forward-mode
         # Of note, when we seed both arguments at once the tangent return is the sum of both.
         config::EnzymeRules.FwdConfig,
         func::Const{typeof(($alg).F)},
@@ -530,7 +532,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     #----------------------------------------------------------------------------------------
 
     @eval function forward(
-        # https://enzymead.github.io/Enzyme.jl/stable/#Forward-mode
+        # https://enzymead.github.io/Enzyme.jl/stable/# Forward-mode
         # Of note, when we seed both arguments at once the tangent return is the sum of both.
         config::EnzymeRules.FwdConfig,
         func::Const{typeof(($alg).E)},
@@ -646,7 +648,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     # Elliptic Pi(n, ϕ, m)
     #----------------------------------------------------------------------------------------
     @eval function forward(
-        # https://enzymead.github.io/Enzyme.jl/stable/#Forward-mode
+        # https://enzymead.github.io/Enzyme.jl/stable/# Forward-mode
         # Of note, when we seed both arguments at once the tangent return is the sum of both.
         config::EnzymeRules.FwdConfig,
         func::Const{typeof(($alg).Pi)},
@@ -1024,7 +1026,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     #----------------------------------------------------------------------------------------
 
     @eval function forward(
-        # https://enzymead.github.io/Enzyme.jl/stable/#Forward-mode
+        # https://enzymead.github.io/Enzyme.jl/stable/# Forward-mode
         # Of note, when we seed both arguments at once the tangent return is the sum of both.
         config::EnzymeRules.FwdConfig,
         func::Const{typeof(($alg).cn)},
@@ -1152,7 +1154,7 @@ for alg in [JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg]
     #----------------------------------------------------------------------------------------
 
     @eval function forward(
-        # https://enzymead.github.io/Enzyme.jl/stable/#Forward-mode
+        # https://enzymead.github.io/Enzyme.jl/stable/# Forward-mode
         # Of note, when we seed both arguments at once the tangent return is the sum of both.
         config::EnzymeRules.FwdConfig,
         func::Const{typeof(($alg).sn)},

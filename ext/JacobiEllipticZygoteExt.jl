@@ -2,7 +2,8 @@ module JacobiEllipticZygoteExt
 
 using JacobiElliptic
 using Zygote: @adjoint
-include("common.jl")
+import JacobiElliptic: CarlsonAlg, FukushimaAlg
+include("derivatives.jl")
 
 
 @adjoint JacobiElliptic.CarlsonAlg._sqrt(a) = JacobiElliptic.CarlsonAlg._sqrt(a),
@@ -19,7 +20,7 @@ for alg in (JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg)
             E = ($alg).E(a, b)
             sin_a = sin(a)
             sin_2a = sin(2 * a)
-            sqrt_term = sqrt(1 - b * sin_a^2)
+            sqrt_term = √(1 - b * sin_a^2)
             return F,
             c̄ -> (
                 c̄ / sqrt_term,
@@ -41,7 +42,7 @@ for alg in (JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg)
             sin_a = sin(a)
             return E,
             c̄ -> (
-                c̄ * sqrt(1 - b * sin_a^2),
+                c̄ * √(1 - b * sin_a^2),
                 c̄ * (iszero(b) ? (sin(2 * a) - 2 * a) / 8 : (E - F) / (2 * b)),
             )
         end
@@ -74,7 +75,7 @@ for alg in (JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg)
             E_bc = ($alg).E(b, c)
             sin_b = sin(b)
             sin_2b = sin(2 * b)
-            sqrt_term = sqrt(1 - c * sin_b^2)
+            sqrt_term = √(1 - c * sin_b^2)
             return Pi,
             c̄ -> (
                 c̄ * (

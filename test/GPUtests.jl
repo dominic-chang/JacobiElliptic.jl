@@ -50,7 +50,7 @@ end
     end
 end
 
-#Test EllipticF
+# Test EllipticF
 @testset "Elliptic F" begin
     @testset "GPU" begin
         arr = [
@@ -67,7 +67,7 @@ end
             0.999f0,
         ]
         mtlarr = MtlArray(arr)
-        @testset "φ: $φ" for φ in range(0.0f0, Float32(π / 2), length = 10)
+        @testset "φ = $φ" for φ in range(0.0f0, Float32(π / 2), length = 10)
             gpuvals = Array(F.(φ, mtlarr))
 
             @testset "$val" for (iter, val) in enumerate(arr)
@@ -77,27 +77,27 @@ end
     end
 end
 
-#Test Complete EllipticPI
+# Test Complete EllipticPI
 @testset "Complete Elliptic Pi" begin
     typ = Float32
     @testset "GPU" begin
         mtlarr = MtlArray([typ(n) for n in range(1e-3, 1e-3, length = 10)])
         @testset "Standard m" begin
-            @testset "m :$m)" for m in range(zero(typ), one(typ), length = 10)
+            @testset "m = $m" for m in range(zero(typ), one(typ), length = 10)
                 JacobiElliptic.Pi.(mtlarr, typ(m))
             end
         end
     end
 end
 
-#Test EllipticPI
+# Test EllipticPI
 @testset "Elliptic Pi" begin
     typ = Float32
     @testset "GPU" begin
         mtlarr = MtlArray([φ for φ in range(1.0f-3, Float32(π / 2), length = 2)])
         @testset "n :$(round(φ*180/pi, digits=2))" for n in range(1e-3, 1e-3, length = 10)
             @testset "Standard m" begin
-                @testset "m :$m)" for m in range(zero(typ), one(typ), length = 10)
+                @testset "m = $m" for m in range(zero(typ), one(typ), length = 10)
                     gpuvals = JacobiElliptic.Pi.(typ(n), mtlarr, typ(m))
                 end
             end
@@ -106,8 +106,8 @@ end
 end
 
 
-#Taken from Elliptic.jl
-#https://github.com/nolta/Elliptic.jl/blob/main/test/jacobi_tests.jl
+# Taken from Elliptic.jl
+# https://github.com/nolta/Elliptic.jl/blob/main/test/jacobi_tests.jl
 @testset "Jacobi Elliptic Trig" begin
     @testset "GPU" begin
         arr = range(0.0f0, 3.14f0, length = 10)
