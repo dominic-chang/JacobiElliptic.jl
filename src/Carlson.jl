@@ -172,6 +172,27 @@ ellipke(m::T) where {T} = _ellipke_reduced(_ellipke_base, m)
 
 E(m) = ellipke(m)[2]
 
+# `DRFD` hands back the RF that F needs alongside the RD that E needs, so a caller wanting
+# both at the same amplitude pays for one duplication rather than two. The amplitude and
+# parameter reductions differ between F and E, so anything outside the principal arch (or
+# any degenerate argument) falls back to the separate entry points.
+@inline function _F_E(φ::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    if isnan(φ) || isnan(m) || !(zero(T) <= m <= one(T)) || 2abs(φ) > T(π)
+        return (F(φ, m), E(φ, m))
+    end
+    oneT = _one(T)
+    sinφ = sin(φ)
+    sinφ2 = sinφ * sinφ
+    cosφ2 = oneT - sinφ2
+    y = muladd(-m, sinφ2, oneT)
+    drf, ierr1, drd, ierr2 = DRFD(cosφ2, y, oneT)
+    if ierr1 == 0 && ierr2 == 0
+        return (sinφ * drf, sinφ * muladd(-m * sinφ2 * T(1 / 3), drd, drf))
+    end
+    return (F(φ, m), E(φ, m))
+end
+
 # `DRFJ` shares one duplication between RF and RJ, and the RF it returns is exactly the
 # one `_rawF` would compute for the same (sinφ, m). The reductions in `Pi` below need both
 # integrals at the same argument, so this hands back the pair and they pay for one

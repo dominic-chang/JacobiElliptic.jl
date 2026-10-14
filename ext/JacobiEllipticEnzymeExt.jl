@@ -190,6 +190,12 @@ for alg in (CarlsonAlg, FukushimaAlg)
              :((($alg).K(m.val), ($alg).E(m.val)))
     ke_m = isdefined(alg, :ellipke) ? :(($alg).ellipke(m)) :
            :((($alg).K(m), ($alg).E(m)))
+    # Same idea for the incomplete pair: `_F_E` shares one duplication between F and E.
+    # FukushimaAlg has no such kernel and keeps the two separate calls.
+    fe_val = isdefined(alg, :_F_E) ? :(($alg)._F_E(ϕ.val, m.val)) :
+             :((($alg).F(ϕ.val, m.val), ($alg).E(ϕ.val, m.val)))
+    fe_sym = isdefined(alg, :_F_E) ? :(($alg)._F_E(ϕ, m)) :
+             :((($alg).F(ϕ, m), ($alg).E(ϕ, m)))
     #----------------------------------------------------------------------------------------
     # Elliptic K(m)
     #----------------------------------------------------------------------------------------
@@ -271,6 +277,92 @@ for alg in (CarlsonAlg, FukushimaAlg)
                 ntuple(i -> zero(m.val), Val(EnzymeRules.width(config)))
             else
                 ntuple(i -> ∂K_∂m(m.val) * dret.val[i], Val(EnzymeRules.width(config)))
+            end
+        end
+        return (dm,)
+    end
+
+    #----------------------------------------------------------------------------------------
+    # Elliptic E(m)
+    #----------------------------------------------------------------------------------------
+    # The two-argument E(ϕ, m) rules further down do not cover the complete form, so
+    # without these Enzyme differentiates straight through the duplication loop.
+    @eval function forward(
+        config::EnzymeRules.FwdConfig,
+        func::Const{typeof(($alg).E)},
+        RT,
+        m::Annotation{<:Real},
+    )
+        function ∂E_∂m(m)
+            K, E = $ke_m
+            return iszero(m) ? -oftype(E, π) / 8 : (E - K) / (2 * m)
+        end
+
+        if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
+            if EnzymeRules.width(config) == 1
+                return Duplicated(
+                    func.val(m.val),
+                    (m isa Const ? zero(m.val) : ∂E_∂m(m.val) * m.dval),
+                )
+            else
+                return BatchDuplicated(
+                    func.val(m.val),
+                    ntuple(
+                        i -> (m isa Const ? zero(m.val) : ∂E_∂m(m.val) * m.dval[i]),
+                        Val(EnzymeRules.width(config)),
+                    ),
+                )
+            end
+        elseif EnzymeRules.needs_shadow(config)
+            if EnzymeRules.width(config) == 1
+                return (m isa Const ? zero(m.val) : ∂E_∂m(m.val) * m.dval)
+            else
+                return ntuple(
+                    i -> (m isa Const ? zero(m.val) : ∂E_∂m(m.val) * m.dval[i]),
+                    Val(EnzymeRules.width(config)),
+                )
+            end
+        elseif EnzymeRules.needs_primal(config)
+            return func.val(m.val)
+        else
+            return nothing
+        end
+    end
+
+    @eval function augmented_primal(
+        config::RevConfigWidth,
+        func::Const{typeof(($alg).E)},
+        ::Type,
+        m::Annotation{<:Real},
+    )
+        K, E = $ke_val
+        primal = EnzymeRules.needs_primal(config) ? E : nothing
+        return EnzymeRules.AugmentedReturn(primal, nothing, (E, K))
+    end
+
+    @eval function reverse(
+        config::RevConfigWidth,
+        func::Const{typeof(($alg).E)},
+        dret,
+        tape,
+        m::Annotation{T},
+    ) where {T}
+        E, K = tape
+        ∂E_∂m(m) = iszero(m) ? -oftype(E, π) / 8 : (E - K) / (2 * m)
+
+        dm = if m isa Const
+            nothing
+        elseif EnzymeRules.width(config) == 1
+            if dret isa Type{<:Const}
+                zero(m.val)
+            else
+                ∂E_∂m(m.val) * dret.val
+            end
+        else
+            if dret isa Type{<:Const}
+                ntuple(i -> zero(m.val), Val(EnzymeRules.width(config)))
+            else
+                ntuple(i -> ∂E_∂m(m.val) * dret.val[i], Val(EnzymeRules.width(config)))
             end
         end
         return (dm,)
@@ -422,9 +514,11 @@ for alg in (CarlsonAlg, FukushimaAlg)
         ϕ::Annotation{<:Real},
         m::Annotation{<:Real},
     )
-        ∂F_∂m(ϕ, m) =
-            ($alg).E(ϕ, m) / (2 * m * (1 - m)) - ($alg).F(ϕ, m) / 2 / m -
-            sin(2 * ϕ) / (4 * (1 - m) * √(1 - m * sin(ϕ)^2))
+        function ∂F_∂m(ϕ, m)
+            F, E = $fe_sym
+            return E / (2 * m * (1 - m)) - F / 2 / m -
+                   sin(2 * ϕ) / (4 * (1 - m) * √(1 - m * sin(ϕ)^2))
+        end
 
         ∂F_∂ϕ(ϕ, m) = 1 / √(1 - m * sin(ϕ)^2)
 
@@ -472,8 +566,7 @@ for alg in (CarlsonAlg, FukushimaAlg)
         ϕ::Annotation{<:Real},
         m::Annotation{<:Real},
     )
-        F = func.val(ϕ.val, m.val)
-        E = ($alg).E(ϕ.val, m.val)
+        F, E = $fe_val
         sin_2ϕ = sin(2 * ϕ.val)
         sqrt_term = √(1 - m.val * sin(ϕ.val)^2)
         primal = EnzymeRules.needs_primal(config) ? F : nothing
@@ -540,8 +633,11 @@ for alg in (CarlsonAlg, FukushimaAlg)
         ϕ::Annotation{<:Real},
         m::Annotation{<:Real},
     )
-        ∂E_∂m(ϕ, m) =
-            iszero(m) ? (sin(2 * ϕ) - 2 * ϕ) / 8 : (($alg).E(ϕ, m) - ($alg).F(ϕ, m)) / (2m)
+        function ∂E_∂m(ϕ, m)
+            iszero(m) && return (sin(2 * ϕ) - 2 * ϕ) / 8
+            F, E = $fe_sym
+            return (E - F) / (2m)
+        end
 
         ∂E_∂ϕ(ϕ, m) = √(1 - m * sin(ϕ)^2)
 
@@ -657,8 +753,8 @@ for alg in (CarlsonAlg, FukushimaAlg)
         ϕ::Annotation{<:Real},
         m::Annotation{<:Real},
     )
-        E, F, Pi =
-            ($alg).E(ϕ.val, m.val), ($alg).F(ϕ.val, m.val), func.val(n.val, ϕ.val, m.val)
+        F, E = $fe_val
+        Pi = func.val(n.val, ϕ.val, m.val)
         ∂Pi_∂n(n, ϕ, m) = begin
             if iszero(n)
                 if iszero(m)
@@ -747,8 +843,7 @@ for alg in (CarlsonAlg, FukushimaAlg)
         m::Annotation{<:Real},
     )
         Pi = func.val(n.val, ϕ.val, m.val)
-        E = ($alg).E(ϕ.val, m.val)
-        F = ($alg).F(ϕ.val, m.val)
+        F, E = $fe_val
         sin_2ϕ = sin(2 * ϕ.val)
         sin_ϕ = sin(ϕ.val)
         sqrt_term = √(1 - m.val * sin_ϕ^2)
