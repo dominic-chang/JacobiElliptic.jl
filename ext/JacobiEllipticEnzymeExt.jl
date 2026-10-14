@@ -7,12 +7,105 @@ import JacobiElliptic: ArithmeticGeometricMeanAlg, CarlsonAlg, FukushimaAlg
 import .EnzymeRules: forward, reverse, augmented_primal
 include("derivatives.jl")
 
+# ∂K/∂m and ∂E/∂m from one (K, E) pair. Both are 0/0 at m == 0, where the limits are
+# ±π/8, so the removable singularity is handled once here rather than at every call site.
+@inline function _∂ellipke(K, E, m)
+    iszero(m) && return (oftype(K, π) / 8, -oftype(E, π) / 8)
+    return (E / (2 * m * (1 - m)) - K / 2 / m, (E - K) / (2 * m))
+end
+
 begin # ArithmeticGeometricMeanAlg
     alg = JacobiElliptic.ArithmeticGeometricMeanAlg
     # ellipke(m) is bitwise (K(m), E(m)) and costs one pass instead of two. Resolved here
     # at definition time; FukushimaAlg has no ellipke and keeps the two separate calls.
     ke_val = :(($alg).ellipke(m.val))
     ke_m = :(($alg).ellipke(m))
+    #----------------------------------------------------------------------------------------
+    # ellipke(m) -> (K(m), E(m))
+    #----------------------------------------------------------------------------------------
+    # Without this Enzyme differentiates through the duplication loop. The pair shares one
+    # evaluation, so both tangents come out of the same (K, E).
+    @eval function forward(
+        config::EnzymeRules.FwdConfig,
+        func::Const{typeof(($alg).ellipke)},
+        RT,
+        m::Annotation{<:Real},
+    )
+        K, E = func.val(m.val)
+        ∂K, ∂E = _∂ellipke(K, E, m.val)
+        tangent(dm) = (∂K * dm, ∂E * dm)
+        notangent() = (zero(K), zero(E))
+
+        if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
+            if EnzymeRules.width(config) == 1
+                return Duplicated((K, E), (m isa Const ? notangent() : tangent(m.dval)))
+            else
+                return BatchDuplicated(
+                    (K, E),
+                    ntuple(
+                        i -> (m isa Const ? notangent() : tangent(m.dval[i])),
+                        Val(EnzymeRules.width(config)),
+                    ),
+                )
+            end
+        elseif EnzymeRules.needs_shadow(config)
+            if EnzymeRules.width(config) == 1
+                return (m isa Const ? notangent() : tangent(m.dval))
+            else
+                return ntuple(
+                    i -> (m isa Const ? notangent() : tangent(m.dval[i])),
+                    Val(EnzymeRules.width(config)),
+                )
+            end
+        elseif EnzymeRules.needs_primal(config)
+            return (K, E)
+        else
+            return nothing
+        end
+    end
+
+    @eval function augmented_primal(
+        config::RevConfigWidth,
+        func::Const{typeof(($alg).ellipke)},
+        ::Type,
+        m::Annotation{<:Real},
+    )
+        K, E = func.val(m.val)
+        primal = EnzymeRules.needs_primal(config) ? (K, E) : nothing
+        return EnzymeRules.AugmentedReturn(primal, nothing, (K, E))
+    end
+
+    @eval function reverse(
+        config::RevConfigWidth,
+        func::Const{typeof(($alg).ellipke)},
+        dret,
+        tape,
+        m::Annotation{T},
+    ) where {T}
+        K, E = tape
+        ∂K, ∂E = _∂ellipke(K, E, m.val)
+        # the adjoint arrives as the pair (K̄, Ē); both paths feed the one input
+        seed(d) = ∂K * d[1] + ∂E * d[2]
+
+        dm = if m isa Const
+            nothing
+        elseif EnzymeRules.width(config) == 1
+            if dret isa Type{<:Const}
+                zero(m.val)
+            else
+                seed(dret.val)
+            end
+        else
+            if dret isa Type{<:Const}
+                ntuple(i -> zero(m.val), Val(EnzymeRules.width(config)))
+            else
+                ntuple(i -> seed(dret.val[i]), Val(EnzymeRules.width(config)))
+            end
+        end
+        return (dm,)
+    end
+
+
     #----------------------------------------------------------------------------------------
     # Elliptic K(m)
     #----------------------------------------------------------------------------------------
@@ -26,7 +119,8 @@ begin # ArithmeticGeometricMeanAlg
     )
         function ∂K_∂m(m)
             K, E = $ke_m
-            return E / (2 * m * (1 - m)) - K / 2 / m
+            # E/(2m(1-m)) - K/(2m) is 0/0 at m == 0; the limit is π/8.
+            return iszero(m) ? oftype(K, π) / 8 : E / (2 * m * (1 - m)) - K / 2 / m
         end
 
         if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
@@ -79,7 +173,8 @@ begin # ArithmeticGeometricMeanAlg
         m::Annotation{T},
     ) where {T}
         E, K = tape
-        ∂K_∂m(m) = E / (2 * m * (1 - m)) - K / 2 / m
+        # E/(2m(1-m)) - K/(2m) is 0/0 at m == 0; the limit is π/8.
+        ∂K_∂m(m) = iszero(m) ? oftype(K, π) / 8 : E / (2 * m * (1 - m)) - K / 2 / m
 
         dm = if m isa Const
             nothing
@@ -196,6 +291,95 @@ for alg in (CarlsonAlg, FukushimaAlg)
              :((($alg).F(ϕ.val, m.val), ($alg).E(ϕ.val, m.val)))
     fe_sym = isdefined(alg, :_F_E) ? :(($alg)._F_E(ϕ, m)) :
              :((($alg).F(ϕ, m), ($alg).E(ϕ, m)))
+    if isdefined(alg, :ellipke)
+        #----------------------------------------------------------------------------------------
+        # ellipke(m) -> (K(m), E(m))
+        #----------------------------------------------------------------------------------------
+        # Without this Enzyme differentiates through the duplication loop. The pair shares one
+        # evaluation, so both tangents come out of the same (K, E).
+        @eval function forward(
+            config::EnzymeRules.FwdConfig,
+            func::Const{typeof(($alg).ellipke)},
+            RT,
+            m::Annotation{<:Real},
+        )
+            K, E = func.val(m.val)
+            ∂K, ∂E = _∂ellipke(K, E, m.val)
+            tangent(dm) = (∂K * dm, ∂E * dm)
+            notangent() = (zero(K), zero(E))
+
+            if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
+                if EnzymeRules.width(config) == 1
+                    return Duplicated((K, E), (m isa Const ? notangent() : tangent(m.dval)))
+                else
+                    return BatchDuplicated(
+                        (K, E),
+                        ntuple(
+                            i -> (m isa Const ? notangent() : tangent(m.dval[i])),
+                            Val(EnzymeRules.width(config)),
+                        ),
+                    )
+                end
+            elseif EnzymeRules.needs_shadow(config)
+                if EnzymeRules.width(config) == 1
+                    return (m isa Const ? notangent() : tangent(m.dval))
+                else
+                    return ntuple(
+                        i -> (m isa Const ? notangent() : tangent(m.dval[i])),
+                        Val(EnzymeRules.width(config)),
+                    )
+                end
+            elseif EnzymeRules.needs_primal(config)
+                return (K, E)
+            else
+                return nothing
+            end
+        end
+
+        @eval function augmented_primal(
+            config::RevConfigWidth,
+            func::Const{typeof(($alg).ellipke)},
+            ::Type,
+            m::Annotation{<:Real},
+        )
+            K, E = func.val(m.val)
+            primal = EnzymeRules.needs_primal(config) ? (K, E) : nothing
+            return EnzymeRules.AugmentedReturn(primal, nothing, (K, E))
+        end
+
+        @eval function reverse(
+            config::RevConfigWidth,
+            func::Const{typeof(($alg).ellipke)},
+            dret,
+            tape,
+            m::Annotation{T},
+        ) where {T}
+            K, E = tape
+            ∂K, ∂E = _∂ellipke(K, E, m.val)
+            # the adjoint arrives as the pair (K̄, Ē); both paths feed the one input
+            seed(d) = ∂K * d[1] + ∂E * d[2]
+
+            dm = if m isa Const
+                nothing
+            elseif EnzymeRules.width(config) == 1
+                if dret isa Type{<:Const}
+                    zero(m.val)
+                else
+                    seed(dret.val)
+                end
+            else
+                if dret isa Type{<:Const}
+                    ntuple(i -> zero(m.val), Val(EnzymeRules.width(config)))
+                else
+                    ntuple(i -> seed(dret.val[i]), Val(EnzymeRules.width(config)))
+                end
+            end
+            return (dm,)
+        end
+
+
+    end
+
     #----------------------------------------------------------------------------------------
     # Elliptic K(m)
     #----------------------------------------------------------------------------------------
@@ -209,7 +393,8 @@ for alg in (CarlsonAlg, FukushimaAlg)
     )
         function ∂K_∂m(m)
             K, E = $ke_m
-            return E / (2 * m * (1 - m)) - K / 2 / m
+            # E/(2m(1-m)) - K/(2m) is 0/0 at m == 0; the limit is π/8.
+            return iszero(m) ? oftype(K, π) / 8 : E / (2 * m * (1 - m)) - K / 2 / m
         end
 
         if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
@@ -262,7 +447,8 @@ for alg in (CarlsonAlg, FukushimaAlg)
         m::Annotation{T},
     ) where {T}
         E, K = tape
-        ∂K_∂m(m) = E / (2 * m * (1 - m)) - K / 2 / m
+        # E/(2m(1-m)) - K/(2m) is 0/0 at m == 0; the limit is π/8.
+        ∂K_∂m(m) = iszero(m) ? oftype(K, π) / 8 : E / (2 * m * (1 - m)) - K / 2 / m
 
         dm = if m isa Const
             nothing
