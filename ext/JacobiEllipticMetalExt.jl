@@ -13,8 +13,7 @@ for name in JacobiElliptic.func_syms
         ::typeof($f),
         args...,
     )
-        if !isempty(args) &&
-           args[1] isa Base.RefValue{<:JacobiElliptic.AbstractAlgorithm}
+        if !isempty(args) && args[1] isa Base.RefValue{<:JacobiElliptic.AbstractAlgorithm}
             return Base.Broadcast.Broadcasted(style, $f, args)
         end
 

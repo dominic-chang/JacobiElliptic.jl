@@ -4,11 +4,12 @@
 #
 # References come from ArbNumerics at 200 bits.
 
-_arb(f, xs...) = try
-    Float64(f(map(ArbNumerics.ArbFloat, xs)...))
-catch
-    NaN
-end
+_arb(f, xs...) =
+    try
+        Float64(f(map(ArbNumerics.ArbFloat, xs)...))
+    catch
+        NaN
+    end
 
 @testset "Edge cases" begin
     RTOL = 1e-11
@@ -82,7 +83,8 @@ end
         # and silently returned a wrong-branch value for others (F(3.0, 1.5) gave 0.1423).
         @testset "m = $m" for m in (1.0001, 1.1, 1.5, 2.0, 10.0)
             arch = asin(1 / sqrt(m))
-            @testset "φ = $φ" for φ in (1.01 * arch, 1.5 * arch, π / 2 + 0.1, 3.0, -3.0, 5.0)
+            @testset "φ = $φ" for φ in
+                                  (1.01 * arch, 1.5 * arch, π / 2 + 0.1, 3.0, -3.0, 5.0)
                 @test isnan(alg.F(φ, m))
                 @test isnan(alg.Pi(0.5, φ, m))
             end

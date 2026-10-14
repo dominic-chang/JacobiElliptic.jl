@@ -228,7 +228,8 @@
         @test Array(@jit F.(carlson, u_r, 0.5)) ≈ F.(Ref(JacobiElliptic.Carlson()), us, 0.5)
         @test Array(@jit Pi.(carlson, 0.2, u_r, 0.5)) ≈
               Pi.(Ref(JacobiElliptic.Carlson()), 0.2, us, 0.5)
-        @test Array(@jit sn.(carlson, u_r, 0.5)) ≈ sn.(Ref(JacobiElliptic.Carlson()), us, 0.5)
+        @test Array(@jit sn.(carlson, u_r, 0.5)) ≈
+              sn.(Ref(JacobiElliptic.Carlson()), us, 0.5)
 
         @test Array(@jit K.(agm, m_r)) ≈ K.(Ref(JacobiElliptic.AGM()), ms)
         @test Array(@jit E.(agm, m_r)) ≈ E.(Ref(JacobiElliptic.AGM()), ms)

@@ -216,7 +216,7 @@ ratio_atol(typ; f32 = 1e-4, f64 = 1e-11) = typ == Float64 ? f64 : f32
                         end
                         @testset "large m" begin
                             @testset "m = $m" for m in
-                                                 [1 - 3.874e-4, 1 - 4.25e-3, 1 - 6.83e-2]
+                                                  [1 - 3.874e-4, 1 - 4.25e-3, 1 - 6.83e-2]
                                 @test alg.Pi(typ(n), typ(φ), typ(m)) /
                                       typ(_elliptic_pi(typ(n), typ(φ), typ(m))) ≈ typ(1.0) atol =
                                     ratio_atol(typ)

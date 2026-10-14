@@ -202,7 +202,8 @@ related to ``\\Pi`` by ``J = (\\Pi - F)/n``. Defaults to [`Carlson`](@ref).
 """ J
 
 for (p, pn) in ((:s, "\\mathrm{sn}"), (:c, "\\mathrm{cn}"), (:d, "\\mathrm{dn}"), (:n, "1"))
-    for (q, qn) in ((:s, "\\mathrm{sn}"), (:c, "\\mathrm{cn}"), (:d, "\\mathrm{dn}"), (:n, "1"))
+    for (q, qn) in
+        ((:s, "\\mathrm{sn}"), (:c, "\\mathrm{cn}"), (:d, "\\mathrm{dn}"), (:n, "1"))
         f = Symbol(p, q)
         f === :am && continue
         body = """

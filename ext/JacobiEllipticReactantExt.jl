@@ -34,7 +34,7 @@ _reactant_duplication_iters(::Type{Float32}) = 6
     b = √(one(T) - m)
     sum_c2 = m / 2
     pow2 = one(T)
-    for _ in 1:_reactant_agm_iters(Reactant.unwrapped_eltype(T))
+    for _ = 1:_reactant_agm_iters(Reactant.unwrapped_eltype(T))
         c = (a - b) / 2
         sum_c2 = muladd(pow2, c * c, sum_c2)
         pow2 += pow2
@@ -121,7 +121,7 @@ function _reactant_DRF_ifbody(X::A, Y::B, Z::C) where {A,B,C}
     ZNDEV = muladd(ninvMU, (MU + ZN), 2)
     EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV))
 
-    for _ in 1:_reactant_duplication_iters(Reactant.unwrapped_eltype(T))
+    for _ = 1:_reactant_duplication_iters(Reactant.unwrapped_eltype(T))
         XNROOT = √(XN)
         YNROOT = √(YN)
         ZNROOT = √(ZN)
@@ -178,11 +178,7 @@ function _reactant_rawF(sinφ::A, m::B) where {A,B}
     infT = T(Inf)
     sinφ2 = sinφ * sinφ
     drf, _ = CarlsonAlg.DRF(oneT - sinφ2, muladd(-m, sinφ2, oneT), oneT)
-    return Base.ifelse(
-        (abs(sinφ) == oneT) & (m == oneT),
-        sign(sinφ) * infT,
-        sinφ * drf,
-    )
+    return Base.ifelse((abs(sinφ) == oneT) & (m == oneT), sign(sinφ) * infT, sinφ * drf)
 end
 
 # Branch-free: both cases feed a single rawF. The Abramowitz & Stegun (17.4.3) reduction
@@ -269,13 +265,13 @@ function _reactant_am(u::A, m::B, tol::C) where {A,B,C}
     a = one(T)
     b = √(m1)
     c = √(m)
-    for i in 1:NP
+    for i = 1:NP
         a, b, c = ((a + b) / 2, √(a * b), (a - b) / 2)
         _ambuf[i] = c / a
     end
 
     φ = a * u * (2^NP)
-    for i in NP:-1:1
+    for i = NP:-1:1
         φ = (φ + asin(_ambuf[i] * sin(φ))) / 2
     end
 
@@ -381,7 +377,7 @@ function _reactant_DRD_ifbody(X::A, Y::B, Z::C) where {A,B,C}
     ZNDEV = (MU - ZN) * invMU
     EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV))
 
-    for _ in 1:_reactant_duplication_iters(Reactant.unwrapped_eltype(T))
+    for _ = 1:_reactant_duplication_iters(Reactant.unwrapped_eltype(T))
         XNROOT = √(XN)
         YNROOT = √(YN)
         ZNROOT = √(ZN)
@@ -534,7 +530,7 @@ function _reactant_DRC_ifbody(X::A, Y::B) where {A,B}
     invMU = inv(MU)
     SN = muladd(invMU, YN + MU, -twoT)
 
-    for _ in 1:_reactant_drc_iters(Reactant.unwrapped_eltype(T))
+    for _ = 1:_reactant_drc_iters(Reactant.unwrapped_eltype(T))
         LAMDA = muladd(twoT * √(XN), √(YN), YN)
         XN = (XN + LAMDA) * inv4
         YN = (YN + LAMDA) * inv4
@@ -603,7 +599,7 @@ function _reactant_DRJ_ifbody(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
     PNDEV = (MU - PN) * invMU
     EPSLON = max(abs(XNDEV), abs(YNDEV), abs(ZNDEV), abs(PNDEV))
 
-    for _ in 1:_reactant_drj_iters(Reactant.unwrapped_eltype(T))
+    for _ = 1:_reactant_drj_iters(Reactant.unwrapped_eltype(T))
         XNROOT = √(XN)
         YNROOT = √(YN)
         ZNROOT = √(ZN)
@@ -742,7 +738,7 @@ function _reactant_cel(kc::A, p::B, a::C, b::D) where {A,B,C,D}
     g = copy(m)
     m = kc + m
 
-    for _ in 1:_reactant_cel_iters(Reactant.unwrapped_eltype(T))
+    for _ = 1:_reactant_cel_iters(Reactant.unwrapped_eltype(T))
         kc = twoT * √e
         e = kc * m
 
@@ -839,8 +835,7 @@ Reactant.@reactant_overlay function CarlsonAlg.Pi(n::A, φ::B, m::C) where {A,B,
     # n == m makes the imaginary modulus transformation 0/0, so use the closed form
     # Pi(m; φ | m) = (E(φ | m) - m*sin*cos/√(1 - m*sin^2)) / (1 - m).
     sc, cc = sincos(φ)
-    closed =
-        (CarlsonAlg.E(φ, m) - m * sc * cc / √(muladd(-m, sc * sc, oneT))) / (oneT - m)
+    closed = (CarlsonAlg.E(φ, m) - m * sc * cc / √(muladd(-m, sc * sc, oneT))) / (oneT - m)
 
     # Pi(n; φ + k*π | m) = Pi(n; φ | m) + 2k Pi(n | m); reduce before the transform,
     # whose asin cannot represent |φ| > π/2.
@@ -862,8 +857,7 @@ Reactant.@reactant_overlay function CarlsonAlg.Pi(n::A, φ::B, m::C) where {A,B,
         Base.ifelse(isneg, φN, φ),
         Base.ifelse(isneg, mN, m),
     )
-    transformed =
-        offset + √(imc) / nN * (mN * F(φN, mN) + imc * n * nonneg)
+    transformed = offset + √(imc) / nN * (mN * F(φN, mN) + imc * n * nonneg)
 
     return Base.ifelse(isnm, closed, Base.ifelse(isneg, transformed, nonneg))
 end
