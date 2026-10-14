@@ -296,16 +296,17 @@ end
 
 
 for alg in (CarlsonAlg, FukushimaAlg)
-    ke_val = isdefined(alg, :ellipke) ? :(($alg).ellipke(m.val)) :
-             :((($alg).K(m.val), ($alg).E(m.val)))
-    ke_m = isdefined(alg, :ellipke) ? :(($alg).ellipke(m)) :
-           :((($alg).K(m), ($alg).E(m)))
+    ke_val =
+        isdefined(alg, :ellipke) ? :(($alg).ellipke(m.val)) :
+        :((($alg).K(m.val), ($alg).E(m.val)))
+    ke_m = isdefined(alg, :ellipke) ? :(($alg).ellipke(m)) : :((($alg).K(m), ($alg).E(m)))
     # Same idea for the incomplete pair: `_F_E` shares one duplication between F and E.
     # FukushimaAlg has no such kernel and keeps the two separate calls.
-    fe_val = isdefined(alg, :_F_E) ? :(($alg)._F_E(ϕ.val, m.val)) :
-             :((($alg).F(ϕ.val, m.val), ($alg).E(ϕ.val, m.val)))
-    fe_sym = isdefined(alg, :_F_E) ? :(($alg)._F_E(ϕ, m)) :
-             :((($alg).F(ϕ, m), ($alg).E(ϕ, m)))
+    fe_val =
+        isdefined(alg, :_F_E) ? :(($alg)._F_E(ϕ.val, m.val)) :
+        :((($alg).F(ϕ.val, m.val), ($alg).E(ϕ.val, m.val)))
+    fe_sym =
+        isdefined(alg, :_F_E) ? :(($alg)._F_E(ϕ, m)) : :((($alg).F(ϕ, m), ($alg).E(ϕ, m)))
     if isdefined(alg, :ellipke)
         #----------------------------------------------------------------------------------------
         # ellipke(m) -> (K(m), E(m))
@@ -410,17 +411,22 @@ for alg in (CarlsonAlg, FukushimaAlg)
         )
             F, E = func.val(ϕ.val, m.val)
             ∂ϕF, ∂mF, ∂ϕE, ∂mE = _∂F_E(F, E, ϕ.val, m.val)
-            dϕ(i) = ϕ isa Const ? zero(ϕ.val) :
-                    (EnzymeRules.width(config) == 1 ? ϕ.dval : ϕ.dval[i])
-            dm(i) = m isa Const ? zero(m.val) :
-                    (EnzymeRules.width(config) == 1 ? m.dval : m.dval[i])
+            dϕ(i) =
+                ϕ isa Const ? zero(ϕ.val) :
+                (EnzymeRules.width(config) == 1 ? ϕ.dval : ϕ.dval[i])
+            dm(i) =
+                m isa Const ? zero(m.val) :
+                (EnzymeRules.width(config) == 1 ? m.dval : m.dval[i])
             tangent(i) = (∂ϕF * dϕ(i) + ∂mF * dm(i), ∂ϕE * dϕ(i) + ∂mE * dm(i))
 
             if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
                 if EnzymeRules.width(config) == 1
                     return Duplicated((F, E), tangent(1))
                 else
-                    return BatchDuplicated((F, E), ntuple(tangent, Val(EnzymeRules.width(config))))
+                    return BatchDuplicated(
+                        (F, E),
+                        ntuple(tangent, Val(EnzymeRules.width(config))),
+                    )
                 end
             elseif EnzymeRules.needs_shadow(config)
                 if EnzymeRules.width(config) == 1
