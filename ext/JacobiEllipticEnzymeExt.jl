@@ -14,6 +14,21 @@ include("derivatives.jl")
     return (E / (2 * m * (1 - m)) - K / 2 / m, (E - K) / (2 * m))
 end
 
+# The 2x2 Jacobian of (F, E) at the same amplitude, from one (F, E) pair. As above, the
+# m-derivatives are 0/0 at m == 0; both limits are ±(2φ - sin(2φ))/8.
+@inline function _∂F_E(F, E, ϕ, m)
+    sqrt_term = √(1 - m * sin(ϕ)^2)
+    ∂ϕF = 1 / sqrt_term
+    ∂ϕE = sqrt_term
+    sin_2ϕ = sin(2 * ϕ)
+    if iszero(m)
+        return (∂ϕF, (2 * ϕ - sin_2ϕ) / 8, ∂ϕE, (sin_2ϕ - 2 * ϕ) / 8)
+    end
+    ∂mF = E / (2 * m * (1 - m)) - F / 2 / m - sin_2ϕ / (4 * (1 - m) * sqrt_term)
+    ∂mE = (E - F) / (2m)
+    return (∂ϕF, ∂mF, ∂ϕE, ∂mE)
+end
+
 begin # ArithmeticGeometricMeanAlg
     alg = JacobiElliptic.ArithmeticGeometricMeanAlg
     # ellipke(m) is bitwise (K(m), E(m)) and costs one pass instead of two. Resolved here
@@ -380,6 +395,88 @@ for alg in (CarlsonAlg, FukushimaAlg)
 
     end
 
+    if isdefined(alg, :_F_E)
+        #----------------------------------------------------------------------------------------
+        # _F_E(ϕ, m) -> (F(ϕ|m), E(ϕ|m))
+        #----------------------------------------------------------------------------------------
+        # Two inputs and two outputs, so the rule carries the full 2x2 Jacobian. Both columns come
+        # off one (F, E) pair, which is the point of the fused kernel.
+        @eval function forward(
+            config::EnzymeRules.FwdConfig,
+            func::Const{typeof(($alg)._F_E)},
+            RT,
+            ϕ::Annotation{<:Real},
+            m::Annotation{<:Real},
+        )
+            F, E = func.val(ϕ.val, m.val)
+            ∂ϕF, ∂mF, ∂ϕE, ∂mE = _∂F_E(F, E, ϕ.val, m.val)
+            dϕ(i) = ϕ isa Const ? zero(ϕ.val) :
+                    (EnzymeRules.width(config) == 1 ? ϕ.dval : ϕ.dval[i])
+            dm(i) = m isa Const ? zero(m.val) :
+                    (EnzymeRules.width(config) == 1 ? m.dval : m.dval[i])
+            tangent(i) = (∂ϕF * dϕ(i) + ∂mF * dm(i), ∂ϕE * dϕ(i) + ∂mE * dm(i))
+
+            if EnzymeRules.needs_primal(config) && EnzymeRules.needs_shadow(config)
+                if EnzymeRules.width(config) == 1
+                    return Duplicated((F, E), tangent(1))
+                else
+                    return BatchDuplicated((F, E), ntuple(tangent, Val(EnzymeRules.width(config))))
+                end
+            elseif EnzymeRules.needs_shadow(config)
+                if EnzymeRules.width(config) == 1
+                    return tangent(1)
+                else
+                    return ntuple(tangent, Val(EnzymeRules.width(config)))
+                end
+            elseif EnzymeRules.needs_primal(config)
+                return (F, E)
+            else
+                return nothing
+            end
+        end
+
+        @eval function augmented_primal(
+            config::RevConfigWidth,
+            func::Const{typeof(($alg)._F_E)},
+            ::Type,
+            ϕ::Annotation{<:Real},
+            m::Annotation{<:Real},
+        )
+            F, E = func.val(ϕ.val, m.val)
+            primal = EnzymeRules.needs_primal(config) ? (F, E) : nothing
+            return EnzymeRules.AugmentedReturn(primal, nothing, (F, E))
+        end
+
+        @eval function reverse(
+            config::RevConfigWidth,
+            func::Const{typeof(($alg)._F_E)},
+            dret,
+            tape,
+            ϕ::Annotation{<:Real},
+            m::Annotation{<:Real},
+        )
+            F, E = tape
+            ∂ϕF, ∂mF, ∂ϕE, ∂mE = _∂F_E(F, E, ϕ.val, m.val)
+            # the adjoint arrives as the pair (F̄, Ē); each input collects both paths
+            seedϕ(d) = ∂ϕF * d[1] + ∂ϕE * d[2]
+            seedm(d) = ∂mF * d[1] + ∂mE * d[2]
+
+            function pick(x, seed)
+                x isa Const && return nothing
+                if EnzymeRules.width(config) == 1
+                    return dret isa Type{<:Const} ? zero(x.val) : seed(dret.val)
+                else
+                    return dret isa Type{<:Const} ?
+                           ntuple(i -> zero(x.val), Val(EnzymeRules.width(config))) :
+                           ntuple(i -> seed(dret.val[i]), Val(EnzymeRules.width(config)))
+                end
+            end
+            return (pick(ϕ, seedϕ), pick(m, seedm))
+        end
+
+
+    end
+
     #----------------------------------------------------------------------------------------
     # Elliptic K(m)
     #----------------------------------------------------------------------------------------
@@ -702,8 +799,7 @@ for alg in (CarlsonAlg, FukushimaAlg)
     )
         function ∂F_∂m(ϕ, m)
             F, E = $fe_sym
-            return E / (2 * m * (1 - m)) - F / 2 / m -
-                   sin(2 * ϕ) / (4 * (1 - m) * √(1 - m * sin(ϕ)^2))
+            return _∂F_E(F, E, ϕ, m)[2]
         end
 
         ∂F_∂ϕ(ϕ, m) = 1 / √(1 - m * sin(ϕ)^2)
@@ -768,7 +864,7 @@ for alg in (CarlsonAlg, FukushimaAlg)
         m::Annotation{T},
     ) where {T}
         E, sin_2ϕ, sqrt_term, F = tape
-        ∂F_∂m(ϕ, m) = E / (2 * m * (1 - m)) - F / 2 / m - sin_2ϕ / (4 * (1 - m) * sqrt_term)
+        ∂F_∂m(ϕ, m) = _∂F_E(F, E, ϕ, m)[2]
         ∂F_∂ϕ(ϕ, m) = 1 / sqrt_term
 
         dϕ = if ϕ isa Const
