@@ -339,6 +339,138 @@ function DRJ(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
     return (ans, IER)
 end
 
+# RF and RD share a duplication: both advance (X, Y, Z) by the same λ and the same
+# (X + λ)/4 step, and differ only in their mean (MU), their error tolerance and their
+# closing series. Every caller that wants E also wants F at the same arguments, so running
+# the chain once and closing it twice halves the square roots. This mirrors `DRFJ`, which
+# does the same for RF and RJ.
+#
+# Each part stops tracking its own deviations as soon as it converges, so both answers are
+# the ones the standalone routines would return. RD's tolerance is the stricter of the two,
+# so in practice it is the one that sets the trip count.
+@inline function DRFD(X::A, Y::B, Z::C) where {A,B,C}
+    T = promote_type(A, B, C)
+
+    ERRTOLF = (4 * eps(T) / 2)^T(1 / 6)
+    LOLIMF = 5floatmin(T)
+    UPLIMF = floatmax(T) / 5
+
+    ERRTOLD = (eps(T) / 6)^T(1 / 6)
+    LOLIMD = 2 / (floatmax(T))^T(2 / 3)
+    TUPLIM = floatmin(T)^T(1 / 3)
+    TUPLIM = (ERRTOLD / 10)^T(1 / 3) / TUPLIM
+    UPLIMD = TUPLIM^2
+
+    oneT = one(T)
+    twoT = T(2)
+    threeT = T(3)
+    sixT = T(6)
+    inv3 = T(1 / 3)
+    inv4 = T(1 / 4)
+    inv5 = T(1 / 5)
+
+    C1F = T(1 / 24)
+    C2F = T(3 / 44)
+    C3F = T(1 / 14)
+    C0F = T(1 / 10)
+
+    C1D = T(3 / 14)
+    C2D = T(1 / 6)
+    C3D = T(9 / 22)
+    C4D = T(3 / 26)
+
+    ansF = zero(T)
+    ansD = zero(T)
+
+    ierrF = min(X, Y, Z) < zero(T) ? 1 : 0
+    ierrD = min(X, Y) < zero(T) ? 1 : 0
+    if ierrF != 0 || ierrD != 0
+        return (ansF, ierrF, ansD, ierrD)
+    end
+    ierrF = max(X, Y, Z) > UPLIMF ? 3 : 0
+    ierrD = max(X, Y, Z) > UPLIMD ? 3 : 0
+    if ierrF != 0 || ierrD != 0
+        return (ansF, ierrF, ansD, ierrD)
+    end
+    ierrF = min(X + Y, X + Z, Y + Z) < LOLIMF ? 2 : 0
+    ierrD = min(X + Y, Z) < LOLIMD ? 2 : 0
+    if ierrF != 0 || ierrD != 0
+        return (ansF, ierrF, ansD, ierrD)
+    end
+
+    XN = X
+    YN = Y
+    ZN = Z
+
+    MUF = zero(T)
+    XNDEVF = zero(T)
+    YNDEVF = zero(T)
+    ZNDEVF = zero(T)
+
+    MUD = zero(T)
+    XNDEVD = zero(T)
+    YNDEVD = zero(T)
+    ZNDEVD = zero(T)
+    SIGMA = zero(T)
+    POWER4 = one(T)
+
+    fflag = true
+    dflag = true
+    while true
+        if fflag
+            MUF = (XN + YN + ZN) * inv3
+            ninvMU = -inv(MUF)
+            XNDEVF = muladd(ninvMU, (MUF + XN), 2)
+            YNDEVF = muladd(ninvMU, (MUF + YN), 2)
+            ZNDEVF = muladd(ninvMU, (MUF + ZN), 2)
+            EPSLONF = max(abs(XNDEVF), abs(YNDEVF), abs(ZNDEVF))
+            fflag = EPSLONF ≥ ERRTOLF
+        end
+
+        if dflag
+            MUD = (XN + YN + threeT * ZN) * inv5
+            invMUD = inv(MUD)
+            XNDEVD = (MUD - XN) * invMUD
+            YNDEVD = (MUD - YN) * invMUD
+            ZNDEVD = (MUD - ZN) * invMUD
+            EPSLOND = max(abs(XNDEVD), abs(YNDEVD), abs(ZNDEVD))
+            dflag = EPSLOND ≥ ERRTOLD
+        end
+        fflag || dflag || break
+
+        XNROOT = _sqrt(XN)
+        YNROOT = _sqrt(YN)
+        ZNROOT = _sqrt(ZN)
+        YNROOTZNROOT = YNROOT * ZNROOT
+        LAMDA = muladd(XNROOT, (YNROOT + ZNROOT), YNROOTZNROOT)
+        if dflag
+            # frozen once RD converges, so SIGMA matches the standalone accumulation
+            SIGMA = muladd(POWER4, inv(ZNROOT * (ZN + LAMDA)), SIGMA)
+            POWER4 *= inv4
+        end
+        XN = (XN + LAMDA) * inv4
+        YN = (YN + LAMDA) * inv4
+        ZN = (ZN + LAMDA) * inv4
+    end
+
+    XNDEVYNDEV = XNDEVF * YNDEVF
+    E2 = muladd(-ZNDEVF, ZNDEVF, XNDEVYNDEV)
+    E3 = XNDEVYNDEV * ZNDEVF
+    S = oneT + muladd(E2, muladd(-C2F, E3, muladd(C1F, E2, -C0F)), C3F * E3)
+    ansF = S / _sqrt(MUF)
+
+    EA = XNDEVD * YNDEVD
+    EB = ZNDEVD * ZNDEVD
+    EC = EA - EB
+    ED = EA - sixT * EB
+    EF = ED + EC + EC
+    S1 = ED * (-C1D + C3D * ED * inv4 - threeT * C4D * ZNDEVD * EF / twoT)
+    S2 = ZNDEVD * (C2D * EF + ZNDEVD * (-C3D * EC + ZNDEVD * C4D * EA))
+    ansD = threeT * SIGMA + POWER4 * (oneT + S1 + S2) / (MUD * _sqrt(MUD))
+
+    return (ansF, 0, ansD, 0)
+end
+
 @inline function DRFJ(X::A, Y::B, Z::C, P::D) where {A,B,C,D}
     T = promote_type(A, B, C, D)
 

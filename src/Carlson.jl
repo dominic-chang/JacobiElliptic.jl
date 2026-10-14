@@ -22,8 +22,7 @@ include("complete_reduction.jl")
 @inline function _ellipke_base(m::T) where {T}
     inv3 = T(1 / 3)
     y = one(T) - m
-    drf, ierr1 = DRF(_zero(T), y, _one(T))
-    drd, ierr2 = DRD(_zero(T), y, _one(T))
+    drf, ierr1, drd, ierr2 = DRFD(_zero(T), y, _one(T))
     @assert ierr1 == 0 && ierr2 == 0
     return (drf, muladd(-m * inv3, drd, drf))
 end
@@ -138,8 +137,7 @@ end
         cosalpha2 = oneT - sinalpha2
         yalpha = muladd(-minv, sinalpha2, oneT)
 
-        drf, ierr1 = DRF(cosalpha2, yalpha, _one(T))
-        drd, ierr2 = DRD(cosalpha2, yalpha, _one(T))
+        drf, ierr1, drd, ierr2 = DRFD(cosalpha2, yalpha, _one(T))
 
         if ierr1 == ierr2 == 0
             return sinalpha * muladd(-sinalpha2 * inv3, drd, drf) / m12
@@ -153,8 +151,7 @@ end
         sinφ2 = sinφ * sinφ
         cosφ2 = oneT - sinφ2
         y = muladd(-m, sinφ2, oneT)
-        drf, ierr1 = DRF(cosφ2, y, _one(T))
-        drd, ierr2 = DRD(cosφ2, y, _one(T))
+        drf, ierr1, drd, ierr2 = DRFD(cosφ2, y, _one(T))
 
         if ierr1 == ierr2 == 0
             return sinφ * muladd(-m * sinφ2 * inv3, drd, drf)
@@ -175,29 +172,35 @@ ellipke(m::T) where {T} = _ellipke_reduced(_ellipke_base, m)
 
 E(m) = ellipke(m)[2]
 
-@inline function _Pi(n::A, sinφ::B, m::C) where {A,B,C}
+# `DRFJ` shares one duplication between RF and RJ, and the RF it returns is exactly the
+# one `_rawF` would compute for the same (sinφ, m). The reductions in `Pi` below need both
+# integrals at the same argument, so this hands back the pair and they pay for one
+# duplication instead of two.
+@inline function _F_Pi(n::A, sinφ::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
-    (isnan(n) || isnan(sinφ) || isnan(m)) && return T(NaN)
-    #!(0 ≤ m ≤ 1) && throw(DomainError(m, "argument m not in [0,1]"))
-    # sinφ = sin(φ)
+    (isnan(n) || isnan(sinφ) || isnan(m)) && return (T(NaN), T(NaN))
     oneT = _one(T)
-    sinφ2 = sinφ ^ 2
+    sinφ2 = sinφ^2
     cosφ2 = oneT - sinφ2
     y = muladd(-m, sinφ2, oneT)
     p = muladd(-n, sinφ2, oneT)
     drf, ierr1, drj, ierr2 = DRFJ(cosφ2, y, oneT, p)
 
+    f = sinφ * drf
     if ierr1 == 0 && ierr2 == 0
-        return sinφ * muladd(n * sinφ2 / 3, drj, drf)
+        return (f, sinφ * muladd(n * sinφ2 / 3, drj, drf))
     elseif ierr1 == 2 && ierr2 == 2
-        # 2 - (1+m)*sinφ2 < tol
-        return T(Inf)
+        # 2 - (1+m)*sinφ2 < tol; DRFJ zeroes its answers here, so F takes `_rawF`'s
+        # signed pole rather than the zeroed drf.
+        return (sinφ * T(Inf), T(Inf))
     elseif ierr1 == 0 && ierr2 == 2
         # 1 - n*sinφ2 < tol
-        return T(Inf)
+        return (f, T(Inf))
     end
-    return T(NaN)
+    return (T(NaN), T(NaN))
 end
+
+@inline _Pi(n::A, sinφ::B, m::C) where {A,B,C} = _F_Pi(n, sinφ, m)[2]
 
 """
 ``\\Pi (n;\\varphi \\,|\\,m)=\\int _{0}^{\\sin \\varphi }{\\frac {1}{1-nt^{2}}}{\\frac {dt}{\\sqrt {\\left(1-mt^{2}\\right)\\left(1-t^{2}\\right)}}}.``
@@ -243,6 +246,12 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
 
         nN = (n - m) * imc
 
+        # φN comes out of `asin`, so |φN| ≤ π/2, and mN ∈ [0, 1); when nN ≤ 1 as well the
+        # fused kernel applies and F(φN, mN) comes free with Π(nN; φN|mN).
+        if nN <= oneT
+            f, pi_n = _F_Pi(nN, sin(φN), mN)
+            return _sqrt(imc) / nN * (mN * f + imc * n * pi_n)
+        end
         return _sqrt(imc) / nN * (mN * F(φN, mN) + imc * n * Pi(nN, φN, mN))
     end # https://link.springer.com/book/10.1007/978-3-642-65138-0 117.01
     if n > one(T)
@@ -252,6 +261,13 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
         t1 = sinφ / (cosφ * _sqrt(muladd(-m, sinφ2, oneT)))
         h1 = nc * (n−m) / n
         n1 = m / n
+        # Here 0 ≤ m ≤ 1 and n1 = m/n ∈ [0, 1), so inside the principal arch both integrals
+        # come from a single duplication; outside it the amplitude reduction still needs
+        # the general path.
+        if 2abs(φ) <= T(π)
+            f, pi_n = _F_Pi(n1, sinφ, m)
+            return _FukushimaT(t1, h1) - pi_n + f
+        end
         return (_FukushimaT(t1, h1) - Pi(n1, φ, m) + F(φ, m))
     end
     if 2abs(φ) > T(π)
