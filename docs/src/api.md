@@ -36,6 +36,7 @@ JacobiElliptic.J
 JacobiElliptic.ArithmeticGeometricMeanAlg.K
 JacobiElliptic.ArithmeticGeometricMeanAlg.E
 JacobiElliptic.ArithmeticGeometricMeanAlg.ellipke
+JacobiElliptic.CarlsonAlg.ellipke
 JacobiElliptic.CarlsonAlg.F
 JacobiElliptic.CarlsonAlg.E
 JacobiElliptic.CarlsonAlg.Pi
@@ -87,4 +88,13 @@ Only [`JacobiElliptic.Fukushima`](@ref) provides these.
 ```@docs
 JacobiElliptic.FukushimaAlg.asn
 JacobiElliptic.FukushimaAlg.acn
+```
+
+## Internals
+
+Not part of the public API — documented because the GPU extensions depend on them, and
+they may change without a breaking release.
+
+```@docs
+JacobiElliptic.AlgorithmCall
 ```

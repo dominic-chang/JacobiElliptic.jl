@@ -1,9 +1,10 @@
 using Documenter, JacobiElliptic
+using Documenter: Remotes
 
 makedocs(;
     modules = [JacobiElliptic],
     authors = "Dominic <dochang@g.harvard.edu.com> and contributors",
-    repo = "https://github.com/dominic-chang/JacobiElliptic.jl/blob/{commit}{path}#{line}",
+    repo = Remotes.GitHub("dominic-chang", "JacobiElliptic.jl"),
     sitename = "JacobiElliptic.jl",
     format = Documenter.HTML(;
         prettyurls = get(ENV, "CI", "false") == "true",
