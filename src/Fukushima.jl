@@ -950,13 +950,38 @@ end
 # Elliptic E
 #----------------------------------------------------------------------------------------
 
+# The three amplitudes at which E(φ|m) is in closed-form.
+@inline function _E_closed_form(φ::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    m == one(T) && abs(φ) <= T(π / 2) && return (true, sin(T(φ)))
+    φ == T(π / 2) && return (true, E(T(m)))
+    φ == -T(π / 2) && return (true, -E(T(m)))
+    return (false, zero(T))
+end
+
 function E(φ::A, m::B) where {A,B}
     T = promote_type(A, B)
     (isnan(φ) || isnan(m)) && return T(NaN)
-    m == one(T) && abs(φ) <= T(π / 2) && return sin(T(φ))
-    φ == T(π / 2) && return E(T(m))
-    φ == -T(π / 2) && return -E(T(m))
+    closed, e = _E_closed_form(φ, m)
+    closed && return e
     return F(φ, m) - m * _D(φ, m)
+end
+
+"""
+``(F(\\varphi|\\,m),\\ E(\\varphi|\\,m))`` from a single evaluation of ``F``.
+
+# Arguments
+
+- `φ` : Amplitude
+- `m` : Elliptic parameter
+"""
+@inline function _F_E(φ::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    (isnan(φ) || isnan(m)) && return (T(NaN), T(NaN))
+    closed, e = _E_closed_form(φ, m)
+    closed && return (F(φ, m), e)
+    f = F(φ, m)
+    return (f, f - m * _D(φ, m))
 end
 
 #----------------------------------------------------------------------------------------
