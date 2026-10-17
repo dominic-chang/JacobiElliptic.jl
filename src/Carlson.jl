@@ -223,6 +223,51 @@ end
 
 @inline _Pi(n::A, sinφ::B, m::C) where {A,B,C} = _F_Pi(n, sinφ, m)[2]
 
+# `Pi` reduces any (n, φ, m) onto one of the three kernels below and then stops.
+
+# Principle branch.
+@inline function _Pi_principal(n::A, φ::B, m::C) where {A,B,C}
+    T = promote_type(A, B, C)
+    oneT = one(T)
+    n <= oneT && return _Pi(n, sin(φ), m)
+    # https://link.springer.com/book/10.1007/978-3-642-65138-0 117.01. n1 = m/n ∈ [0, 1),
+    # so both integrals come from a single duplication.
+    sinφ, cosφ = sincos(φ)
+    sinφ2 = sinφ * sinφ
+    t1 = sinφ / (cosφ * _sqrt(muladd(-m, sinφ2, oneT)))
+    h1 = (oneT - n) * (n−m) / n
+    f, pi_n = _F_Pi(m / n, sinφ, m)
+    return _FukushimaT(t1, h1) - pi_n + f
+end
+
+# n ≤ 1, 0 ≤ m ≤ 1, 2|φ| > π: Π(n; φ + kπ|m) = Π(n; φ|m) + 2k Π(n|m).
+@inline function _Pi_wrapped(n::A, φ::B, m::C) where {A,B,C}
+    T = promote_type(A, B, C)
+    φ2 = φ + T(π / 2)
+    return 2fld(φ2, T(π)) * Pi(n, m) - _Pi(n, cos(mod(φ2, T(π))), m)
+end
+
+# m < 0, n ≠ m, 2|φ| ≤ π: imaginary modulus transformation,
+# https://dlmf.nist.gov/19.7#iii
+@inline function _Pi_negm(n::A, φ::B, m::C) where {A,B,C}
+    T = promote_type(A, B, C)
+    oneT = one(T)
+    mc = oneT - m
+    imc = inv(mc)
+    mN = -m * imc
+    sinφ = sin(φ)
+    sinφ2 = sinφ * sinφ
+    φN = asin(_sqrt(mc / muladd(-m, sinφ2, oneT)) * sinφ)
+    nN = (n - m) * imc
+
+    if nN <= oneT
+        f, pi_n = _F_Pi(nN, sin(φN), mN)
+        return _sqrt(imc) / nN * (mN * f + imc * n * pi_n)
+    end
+    # Otherwise mN and φN still land on the principal arch, with nN > 1.
+    return _sqrt(imc) / nN * (mN * F(φN, mN) + imc * n * _Pi_principal(nN, φN, mN))
+end
+
 """
 ``\\Pi (n;\\varphi \\,|\\,m)=\\int _{0}^{\\sin \\varphi }{\\frac {1}{1-nt^{2}}}{\\frac {dt}{\\sqrt {\\left(1-mt^{2}\\right)\\left(1-t^{2}\\right)}}}.``
 
@@ -245,67 +290,32 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
         k = _sqrt(m)
         sinθ = k * sin(φ)
         (abs(φ) > T(π / 2) || abs(sinθ) > oneT) && return T(NaN)
-        return Pi(n / m, asin(sinθ), inv(m)) / k
+        return _Pi_principal(n / m, asin(sinθ), inv(m)) / k
     end
 
-    if m < zero(T) # Imaginary modulus transformation https://dlmf.nist.gov/19.7# iii
-        if n == m # the transformation below is 0/0 at n == m, so use the closed form
+    if m < zero(T)
+        if n == m # the transformation in `_Pi_negm` is 0/0 at n == m in this case. The closed form is used instead.
             sinφ, cosφ = sincos(φ)
             return (E(φ, m) - m * sinφ * cosφ / _sqrt(muladd(-m, sinφ * sinφ, oneT))) /
                    (oneT - m)
         end
         if 2abs(φ) > T(π)
             φ2 = φ + T(π / 2)
-            return 2fld(φ2, T(π)) * Pi(n, m) + Pi(n, mod(φ2, T(π)) - T(π / 2), m)
+            return 2fld(φ2, T(π)) * Pi(n, m) + _Pi_negm(n, mod(φ2, T(π)) - T(π / 2), m)
         end
-        mc = oneT - m
-        imc = inv(mc)
-        mN = -m * imc
-        sinφ = sin(φ)
-        sinφ2 = sinφ * sinφ
-        φN = asin(_sqrt(mc / muladd(-m, sinφ2, oneT)) * sinφ)
+        return _Pi_negm(n, φ, m)
+    end
 
-        nN = (n - m) * imc
-
-        # φN comes out of `asin`, so |φN| ≤ π/2, and mN ∈ [0, 1); when nN ≤ 1 as well the
-        # fused kernel applies and F(φN, mN) comes free with Π(nN; φN|mN).
-        if nN <= oneT
-            f, pi_n = _F_Pi(nN, sin(φN), mN)
-            return _sqrt(imc) / nN * (mN * f + imc * n * pi_n)
-        end
-        return _sqrt(imc) / nN * (mN * F(φN, mN) + imc * n * Pi(nN, φN, mN))
-    end # https://link.springer.com/book/10.1007/978-3-642-65138-0 117.01
-    if n > one(T)
-        nc = oneT - n
+    if n > oneT && 2abs(φ) > T(π)
         sinφ, cosφ = sincos(φ)
         sinφ2 = sinφ * sinφ
         t1 = sinφ / (cosφ * _sqrt(muladd(-m, sinφ2, oneT)))
-        h1 = nc * (n−m) / n
-        n1 = m / n
-        # Here 0 ≤ m ≤ 1 and n1 = m/n ∈ [0, 1), so inside the principal arch both integrals
-        # come from a single duplication; outside it the amplitude reduction still needs
-        # the general path.
-        if 2abs(φ) <= T(π)
-            f, pi_n = _F_Pi(n1, sinφ, m)
-            return _FukushimaT(t1, h1) - pi_n + f
-        end
-        return (_FukushimaT(t1, h1) - Pi(n1, φ, m) + F(φ, m))
-    end
-    if 2abs(φ) > T(π)
-        # j = floor(φ/T(π))
-        # φ2= φ - j*T(π)
-        # signφ = sign(φ2)
-        # if abs(φ2) > T(π/2)
-        #    j += signφ*one(T)
-        #    φ2= φ2 - signφ*T(π)
-        # end
-        # signφ = sign(φ2)
-        φ2 = φ + T(π / 2)
-        return 2fld(φ2, T(π)) * Pi(n, m) - _Pi(n, cos(mod(φ2, T(π))), m)
-        # return 2j * Pi(n, m) - signφ*Pi(n, abs(φ2), m)
+        h1 = (oneT - n) * (n−m) / n
+        return _FukushimaT(t1, h1) - _Pi_wrapped(m / n, φ, m) + F(φ, m)
     end
 
-    return _Pi(n, sin(φ), m)
+    2abs(φ) > T(π) && return _Pi_wrapped(n, φ, m)
+    return _Pi_principal(n, φ, m)
 end
 
 # https://doi.org/T(10).1016/j.cam.2011.1107
@@ -319,18 +329,23 @@ Returns the complete elliptic integral of the third kind.
 - `n` : Characteristic
 - `m` : Elliptic parameter
 """
-function Pi(n::A, m::B) where {A,B}
+@inline function _Pi_complete(n::A, m::B) where {A,B}
     T = promote_type(A, B)
     oneT = one(T)
-    zeroT = zero(T)
-    m > oneT && return T(NaN) # Complex Branch
-    n > oneT && return K(m) - Pi(m / n, m) # Cauchy principal value
     n == oneT && return T(Inf) # 1/(1 - n*sin(θ)^2) pole at θ = π/2
-    n == zeroT && return K(m)
+    n == zero(T) && return K(m)
     m == oneT && return T(Inf)
     kc = _sqrt(oneT - m)
     nc = oneT - n
     return _cel(kc, nc, oneT, oneT)
+end
+
+function Pi(n::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    oneT = one(T)
+    m > oneT && return T(NaN) # Complex Branch
+    n > oneT && return K(m) - _Pi_complete(m / n, m)
+    return _Pi_complete(n, m)
 end
 
 Π = Pi
@@ -351,95 +366,125 @@ function _J(n, sinφ, m)
     return sinφ * (sinφ2 / 3) * DRJ(cosφ2, y, oneT, p)[1]
 end
 
-function J(n::A, m::B) where {A,B}
+@inline function _J_complete(n::A, m::B) where {A,B}
     T = promote_type(A, B)
-    n > one(T) && return m / n * J(m / n, m)
     kc = √(1 - m)
     nc = 1 - n
     return _cel(kc, nc, zero(T), one(T))
 end
 
+function J(n::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    if n > one(T)
+        n1 = m / n
+        n1 > one(T) && return T(NaN) # The reduced characteristic does not terminate m > n,
+        return n1 * _J_complete(n1, m)
+    end
+    return _J_complete(n, m)
+end
+
 function J(n::A, φ::B, m::C) where {A,B,C}
     T = promote_type(A, B, C)
+    n, φ, m = T(n), T(φ), T(m)
     oneT = one(T)
-    # Reduction of Amplitude
-    φ == zero(T) && return zero(T)
-    φ == T(π / 2) && return J(n, m)
-    φ < zero(T) && return -J(n, -φ, m)
+    zeroT = zero(T)
+    halfπ = T(π / 2)
 
-    if abs(φ) > T(π / 2) && m < oneT
-        j = floor(φ / T(π))
-        newφ = φ - j * T(π)
-        signφ = sign(newφ)
-        if abs(newφ) > T(π / 2)
-            j += signφ * oneT
-            newφ = newφ - signφ * T(π)
+    acc = zeroT
+    scale = oneT
+    for _ = 1:6
+        # Reduction of Amplitude
+        φ == zeroT && return acc
+        φ == halfπ && return acc + scale * J(n, m)
+        if φ < zeroT
+            scale = -scale
+            φ = -φ
+            continue
         end
-        signφ = sign(newφ)
 
-        return 2 * j * J(n, m) + signφ * J(n, abs(newφ), m)
-    end
+        if φ > halfπ && m < oneT
+            j = floor(φ / T(π))
+            newφ = φ - j * T(π)
+            signφ = sign(newφ)
+            if abs(newφ) > halfπ
+                j += signφ * oneT
+                newφ = newφ - signφ * T(π)
+            end
+            signφ = sign(newφ)
 
-    # Reduction of parameter
-    if zero(T) < φ < T(π / 2)
-        sinφ, cosφ = sincos(φ)
-        sinφ2 = sinφ^2
-        m_sinφ2 = m * sinφ2
-        if m_sinφ2 ≤ oneT
-            nc = oneT - n
-            iszero(m) && !iszero(n) && return (_FukushimaT(sinφ / cosφ, nc) - φ) / n
-
-            iszero(m) && iszero(n) && return φ / 2 - sin(2 * φ) / 4
-
-            isone(m) && !isone(n) && return (atanh(sinφ) - _FukushimaT(sinφ, -n)) / nc
-
-            isone(m) && isone(n) && return (sinφ / (cosφ * cosφ) - atanh(sinφ)) / 2
+            acc = acc + scale * (2 * j * J(n, m))
+            scale = scale * signφ
+            φ = abs(newφ)
+            continue
         end
+
+        # Reduction of parameter
+        if zeroT < φ < halfπ
+            sinφ, cosφ = sincos(φ)
+            sinφ2 = sinφ^2
+            m_sinφ2 = m * sinφ2
+            if m_sinφ2 ≤ oneT
+                nc = oneT - n
+                iszero(m) &&
+                    !iszero(n) &&
+                    return acc + scale * ((_FukushimaT(sinφ / cosφ, nc) - φ) / n)
+
+                iszero(m) && iszero(n) && return acc + scale * (φ / 2 - sin(2 * φ) / 4)
+
+                isone(m) &&
+                    !isone(n) &&
+                    return acc + scale * ((atanh(sinφ) - _FukushimaT(sinφ, -n)) / nc)
+
+                isone(m) &&
+                    isone(n) &&
+                    return acc + scale * ((sinφ / (cosφ * cosφ) - atanh(sinφ)) / 2)
+            end
+        end
+
+        if oneT < m < inv(sin(φ)^2)
+            mR = inv(m)
+            scale = scale * (mR * √mR)
+            n, φ, m = n / m, asin(√m * sin(φ)), mR
+            continue
+        elseif m < zeroT
+            mc = oneT - m
+            sinφ = sin(φ)
+            sinφ2 = sinφ * sinφ
+            mN = -m / mc
+            scale = scale * (mN * √mN)
+            n, φ, m = (n−m) / mc, asin(√(mc / muladd(-m, sinφ2, oneT)) * sinφ), mN
+            continue
+        end
+        break
     end
 
-    if oneT < m < inv(sin(φ)^2)
-        φR = asin(√m * sin(φ))
-        nR = n / m
-        mR = inv(m)
-        # return NaN
-        return mR * √mR * J(nR, φR, mR)
-    elseif m < zero(T)
-        mc = oneT - m
-        sinφ = sin(φ)
-        sinφ2 = sinφ * sinφ
-        φN = asin(√(mc / muladd(-m, sinφ2, oneT)) * sinφ)
-        nN = (n−m) / mc
-        mN = -m / mc
-        return mN * √mN * J(nN, φN, mN)
-    end
-    # Reduction of Characteristics
-    if zero(T) < φ < oneT && zero(T) < m < oneT
+    if zeroT < φ < oneT && zeroT < m < oneT
         sinφ, cosφ = sincos(φ)
         sinφ2 = sinφ * sinφ
         sqrt_term = √(muladd(-m, sinφ2, oneT))
-        if n > one(T)
-            # t = inv(x^2)
-            # h = y - x
+        if n > oneT
             nc = oneT - n
             t1 = sinφ / (cosφ * sqrt_term)
             h1 = nc * (n−m) / n
             n1 = m / n
-            return (-F(φ, m) + _FukushimaT(t1, h1) - n1 * J(n1, φ, m)) / n
-        elseif n < zero(T)
+            return acc +
+                   scale * ((-F(φ, m) + _FukushimaT(t1, h1) - n1 * _J(n1, sinφ, m)) / n)
+        elseif n < zeroT
             mc = oneT - m
             nc = oneT - n
             t2 = sinφ * cosφ / sqrt_term
             h2 = -n * (m - n) / nc
             n2 = (m−n) / nc
-            # return NaN
-            return (F(φ, m) - _FukushimaT(t2, h2) - (mc / nc) * J(n2, φ, m)) / nc
+            return acc +
+                   scale *
+                   ((F(φ, m) - _FukushimaT(t2, h2) - (mc / nc) * _J(n2, sinφ, m)) / nc)
         end
     end
 
-    zero(T) < φ < T(π / 2) &&
-        zero(T) < m < oneT &&
-        zero(T) < n < oneT &&
-        return _J(n, sin(φ), m)
+    zeroT < φ < halfπ &&
+        zeroT < m < oneT &&
+        zeroT < n < oneT &&
+        return acc + scale * _J(n, sin(φ), m)
     return T(NaN)
 end
 
