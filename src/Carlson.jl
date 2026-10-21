@@ -319,16 +319,7 @@ function Pi(n::A, φ::B, m::C) where {A,B,C}
 end
 
 # https://doi.org/T(10).1016/j.cam.2011.1107
-"""
-``\\Pi(n|\\,m)=\\int_{0}^{1 }{\\frac{1}{1-nt^{2}}}{\\frac{dt}{\\sqrt{\\left(1-mt^{2}\\right)\\left(1-t^{2}\\right)}}}.``
-
-Returns the complete elliptic integral of the third kind.
-
-# Arguments
-
-- `n` : Characteristic
-- `m` : Elliptic parameter
-"""
+# Complete Π for 0 ≤ n ≤ 1; `Pi` reduces n > 1 onto this branch.
 @inline function _Pi_complete(n::A, m::B) where {A,B}
     T = promote_type(A, B)
     oneT = one(T)
@@ -340,6 +331,16 @@ Returns the complete elliptic integral of the third kind.
     return _cel(kc, nc, oneT, oneT)
 end
 
+"""
+``\\Pi(n|\\,m)=\\int_{0}^{1 }{\\frac{1}{1-nt^{2}}}{\\frac{dt}{\\sqrt{\\left(1-mt^{2}\\right)\\left(1-t^{2}\\right)}}}.``
+
+Returns the complete elliptic integral of the third kind.
+
+# Arguments
+
+- `n` : Characteristic
+- `m` : Elliptic parameter
+"""
 function Pi(n::A, m::B) where {A,B}
     T = promote_type(A, B)
     oneT = one(T)

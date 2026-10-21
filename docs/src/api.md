@@ -2,7 +2,7 @@
 
 ## Index
 ```@index
-api.md
+Pages = ["api.md"]
 ```
 
 ## Algorithm Selection
@@ -40,6 +40,8 @@ JacobiElliptic.CarlsonAlg.ellipke
 JacobiElliptic.CarlsonAlg.F
 JacobiElliptic.CarlsonAlg.E
 JacobiElliptic.CarlsonAlg.Pi
+JacobiElliptic.FukushimaAlg.K
+JacobiElliptic.FukushimaAlg.E
 JacobiElliptic.FukushimaAlg.J
 ```
 
@@ -97,4 +99,5 @@ they may change without a breaking release.
 
 ```@docs
 JacobiElliptic.AlgorithmCall
+JacobiElliptic.FukushimaAlg._F_E
 ```

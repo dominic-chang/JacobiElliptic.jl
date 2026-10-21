@@ -628,16 +628,8 @@ end
     )
 end
 
-"""
-``\\text{asn}(u|\\,m)=\\text{sn}^{-1}(u,m)``.
-
-Returns the inverse Jacobi Elliptic sn.
-
-# Arguments
-
-- `u` : Amplitude
-- `m` : Elliptic parameter
-"""
+# The descending Landen ladder for asn, working in `y = s^2`. Returns |asn(√y|m)|; the
+# caller restores the sign.
 @inline function _asn_y(y::A, m::B) where {A,B}
     T = promote_type(A, B)
     y, m = T(y), T(m)
@@ -651,6 +643,16 @@ Returns the inverse Jacobi Elliptic sn.
     return T(NaN)
 end
 
+"""
+``\\text{asn}(u|\\,m)=\\text{sn}^{-1}(u,m)``.
+
+Returns the inverse Jacobi Elliptic sn.
+
+# Arguments
+
+- `u` : Amplitude
+- `m` : Elliptic parameter
+"""
 function asn(s::A, m::B) where {A,B}
     T = promote_type(A, B)
     isnan(m) && return T(NaN)
