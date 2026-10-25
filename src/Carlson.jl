@@ -358,6 +358,20 @@ function ellipj(u, m)
     return (s, c, d)
 end
 
+# `sn`, `cn` and `dn` at one argument all come off a single amplitude evaluation, and
+# that amplitude is exactly `am(u, m)`. Reaching for the four public entry points pays
+# for `_am` four times over. The parameter reductions in `sn`/`cn`/`dn` differ from one
+# another outside `0 ≤ m ≤ 1`, so anything off the principal branch falls back to them.
+@inline function _scd_am(u::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    if zero(T) <= m <= one(T)
+        φ = _am(u, m)
+        s = sin(φ)
+        return (s, cos(φ), _sqrt(1 - m * s^2), φ)
+    end
+    return (sn(u, m), cn(u, m), dn(u, m), am(u, m))
+end
+
 function _J(n, sinφ, m)
     oneT = one(typeof(sinφ))
     sinφ2 = sinφ ^ 2

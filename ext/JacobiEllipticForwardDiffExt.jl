@@ -2,8 +2,11 @@ module JacobiEllipticForwardDiffExt
 
 using JacobiElliptic
 using ForwardDiff
-import JacobiElliptic: CarlsonAlg, FukushimaAlg
+import JacobiElliptic: ArithmeticGeometricMeanAlg, CarlsonAlg, FukushimaAlg
 include("derivatives.jl")
+
+JacobiElliptic.FukushimaAlg._dup_steps(u::ForwardDiff.Dual) =
+    JacobiElliptic.FukushimaAlg._dup_steps(ForwardDiff.value(u))
 
 function JacobiElliptic.CarlsonAlg._zero(::Type{ForwardDiff.Dual{T,V,N}}) where {T,V,N}
     zero(V)
@@ -28,132 +31,74 @@ function JacobiElliptic.CarlsonAlg._sqrt(x::ForwardDiff.Dual{T}) where {T}
     return ForwardDiff.Dual{T}(fval, ∂xf * x.partials)
 end
 
-begin
-    alg = JacobiElliptic.ArithmeticGeometricMeanAlg
-    #----------------------------------------------------------------------------------------
-    # Elliptic K(ϕ)
-    #----------------------------------------------------------------------------------------
-    @eval function ($alg).K(x::ForwardDiff.Dual{T}) where {T}
-        xval = x.value
-        fval = ($alg).K(xval)
-        ∂xf = (($alg).E(xval) - (1 - xval) * ($alg).K(xval)) / (2 * (1 - xval) * xval)
-        ForwardDiff.Dual{T}(fval, ∂xf * x.partials)
-    end
+for alg in (ArithmeticGeometricMeanAlg, CarlsonAlg, FukushimaAlg)
+    # Reduces to the separate kernels if the fused kernels are not defined.
+    ke =
+        isdefined(alg, :ellipke) ? :(($alg).ellipke) :
+        :(m -> (($alg).K(m), ($alg).E(m)))
+    fe =
+        isdefined(alg, :_F_E) ? :(($alg)._F_E) :
+        :((ϕ, m) -> (($alg).F(ϕ, m), ($alg).E(ϕ, m)))
 
-    #----------------------------------------------------------------------------------------
-    # Elliptic E(ϕ)
-    #----------------------------------------------------------------------------------------
-    @eval function ($alg).E(x::ForwardDiff.Dual{T}) where {T}
-        xval = x.value
-        fval = ($alg).E(xval)
-        ∂xf = (($alg).E(xval) - ($alg).K(xval)) / (2xval)
-        ForwardDiff.Dual{T}(fval, ∂xf * x.partials)
-    end
-
-end
-
-for alg in (CarlsonAlg, FukushimaAlg)
-    #----------------------------------------------------------------------------------------
-    # Elliptic K(ϕ)
-    #----------------------------------------------------------------------------------------
-    @eval function ($alg).K(x::ForwardDiff.Dual{T}) where {T}
-        xval = x.value
-        fval = ($alg).K(xval)
-        ∂xf = (($alg).E(xval) - (1 - xval) * ($alg).K(xval)) / (2 * (1 - xval) * xval)
-        ForwardDiff.Dual{T}(fval, ∂xf * x.partials)
-    end
-
-    #----------------------------------------------------------------------------------------
-    # Elliptic E(ϕ)
-    #----------------------------------------------------------------------------------------
-    @eval function ($alg).E(x::ForwardDiff.Dual{T}) where {T}
-        xval = x.value
-        fval = ($alg).E(xval)
-        ∂xf = (($alg).E(xval) - ($alg).K(xval)) / (2xval)
-        ForwardDiff.Dual{T}(fval, ∂xf * x.partials)
-    end
-    #----------------------------------------------------------------------------------------
-    # Elliptic F(ϕ, m)
-    #----------------------------------------------------------------------------------------
-    @eval function ($alg).F(x::ForwardDiff.Dual{T}, y::U) where {T,U}
-        xval = x.value
-        fval = ($alg).F(xval, y)
-        ∂xf = inv(√(1 - y * sin(xval)^2))
-        ForwardDiff.Dual{T}(fval, ∂xf * x.partials)
-    end
-
-    @eval function ($alg).F(x::U, y::ForwardDiff.Dual{T}) where {T,U}
-        yval = y.value
-        fval = ($alg).F(x, yval)
-        if iszero(yval)
-            ∂yf = (2x - sin(2x)) / 8
-        elseif isone(yval)
-            sec_x = sec(x)
-            tan_x = tan(x)
-            ∂yf = 0.25 * (sec_x * tan_x - log(abs(sec_x + tan_x)))
-        else
-            ∂yf =
-                ($alg).E(x, yval) / (2 * yval * (1 - yval)) - fval / (2 * yval) -
-                sin(2 * x) / (4 * (1 - yval) * √(1 - yval * sin(x)^2))
+    #----------------------------------------------------------------------------------
+    # Complete K(m) and E(m)
+    #----------------------------------------------------------------------------------
+    for (f, primal, ∂) in ((:K, :K, :∂K), (:E, :E, :∂E))
+        name = :(($alg).$f)
+        @eval function $name(x::ForwardDiff.Dual{T}) where {T}
+            xval = ForwardDiff.value(x)
+            K, E = $ke(xval)
+            ∂K, ∂E = _∂ellipke(K, E, xval)
+            return ForwardDiff.Dual{T}($primal, $∂ * ForwardDiff.partials(x))
         end
-        ForwardDiff.Dual{T}(fval, ∂yf * y.partials)
     end
 
-    @eval function ($alg).F(x::ForwardDiff.Dual{T}, y::ForwardDiff.Dual{T}) where {T}
-        xval = x.value
-        yval = y.value
-        fval = ($alg).F(xval, yval)
-        sin_x = sin(xval)
-        sin_2x = sin(2 * xval)
-        sqrt_term = √(1 - yval * sin_x^2)
-        ∂xf = inv(sqrt_term)
-        if iszero(yval)
-            ∂yf = (2xval - sin_2x) / 8
-        elseif isone(yval)
-            sec_x = sec(xval)
-            tan_x = tan(xval)
-            ∂yf = 0.25 * (sec_x * tan_x - log(abs(sec_x + tan_x)))
-        else
-            ∂yf =
-                ($alg).E(xval, yval) / (2 * yval * (1 - yval)) - fval / (2 * yval) -
-                sin_2x / (4 * (1 - yval) * sqrt_term)
+    family = (:F, :Pi, :J, :am, :sn, :cn, :dn, :sc, :_scd_am)
+    if !all(s -> isdefined(alg, s), family)
+        missing_names = filter(s -> !isdefined(alg, s), family)
+        @assert !any(s -> isdefined(alg, s), family) "$alg is missing $missing_names; \
+            the rules below need the whole incomplete and Jacobi family or none of it"
+        continue
+    end
+
+    #----------------------------------------------------------------------------------
+    # Incomplete F(ϕ, m) and E(ϕ, m)
+    #----------------------------------------------------------------------------------
+    for (f, primal, ∂ϕ_of, ∂m_of) in ((:F, :F, :∂ϕF, :∂mF), (:E, :E, :∂ϕE, :∂mE))
+        name = :(($alg).$f)
+
+        @eval function $name(x::ForwardDiff.Dual{T}, y::U) where {T,U}
+            xval = ForwardDiff.value(x)
+            fval = $name(xval, y)
+            ∂xf = $(f === :F ? :(inv(√(1 - y * sin(xval)^2))) : :(√(1 - y * sin(xval)^2)))
+            return ForwardDiff.Dual{T}(fval, ∂xf * ForwardDiff.partials(x))
         end
-        ForwardDiff.Dual{T}(fval, ∂xf * x.partials + ∂yf * y.partials)
+
+        @eval function $name(x::U, y::ForwardDiff.Dual{T}) where {T,U}
+            yval = ForwardDiff.value(y)
+            F, E = $fe(x, yval)
+            ∂ϕF, ∂mF, ∂ϕE, ∂mE = _∂F_E(F, E, x, yval)
+            return ForwardDiff.Dual{T}($primal, $∂m_of * ForwardDiff.partials(y))
+        end
+
+        @eval function $name(
+            x::ForwardDiff.Dual{T},
+            y::ForwardDiff.Dual{T},
+        ) where {T}
+            xval = ForwardDiff.value(x)
+            yval = ForwardDiff.value(y)
+            F, E = $fe(xval, yval)
+            ∂ϕF, ∂mF, ∂ϕE, ∂mE = _∂F_E(F, E, xval, yval)
+            return ForwardDiff.Dual{T}(
+                $primal,
+                $∂ϕ_of * ForwardDiff.partials(x) + $∂m_of * ForwardDiff.partials(y),
+            )
+        end
     end
 
-    #----------------------------------------------------------------------------------------
-    # Elliptic E(ϕ, m)
-    #----------------------------------------------------------------------------------------
-    @eval function ($alg).E(x::ForwardDiff.Dual{T}, y::U) where {T,U}
-        xval = x.value
-        fval = ($alg).E(xval, y)
-        ∂xf = √(1 - y * sin(xval)^2)
-        ForwardDiff.Dual{T}(fval, ∂xf * x.partials)
-    end
-
-    @eval function ($alg).E(x::U, y::ForwardDiff.Dual{T}) where {T,U}
-        yval = y.value
-        fval = ($alg).E(x, yval)
-        ∂yf = (fval - ($alg).F(x, yval)) / (2yval)
-        ForwardDiff.Dual{T}(fval, ∂yf * y.partials)
-    end
-
-    @eval function ($alg).E(x::ForwardDiff.Dual{T}, y::ForwardDiff.Dual{T}) where {T}
-        xval = x.value
-        yval = y.value
-
-        fval = ($alg).E(xval, yval)
-        sin_x = sin(xval)
-        sin_2x = sin(2 * xval)
-        sqrt_term = √(1 - yval * sin_x^2)
-        ∂xf = sqrt_term
-        ∂yf = iszero(yval) ? (sin_2x - 2xval) / 8 : (fval - ($alg).F(xval, yval)) / (2yval)
-        ForwardDiff.Dual{T}(fval, ∂xf * x.partials + ∂yf * y.partials)
-    end
-
-    #----------------------------------------------------------------------------------------
+    #----------------------------------------------------------------------------------
     # Associate complete elliptic integral J(n, m)
-    #----------------------------------------------------------------------------------------
+    #----------------------------------------------------------------------------------
     for mask ∈ 1:3
         n_is_dual = mask & 1 != 0
         m_is_dual = mask & 2 != 0
@@ -181,9 +126,9 @@ for alg in (CarlsonAlg, FukushimaAlg)
         end
     end
 
-    #----------------------------------------------------------------------------------------
+    #----------------------------------------------------------------------------------
     # Associate incomplete elliptic integral J(n, φ, m)
-    #----------------------------------------------------------------------------------------
+    #----------------------------------------------------------------------------------
     for mask ∈ 1:7
         n_is_dual = mask & 1 != 0
         φ_is_dual = mask & 2 != 0
@@ -217,123 +162,49 @@ for alg in (CarlsonAlg, FukushimaAlg)
         end
     end
 
-    #----------------------------------------------------------------------------------------
-    # Elliptic cn(u, m)
-    #----------------------------------------------------------------------------------------
-    @eval function ($alg).cn(x::ForwardDiff.Dual{T}, y::U) where {T,U}
-        xval = ForwardDiff.value(x)
-        fval = ($alg).cn(xval, y)
-        ∂xf = -($alg).dn(xval, y) * ($alg).sn(xval, y)
-        ForwardDiff.Dual{T}(fval, ∂xf * ForwardDiff.partials(x))
+    #----------------------------------------------------------------------------------
+    # Jacobi sn(u, m), cn(u, m) and dn(u, m)
+    #----------------------------------------------------------------------------------
+    # Every one of these partials wants the whole (sn, cn, dn) triple -- the u-partials
+    # by identity, the m-partials through `_*_parameter_derivative` -- so one
+    # `_jacobi_data` call serves all of them. Reaching for sn, cn, dn and am separately
+    # evaluates the amplitude four times over.
+    for (f, ∂u_of, ∂m_of, primal) in (
+        (:sn, :_∂u_sn, :_sn_parameter_derivative, :s),
+        (:cn, :_∂u_cn, :_cn_parameter_derivative, :c),
+        (:dn, :_∂u_dn, :_dn_parameter_derivative, :d),
+    )
+        name = :(($alg).$f)
+        for mask ∈ 1:3
+            u_is_dual = mask & 1 != 0
+            m_is_dual = mask & 2 != 0
+            u_type = u_is_dual ? :(ForwardDiff.Dual{T}) : :U
+            m_type = m_is_dual ? :(ForwardDiff.Dual{T}) : :U
+            u_value = u_is_dual ? :(ForwardDiff.value(u)) : :u
+            m_value = m_is_dual ? :(ForwardDiff.value(m)) : :m
+            terms = Any[]
+            u_is_dual &&
+                push!(terms, :($∂u_of(s, c, d, mval) * ForwardDiff.partials(u)))
+            m_is_dual && push!(
+                terms,
+                :($∂m_of(e, c / d, uval, mval, s, c, d) * ForwardDiff.partials(m)),
+            )
+            tangent = reduce((a, b) -> :($a + $b), terms)
+            # `U` only appears in the signature when one of the two stays non-Dual, so
+            # the method has to be assembled rather than written out literally.
+            params = (u_is_dual && m_is_dual) ? (:T,) : (:T, :U)
+            signature = Expr(:where, :($name(u::$u_type, m::$m_type)), params...)
+            body = quote
+                uval = $u_value
+                mval = $m_value
+                s, c, d, e =
+                    _jacobi_data(($alg)._scd_am, ($alg).E, uval, mval)
+                return ForwardDiff.Dual{T}($primal, $tangent)
+            end
+
+            @eval $(Expr(:function, signature, body))
+        end
     end
-
-    @eval function ($alg).cn(x::U, y::ForwardDiff.Dual{T}) where {T,U}
-        yval = ForwardDiff.value(y)
-        fval = ($alg).cn(x, yval)
-        s = ($alg).sn(x, yval)
-        d = ($alg).dn(x, yval)
-        am = ($alg).am(x, yval)
-        E_am = ($alg).E(am, yval)
-        cd = fval/d
-        ∂yf = _cn_parameter_derivative(E_am, cd, x, yval, s, fval, d)
-        ForwardDiff.Dual{T}(fval, ∂yf * ForwardDiff.partials(y))
-    end
-
-    @eval function ($alg).cn(x::ForwardDiff.Dual{T}, y::ForwardDiff.Dual{T}) where {T}
-        xval = ForwardDiff.value(x)
-        yval = ForwardDiff.value(y)
-        fval = ($alg).cn(xval, yval)
-        s = ($alg).sn(xval, yval)
-        d = ($alg).dn(xval, yval)
-        am = ($alg).am(xval, yval)
-        E_am = ($alg).E(am, yval)
-        cd = fval/d
-        ∂xf = -d * s
-        ∂yf = _cn_parameter_derivative(E_am, cd, xval, yval, s, fval, d)
-        ForwardDiff.Dual{T}(
-            fval,
-            ∂xf * ForwardDiff.partials(x) + ∂yf * ForwardDiff.partials(y),
-        )
-    end
-
-    #----------------------------------------------------------------------------------------
-    # Elliptic sn(u, m)
-    #----------------------------------------------------------------------------------------
-    @eval function ($alg).sn(x::ForwardDiff.Dual{T}, y::U) where {T,U}
-        xval = ForwardDiff.value(x)
-        fval = ($alg).sn(xval, y)
-        ∂xf = ($alg).dn(xval, y) * ($alg).cn(xval, y)
-        ForwardDiff.Dual{T}(fval, ∂xf * ForwardDiff.partials(x))
-    end
-
-    @eval function ($alg).sn(x::U, y::ForwardDiff.Dual{T}) where {T,U}
-        yval = ForwardDiff.value(y)
-        fval = ($alg).sn(x, yval)
-        c = ($alg).cn(x, yval)
-        d = ($alg).dn(x, yval)
-        am = ($alg).am(x, yval)
-        E_am = ($alg).E(am, yval)
-        cd = c/d
-        ∂yf = _sn_parameter_derivative(E_am, cd, x, yval, fval, c, d)
-        ForwardDiff.Dual{T}(fval, ∂yf * ForwardDiff.partials(y))
-    end
-
-    @eval function ($alg).sn(x::ForwardDiff.Dual{T}, y::ForwardDiff.Dual{T}) where {T}
-        xval = ForwardDiff.value(x)
-        yval = ForwardDiff.value(y)
-        fval = ($alg).sn(xval, yval)
-        c = ($alg).cn(xval, yval)
-        d = ($alg).dn(xval, yval)
-        am = ($alg).am(xval, yval)
-        E_am = ($alg).E(am, yval)
-        cd = c/d
-        ∂xf = d * c
-        ∂yf = _sn_parameter_derivative(E_am, cd, xval, yval, fval, c, d)
-        ForwardDiff.Dual{T}(
-            fval,
-            ∂xf * ForwardDiff.partials(x) + ∂yf * ForwardDiff.partials(y),
-        )
-    end
-
-    #----------------------------------------------------------------------------------------
-    # Elliptic dn(u, m)
-    #----------------------------------------------------------------------------------------
-    @eval function ($alg).dn(x::ForwardDiff.Dual{T}, y::U) where {T,U}
-        xval = ForwardDiff.value(x)
-        fval = ($alg).dn(xval, y)
-        ∂xf = -y * ($alg).sn(xval, y) * ($alg).cn(xval, y)
-        ForwardDiff.Dual{T}(fval, ∂xf * ForwardDiff.partials(x))
-    end
-
-    @eval function ($alg).dn(x::U, y::ForwardDiff.Dual{T}) where {T,U}
-        yval = ForwardDiff.value(y)
-        fval = ($alg).dn(x, yval)
-        s = ($alg).sn(x, yval)
-        c = ($alg).cn(x, yval)
-        am = ($alg).am(x, yval)
-        E_am = ($alg).E(am, yval)
-        cd = c/fval
-        ∂yf = _dn_parameter_derivative(E_am, cd, x, yval, s, c, fval)
-        ForwardDiff.Dual{T}(fval, ∂yf * ForwardDiff.partials(y))
-    end
-
-    @eval function ($alg).dn(x::ForwardDiff.Dual{T}, y::ForwardDiff.Dual{T}) where {T}
-        xval = ForwardDiff.value(x)
-        yval = ForwardDiff.value(y)
-        fval = ($alg).dn(xval, yval)
-        s = ($alg).sn(xval, yval)
-        c = ($alg).cn(xval, yval)
-        am = ($alg).am(xval, yval)
-        E_am = ($alg).E(am, yval)
-        cd = c/fval
-        ∂xf = -yval * s * c
-        ∂yf = _dn_parameter_derivative(E_am, cd, xval, yval, s, c, fval)
-        ForwardDiff.Dual{T}(
-            fval,
-            ∂xf * ForwardDiff.partials(x) + ∂yf * ForwardDiff.partials(y),
-        )
-    end
-
-
 end
+
 end # module

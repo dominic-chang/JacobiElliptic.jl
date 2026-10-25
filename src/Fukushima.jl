@@ -1772,9 +1772,9 @@ function _rawSN(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
     sign = check ? -1 : 1
     u = check ? u - 2 * Kactual : u
     u > Kscreen && return sign * _fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[1]
-    u == Kscreen && return oneT
+    u == Kscreen && return sign * oneT
     u > halfK && return sign * _fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[1]
-    u == halfK && return inv(√(oneT + kp))
+    u == halfK && return sign * inv(√(oneT + kp))
     u ≥ quarterK && return sign * _fold_0_25(Kactual / 2 - u, m, kp)[1]
     return sign * _ΔXNloop(u, m, _dup_steps(u))[1]
 end
@@ -1796,9 +1796,9 @@ function _rawCN(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
     sign = check ? -1 : 1
     u = check ? u - 2 * Kactual : u
     u > Kscreen && return sign * _fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)[2]
-    u == Kscreen && return zero(T)
+    u == Kscreen && return sign * zero(T)
     u > halfK && return sign * _fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)[2]
-    u == halfK && return √(kp / (one(T) + kp))
+    u == halfK && return sign * √(kp / (one(T) + kp))
     u ≥ quarterK && return sign * _fold_0_25(Kactual / 2 - u, m, kp)[2]
     return sign * _ΔXNloop(u, m, _dup_steps(u))[2]
 end
@@ -1825,6 +1825,47 @@ function _rawDN(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
     return _ΔXNloop(u, m, _dup_steps(u))[3]
 end
 
+# `_SN`, `_CN` and `_DN` each evaluate `K(m)` and then the full `(sn, cn, dn)` triple
+# only to index one element out of it. Callers that want more than one of them pay for
+# that three times over, so this hands back the whole triple from one pass.
+function _SCD(u::T, m) where {T}
+    tempK = K(m)
+    kp = √(one(T) - m)
+    fourK = 4 * tempK
+    if u > fourK
+        return _rawSCD(u % fourK, m, tempK, tempK, kp)
+    end
+    return _rawSCD(u, m, tempK, tempK, kp)
+end
+
+function _rawSCD(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
+    T = promote_type(A, B, C, D, E)
+    oneT = one(T)
+    halfK = Kscreen / 2
+    quarterK = Kscreen / 4
+    check = u ≥ 2 * Kscreen
+    # `dn` is even about `2K` where `sn` and `cn` flip, so the fold sign reaches only
+    # the first two components.
+    sign = check ? -oneT : oneT
+    u = check ? u - 2 * Kactual : u
+    if u > Kscreen
+        s, c, d = _fold_1_00(u - Kactual, m, Kscreen, Kactual, kp)
+        return (sign * s, sign * c, d)
+    end
+    u == Kscreen && return (sign * oneT, sign * zero(T), T(kp))
+    if u > halfK
+        s, c, d = _fold_0_50(Kactual - u, m, Kscreen, Kactual, kp)
+        return (sign * s, sign * c, d)
+    end
+    u == halfK && return (sign * inv(√(oneT + kp)), sign * √(kp / (oneT + kp)), √kp)
+    if u ≥ quarterK
+        s, c, d = _fold_0_25(Kactual / 2 - u, m, kp)
+        return (sign * s, sign * c, d)
+    end
+    s, c, d = _ΔXNloop(u, m, _dup_steps(u))
+    return (sign * s, sign * c, d)
+end
+
 _sc_helper(jacobituple) = jacobituple[1] / jacobituple[2]
 function _rawSC(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
     T = promote_type(A, B, C, D, E)
@@ -1846,15 +1887,22 @@ end
 
 _sd_helper(jacobituple) = jacobituple[1] / jacobituple[3]
 function _rawSD(u::A, m::B, Kscreen::C, Kactual::D, kp::E) where {A,B,C,D,E}
+    T = promote_type(A, B, C, D, E)
     fourK = 4 * Kscreen
     u = u ≥ fourK ? u % (4 * Kactual) : u
-    u = u ≥ 2 * Kscreen ? u - 2 * Kactual : u
-    u > Kscreen && return _sd_helper(_fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
-    u == Kscreen && return inv(kp)
-    u > Kscreen / 2 && return _sd_helper(_fold_0_50(Kactual - u, m, Kscreen, Kactual, kp))
-    u == Kscreen / 2 && return inv(√((1 + kp) * kp))
-    u ≥ Kscreen / 4 && return _sd_helper(_fold_0_25(Kactual / 2 - u, m, kp))
-    return _sd_helper(_ΔXNloop(u, m, _dup_steps(u)))
+    # `sn` flips sign across 2K and `dn` does not, so unlike `_rawSC` -- where the two
+    # flips cancel in the ratio -- `sd` carries the fold sign through.
+    check = u ≥ 2 * Kscreen
+    sign = check ? -one(T) : one(T)
+    u = check ? u - 2 * Kactual : u
+    u > Kscreen &&
+        return sign * _sd_helper(_fold_1_00(u - Kactual, m, Kscreen, Kactual, kp))
+    u == Kscreen && return sign * inv(kp)
+    u > Kscreen / 2 &&
+        return sign * _sd_helper(_fold_0_50(Kactual - u, m, Kscreen, Kactual, kp))
+    u == Kscreen / 2 && return sign * inv(√((1 + kp) * kp))
+    u ≥ Kscreen / 4 && return sign * _sd_helper(_fold_0_25(Kactual / 2 - u, m, kp))
+    return sign * _sd_helper(_ΔXNloop(u, m, _dup_steps(u)))
 end
 
 function _SD(u, m)
@@ -1915,6 +1963,23 @@ function dn(u, m)
     m < 1 && return _DN(u, m)
     sqrtm = √m
     return _CN(u * sqrtm, inv(m))
+end
+
+# `sn`, `cn`, `dn` and `am` at one argument, sharing the single `_SCD` pass that the
+# public entry points would otherwise repeat three times. The reciprocal-modulus branch
+# maps all three onto the same reduced argument, so it fuses too. `am` comes from the
+# shared AGM kernel and is independent of the duplication loop.
+@inline function _scd_am(u::A, m::B) where {A,B}
+    T = promote_type(A, B)
+    signu = sign(u)
+    absu = abs(u)
+    if m < one(T)
+        s, c, d = _SCD(absu, m)
+        return (signu * s, c, d, am(u, m))
+    end
+    sqrtm = √m
+    s, c, d = _SCD(absu * sqrtm, inv(m))
+    return (signu * s / sqrtm, d, c, am(u, m))
 end
 
 function sc(u, m)
