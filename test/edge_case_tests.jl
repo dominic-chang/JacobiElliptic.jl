@@ -152,3 +152,55 @@ _arb(f, xs...) =
         end
     end
 end
+
+@testset "GPU-hostile error paths" begin
+    # Neither of these is reachable through the public API on the CPU -- the argument
+    # reduction in F/K/ellipke keeps the base helpers in range, and `_am`'s AGM counter is
+    # never negative. They matter because GPU backends compile the dead branches anyway,
+    # and Metal faults on throws it cannot lower (an opaque device exception, no name).
+
+    @testset "_am raises 2^n in float, not Int" begin
+        # An Int base sends `2^n` through `Base.power_by_squaring`, which carries a
+        # `DomainError` branch for negative exponents. `n` only counts up from 0, so the
+        # branch is dead -- but it still compiles into GPU kernels, and Metal traps on it
+        # (`throw_domerr_powbysq at kernels.jl:49` in a device backtrace). A float base has
+        # no such branch. Checked on the unoptimized typed IR: in a small kernel inlining
+        # constant-folds the branch away and hides the regression.
+        @testset "$alg, $T" for alg in
+                                (JacobiElliptic.CarlsonAlg, JacobiElliptic.FukushimaAlg),
+            T in (Float64, Float32)
+
+            ir = sprint(
+                io -> InteractiveUtils.code_warntype(
+                    io,
+                    alg._am,
+                    (T, T, T);
+                    optimize = false,
+                ),
+            )
+            powers = filter(l -> occursin(" ^ ", l), split(ir, '\n'))
+            @test !isempty(powers)                        # the probe still finds the call
+            @test all(l -> endswith(l, "::$T"), powers)   # ...and it is raised in T
+        end
+    end
+
+    @testset "Carlson base kernels return NaN out of domain" begin
+        # DRF/DRFD report out-of-domain input with a nonzero error code rather than
+        # throwing, so the base kernels must turn that into NaN. The `@assert`s these
+        # replace turned it into an `AssertionError`, which a GPU cannot lower -- and a
+        # SIMD group runs both arms of a divergent branch, so lanes the argument reduction
+        # already rejected still reach these calls and tripped the assert for the group.
+        CA = JacobiElliptic.CarlsonAlg
+
+        @test isnan(CA._rawF(2.0, 0.5))                 # |sinφ| > 1
+        @test isnan(CA._rawF(0.5f0, 5.0f0))             # 1 - m sin²φ < 0
+        @test isnan(first(CA._K_base(2.0)))             # m > 1
+        @test isnan(first(CA._K_base(2.0f0)))
+        @test all(isnan, CA._ellipke_base(2.0))
+        @test all(isnan, CA._ellipke_base(2.0f0))
+
+        # and the in-domain results are untouched
+        @test CA._rawF(sin(0.5), 0.5) ≈ _arb(ArbNumerics.elliptic_f, 0.5, 0.5) rtol = 1e-11
+        @test first(CA._K_base(0.5)) ≈ _arb(ArbNumerics.elliptic_k, 0.5) rtol = 1e-11
+    end
+end

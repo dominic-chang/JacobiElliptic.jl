@@ -46,7 +46,9 @@ function _am(u::A, m::B, tol::C) where {A,B,C}
     abs(c) > tol && return T(NaN)
 
     # φ = ldexp(a*u, n) # Was slower on my benchmarks
-    φ = a * u * (2^n)
+    # `T(2)^n` rather than `2^n`: the integer power goes through `Base.power_by_squaring`,
+    # which carries a `DomainError` branch for negative exponents which Metal cannot lower.
+    φ = a * u * T(2)^n
     for i = n:-1:1
         @inbounds φ = (φ + asin(_ambuf[i] * sin(φ))) / 2
     end

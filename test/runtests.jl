@@ -2,6 +2,7 @@ using Test
 using JacobiElliptic
 using ArbNumerics
 using DelimitedFiles: readdlm
+using InteractiveUtils
 using Enzyme, EnzymeTestUtils
 using Reactant
 

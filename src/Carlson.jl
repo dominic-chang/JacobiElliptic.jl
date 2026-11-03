@@ -23,7 +23,9 @@ include("complete_reduction.jl")
     inv3 = T(1 / 3)
     y = one(T) - m
     drf, ierr1, drd, ierr2 = DRFD(_zero(T), y, _one(T))
-    @assert ierr1 == 0 && ierr2 == 0
+    # `DRF`/`DRD` signal out-of-domain input with a nonzero code rather than throwing
+    # `@assert` throws a `AssertionError`, which Metal backends cannot lower.
+    (ierr1 == 0 && ierr2 == 0) || return (T(NaN), T(NaN))
     return (drf, muladd(-m * inv3, drd, drf))
 end
 
@@ -31,7 +33,8 @@ end
 # placeholder; the compiler drops it along with the unused half of the lift.
 @inline function _K_base(m::T) where {T}
     drf, ierr = DRF(_zero(T), one(T) - m, _one(T))
-    @assert ierr == 0
+    # see `_ellipke_base`: nonzero `ierr` is a value, not an exception
+    ierr == 0 || return (T(NaN), zero(T))
     return (drf, zero(T))
 end
 
@@ -42,7 +45,8 @@ end
     oneT = _one(T)
     sinφ2 = sinφ * sinφ
     drf, ierr = DRF(oneT - sinφ2, muladd(-m, sinφ2, oneT), oneT)
-    @assert ierr == 0
+    # see `_ellipke_base`: nonzero `ierr` is a value, not an exception
+    ierr == 0 || return T(NaN)
     sinφ * drf
 end
 
