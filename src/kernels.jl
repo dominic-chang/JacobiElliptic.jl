@@ -29,8 +29,9 @@ function _am(u::A, m::B, tol::C) where {A,B,C}
         return u - m * (u - sin(2 * u) / 2) / 4
     end
     m1 = one(T) - m
-    if m1 < sqrt_tol
-        # A&S 16.15.4
+    # A&S 16.15.4 is first order in m1 with error O((m1 cosh(u)^2)^2): use it only where
+    # that is below tol, i.e. well inside |u| < K(m); elsewhere the AGM below holds.
+    if m1 < sqrt_tol && (iszero(m1) || m1 * cosh(u)^2 < sqrt_tol)
         t = tanh(u)
         return asin(t) + m1 * (t - u * (one(T) - t^2)) * cosh(u) / 4
     end
