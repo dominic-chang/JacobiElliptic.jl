@@ -203,4 +203,24 @@ end
         @test CA._rawF(sin(0.5), 0.5) ≈ _arb(ArbNumerics.elliptic_f, 0.5, 0.5) rtol = 1e-11
         @test first(CA._K_base(0.5)) ≈ _arb(ArbNumerics.elliptic_k, 0.5) rtol = 1e-11
     end
+    @testset "sn, cn for m near 1 at |u| up to 2K(m)" begin
+        # A&S 16.15.4 (first order in 1 - m) holds only for (1 - m) cosh(u)^2 << 1; the
+        # cases reach u ≈ 1.9 K(m). (u, m, sn, cn) from mpmath at 50 digits.
+        cases = (
+            (5.8739636482105215, 0.999999999, 0.9999841889869129, 0.005623324300283354),
+            (17.621890944631566, 0.999999999, 0.9999841889869129, -0.0056233243002833545),
+            (22.32106186319998, 0.999999999, 0.82580254414494, -0.5639593585390212),
+            (22.80272397010518, 0.999999999999, 0.9999995000059054, -0.0009999939695327612),
+            (28.883450362133228, 0.999999999999, 0.9087293000336927, -0.4173859835455366),
+            (27.984123535935506, 0.999999999999999, 0.9999999841949322, -0.00017779239405545436),
+            (35.44655647885164, 0.999999999999999, 0.9531943021914329, -0.30235843343585994),
+            (-19.314222997786473, 0.9999999917019833, -0.9683816763736394, -0.24947330290790634),
+        )
+        @testset "u = $u, m = $m" for (u, m, sn_ref, cn_ref) in cases
+            @test JacobiElliptic.sn(u, m) ≈ sn_ref atol = 1e-12
+            @test JacobiElliptic.cn(u, m) ≈ cn_ref atol = 1e-12
+        end
+        @test JacobiElliptic.cn(3.0, 1.0) ≈ sech(3.0) rtol = 1e-14     # m = 1: am = gd(u)
+        @test JacobiElliptic.sn(40.0, 1.0) ≈ tanh(40.0) rtol = 1e-14
+    end
 end
